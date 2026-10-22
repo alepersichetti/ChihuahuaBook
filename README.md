@@ -4,6 +4,8 @@ Web app personale e open source per catalogare la propria libreria, pensata come
 
 Stack previsto: Next.js (App Router), Supabase, Vercel. Requisiti e architettura in definizione.
 
+Per farla girare sul tuo computer (Node, Supabase locale, migrazioni, test) segui la guida [docs/sviluppo-locale.md](docs/sviluppo-locale.md).
+
 ## Sviluppo
 
 ```bash
