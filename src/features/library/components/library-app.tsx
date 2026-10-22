@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SettingsButton } from "../../settings/components/settings-panel";
+import { SettingsDialog } from "../../settings/components/settings-panel";
 import type { Role } from "../../settings/model";
 import { SettingsProvider } from "../../settings/settings-context";
 import type { Library } from "../model";
@@ -25,7 +25,7 @@ function Screens() {
       </div>
       <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
       <ImportDialog />
-      <SettingsButton />
+      <SettingsDialog />
     </div>
   );
 }

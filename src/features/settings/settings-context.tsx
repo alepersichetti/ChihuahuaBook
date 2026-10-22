@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, use, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { canOpenSettings, defaultPreferences, parsePreferences, type Preferences, type Role } from "./model";
 import { localStore } from "./store";
 
@@ -11,15 +11,19 @@ const serverPreferences = () => defaultPreferences;
 
 const useSettingsValue = (role: Role) => {
   const preferences = useSyncExternalStore(preferencesStore.subscribe, preferencesStore.get, serverPreferences);
+  const [panelOpen, setPanelOpen] = useState(false);
   return useMemo(
     () => ({
       role,
       canOpen: canOpenSettings(role),
+      panelOpen: panelOpen && canOpenSettings(role),
+      openPanel: () => setPanelOpen(true),
+      closePanel: () => setPanelOpen(false),
       preferences,
       setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
         preferencesStore.set({ ...preferencesStore.get(), [key]: value }),
     }),
-    [role, preferences],
+    [role, preferences, panelOpen],
   );
 };
 

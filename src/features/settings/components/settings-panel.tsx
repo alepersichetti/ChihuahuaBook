@@ -1,13 +1,14 @@
 "use client";
 
 import { Settings, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { hasRole } from "../model";
 import { settingsSections } from "../sections";
 import { useSettings } from "../settings-context";
 
-function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { role } = useSettings();
+/** Pannello delle impostazioni: si apre dalla voce "Impostazioni" della barra laterale. */
+export function SettingsDialog() {
+  const { role, panelOpen: open, closePanel: onClose } = useSettings();
   const dialog = useRef<HTMLDialogElement>(null);
   const sections = settingsSections.filter((section) => hasRole(role, section.minRole));
 
@@ -55,26 +56,5 @@ function SettingsDialog({ open, onClose }: { open: boolean; onClose: () => void 
         </div>
       </div>
     </dialog>
-  );
-}
-
-/** Ingranaggio in basso a destra; i lettori non lo vedono. */
-export function SettingsButton() {
-  const { canOpen } = useSettings();
-  const [open, setOpen] = useState(false);
-  if (!canOpen) return null;
-  return (
-    <>
-      <button
-        type="button"
-        aria-label="Impostazioni"
-        title="Impostazioni"
-        onClick={() => setOpen(true)}
-        className="fixed right-5 bottom-[172px] z-10 flex size-11 items-center justify-center rounded-full border border-line-strong bg-surface text-ink-soft shadow-lg hover:text-ink md:right-5 md:bottom-12"
-      >
-        <Settings size={20} />
-      </button>
-      <SettingsDialog open={open} onClose={() => setOpen(false)} />
-    </>
   );
 }

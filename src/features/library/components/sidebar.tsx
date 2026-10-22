@@ -1,10 +1,27 @@
 "use client";
 
-import { ChartColumn, ChevronDown, ChevronRight, Plus, Upload } from "lucide-react";
+import { ChartColumn, ChevronDown, ChevronRight, Plus, Settings, Upload } from "lucide-react";
+import { useSettings } from "../../settings/settings-context";
 import type { Collection } from "../model";
 import { childrenOf } from "../query";
 import { collectionIcon } from "./icons";
 import { useLibrary } from "./library-context";
+
+// I lettori non vedono le impostazioni.
+function SettingsLink() {
+  const { canOpen, openPanel } = useSettings();
+  if (!canOpen) return null;
+  return (
+    <button
+      type="button"
+      onClick={openPanel}
+      className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
+    >
+      <Settings size={16} aria-hidden="true" />
+      Impostazioni
+    </button>
+  );
+}
 
 const specialKinds = new Set<Collection["kind"]>(["library", "loaned", "wishlist"]);
 
@@ -102,6 +119,7 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
           <ChartColumn size={16} aria-hidden="true" />
           Statistiche
         </button>
+        <SettingsLink />
       </div>
     </nav>
   );
