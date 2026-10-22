@@ -120,10 +120,11 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
       </div>
       {creating && (
         <NewCollectionInput
+          withKind
           className="px-1.5 pb-1"
           onCancel={() => setCreating(false)}
-          onCreate={(name) => {
-            dispatch({ type: "createCollection", id: newCollectionId(), name, select: true });
+          onCreate={(collection) => {
+            dispatch({ type: "createCollection", id: newCollectionId(), ...collection, select: true });
             setCreating(false);
           }}
         />

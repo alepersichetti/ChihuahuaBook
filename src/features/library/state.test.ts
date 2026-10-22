@@ -112,3 +112,19 @@ describe("nuove collezioni e libri aggiunti", () => {
     expect(run({ type: "addBook", book }).library.collections).toEqual(before);
   });
 });
+
+describe("cartelle", () => {
+  it("crea una cartella e una collezione al suo interno, aprendo la cartella", () => {
+    const state = run(
+      { type: "createCollection", id: "folder:generi", name: "Generi", kind: "folder" },
+      { type: "toggleFolder", folderId: "folder:generi" },
+      { type: "createCollection", id: "collection:gialli", name: "Gialli", parentId: "folder:generi" },
+    );
+    expect(state.library.collections.find((item) => item.id === "folder:generi")).toMatchObject({ kind: "folder", parentId: null });
+    expect(state.library.collections.find((item) => item.id === "collection:gialli")).toMatchObject({
+      kind: "regular",
+      parentId: "folder:generi",
+    });
+    expect(state.collapsedFolders).not.toContain("folder:generi");
+  });
+});

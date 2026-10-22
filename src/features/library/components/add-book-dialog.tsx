@@ -24,6 +24,8 @@ import { emptyForm, formFromDraft, toLibraryBook, validateForm, type BookForm, t
 import { useT } from "../../i18n/i18n-context";
 import type { Messages } from "../../i18n/messages";
 import { useLibrary } from "./library-context";
+import type { Collection } from "../model";
+import { folderPath } from "../query";
 import { NewCollectionInput, newCollectionId } from "./new-collection-input";
 import { SourceIcon } from "./source-icons";
 
@@ -240,13 +242,21 @@ function Field({
   );
 }
 
-function CoverPicker({ cover, onCover }: { cover: CoverFile | null; onCover: (file: File | null) => void }) {
+function CoverPicker({
+  hasCover,
+  onCover,
+  onRemove,
+}: {
+  hasCover: boolean;
+  onCover: (file: File | null) => void;
+  onRemove: () => void;
+}) {
   const t = useT();
   return (
     <div className="flex w-full flex-col gap-1">
       <label className="flex h-8 cursor-pointer whitespace-nowrap items-center justify-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2 text-xs font-medium hover:bg-chip">
         <ImageUp size={14} className="shrink-0" aria-hidden="true" />
-        {cover ? t.addBook.changeCover : t.addBook.uploadCover}
+        {hasCover ? t.addBook.changeCover : t.addBook.uploadCover}
         <input
           type="file"
           accept="image/*"
@@ -257,10 +267,10 @@ function CoverPicker({ cover, onCover }: { cover: CoverFile | null; onCover: (fi
           }}
         />
       </label>
-      {cover && (
+      {hasCover && (
         <button
           type="button"
-          onClick={() => onCover(null)}
+          onClick={onRemove}
           className="flex h-7 items-center justify-center gap-1 whitespace-nowrap rounded-lg text-xs text-muted hover:bg-chip"
         >
           <Trash2 size={12} aria-hidden="true" />
@@ -281,15 +291,23 @@ function CollectionPicker({
   const t = useT();
   const { state, dispatch } = useLibrary();
   const [creating, setCreating] = useState(false);
-  const regular = state.library.collections.filter((item) => item.kind === "regular");
+  // Le collezioni dentro una cartella stanno in un gruppo con il percorso della cartella.
+  const groups = [
+    ...state.library.collections
+      .filter((item) => item.kind === "regular")
+      .reduce((byPath, item) => {
+        const path = folderPath(state.library.collections, item.parentId).join(" / ");
+        return byPath.set(path, [...(byPath.get(path) ?? []), item]);
+      }, new Map<string, Collection[]>()),
+  ].sort(([a], [b]) => a.localeCompare(b));
   return (
     <Field label={t.addBook.collection} wide>
       {creating ? (
         <NewCollectionInput
           onCancel={() => setCreating(false)}
-          onCreate={(name) => {
+          onCreate={(collection) => {
             const id = newCollectionId();
-            dispatch({ type: "createCollection", id, name });
+            dispatch({ type: "createCollection", id, ...collection });
             onChange(id);
             setCreating(false);
           }}
@@ -303,11 +321,20 @@ function CollectionPicker({
           className={input}
         >
           <option value="">{t.addBook.noCollection}</option>
-          {regular.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
+          {groups.map(([path, items]) => {
+            const options = items.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.name}
+              </option>
+            ));
+            return path ? (
+              <optgroup key={path} label={path}>
+                {options}
+              </optgroup>
+            ) : (
+              options
+            );
+          })}
           <option value={newCollectionValue}>{t.addBook.newCollectionOption}</option>
         </select>
       )}
@@ -339,7 +366,7 @@ function BookFormPanel({
   const t = useT();
   const issueOf = (key: keyof BookForm) =>
     issues.includes(key) ? (key === "title" ? t.addBook.titleRequired : t.addBook.invalidValue) : undefined;
-  const text = (key: Exclude<keyof BookForm, "summary">, options: { wide?: boolean; inputMode?: "numeric" } = {}) => (
+  const text = (key: Exclude<keyof BookForm, "summary" | "coverUrl">, options: { wide?: boolean; inputMode?: "numeric" } = {}) => (
     <Field label={t.addBook.form[key]} issue={issueOf(key)} wide={options.wide}>
       <input
         value={form[key]}
@@ -361,7 +388,14 @@ function BookFormPanel({
       <div className="flex gap-4">
         <div className="flex w-36 shrink-0 flex-col items-center gap-2">
           <Thumb url={cover?.url ?? (form.coverUrl || null)} large />
-          <CoverPicker cover={cover} onCover={onCover} />
+          <CoverPicker
+            hasCover={Boolean(cover || form.coverUrl)}
+            onCover={onCover}
+            onRemove={() => {
+              onCover(null);
+              onChange({ ...form, coverUrl: "" });
+            }}
+          />
         </div>
         <div className="grid flex-1 content-start grid-cols-1 gap-3 sm:grid-cols-2">
           {text("title", { wide: true })}
@@ -377,11 +411,7 @@ function BookFormPanel({
         {text("language")}
         {text("genres")}
         <CollectionPicker value={collectionId} onChange={onCollection} />
-        {cover ? (
-          <p className="text-xs text-muted sm:col-span-2">{t.addBook.coverFromFile(cover.name)}</p>
-        ) : (
-          text("coverUrl", { wide: true })
-        )}
+        {cover && <p className="text-xs text-muted sm:col-span-2">{t.addBook.coverFromFile(cover.name)}</p>}
         <Field label={t.addBook.form.summary} issue={issueOf("summary")} wide>
           <textarea
             rows={4}
@@ -426,6 +456,17 @@ export function AddBookDialog() {
     else dialog.current?.close();
   }, [state.addOpen]);
 
+  // Come in Bookpedia, un libro aggiunto mentre si guarda una collezione finisce lì.
+  const current = state.library.collections.find((item) => item.id === state.collectionId);
+  const defaultCollection = current?.kind === "regular" ? current.id : "";
+  const [openedWith, setOpenedWith] = useState<string | null>(null);
+  if (state.addOpen && openedWith === null) {
+    setOpenedWith(defaultCollection);
+    setCollectionId(defaultCollection);
+  } else if (!state.addOpen && openedWith !== null) {
+    setOpenedWith(null);
+  }
+
   const go = (next: Stage) => {
     setIssues([]);
     setProblem(null);
@@ -435,7 +476,7 @@ export function AddBookDialog() {
   // Si riparte da zero: l'anteprima della copertina resta solo se il libro la usa.
   const restart = () => {
     setCover(null);
-    setCollectionId("");
+    setCollectionId(defaultCollection);
     go(choose);
   };
 

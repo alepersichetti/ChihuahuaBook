@@ -64,7 +64,14 @@ export type LibraryAction =
     }
   | { readonly type: "setAddOpen"; readonly open: boolean }
   | { readonly type: "addBook"; readonly book: Book; readonly collectionId?: string | null }
-  | { readonly type: "createCollection"; readonly id: string; readonly name: string; readonly select?: boolean };
+  | {
+      readonly type: "createCollection";
+      readonly id: string;
+      readonly name: string;
+      readonly kind?: "regular" | "folder";
+      readonly parentId?: string | null;
+      readonly select?: boolean;
+    };
 
 export const defaultColumns: readonly ColumnKey[] = [
   "title",
@@ -251,17 +258,14 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
         selectedBookId: action.book.id,
       };
     case "createCollection": {
-      const collection: Collection = {
-        id: action.id,
-        name: action.name.trim(),
-        parentId: null,
-        kind: "regular",
-        bookIds: [],
-        excluded: false,
-      };
+      const base = { id: action.id, name: action.name.trim(), parentId: action.parentId ?? null };
+      const collection: Collection =
+        action.kind === "folder" ? { ...base, kind: "folder" } : { ...base, kind: "regular", bookIds: [], excluded: false };
       return {
         ...state,
         library: { ...state.library, collections: [...state.library.collections, collection] },
+        // La cartella che la contiene si apre, così la nuova voce si vede.
+        collapsedFolders: state.collapsedFolders.filter((id) => id !== action.parentId),
         ...(action.select ? { collectionId: action.id, selectedBookId: null, valueFilter: null } : {}),
       };
     }

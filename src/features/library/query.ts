@@ -302,3 +302,21 @@ export const loanState = (book: Pick<Book, "loan">, today: string | null): LoanS
 
 export const addDays = (isoDate: string, days: number) =>
   new Date(Date.parse(isoDate) + days * dayMs).toISOString().slice(0, 10);
+
+/** Percorso delle cartelle che contengono una collezione, dalla più esterna: ["Autori"]. */
+export const folderPath = (collections: readonly Collection[], parentId: string | null): readonly string[] => {
+  const parent = collections.find((item) => item.id === parentId && item.kind === "folder");
+  // Il limite di profondità protegge da eventuali cicli nei dati importati.
+  const walk = (folder: Collection | undefined, depth: number): readonly string[] =>
+    !folder || depth > 20
+      ? []
+      : [...walk(collections.find((item) => item.id === folder.parentId && item.kind === "folder"), depth + 1), folder.name];
+  return walk(parent, 0);
+};
+
+/** Le cartelle, ognuna con il percorso completo: utile per i menu a tendina. */
+export const foldersWithPath = (collections: readonly Collection[]) =>
+  collections
+    .filter((item) => item.kind === "folder")
+    .map((folder) => ({ id: folder.id, label: [...folderPath(collections, folder.parentId), folder.name].join(" / ") }))
+    .sort((a, b) => a.label.localeCompare(b.label));
