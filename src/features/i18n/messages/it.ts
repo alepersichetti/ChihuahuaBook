@@ -163,6 +163,7 @@ export const it = {
     menu: "Importa .pedia",
     title: "Importa da Bookpedia",
     noXml: "Nel file non c'è nessun XML: scegli la cartella .pedia completa o il suo zip.",
+    xmlAlone: "Scegli il file .pedia intero (o il suo zip), non l'XML che contiene: servono anche le copertine.",
     unreadable: (path: string, reason: string) => `Non riesco a leggere ${path}: ${reason}`,
     noRecords: (path: string) => `In ${path} non ho trovato schede di libri.`,
     readFailed: (reason: string) => `Lettura non riuscita: ${reason}`,
@@ -194,8 +195,8 @@ export const it = {
     dropBefore: "Trascina qui il file ",
     dropAfter: " esportato da Bookpedia,",
     dropZip: "oppure lo zip che lo contiene.",
-    chooseFolder: "Scegli la cartella",
-    chooseFile: "Scegli zip o XML",
+    chooseFolder: "Scegli il .pedia",
+    chooseFile: "Scegli lo zip del .pedia",
     macHint:
       "Sul Mac un .pedia è un pacchetto: se il selettore non lo apre, trascinalo qui oppure comprimilo (tasto destro, «Comprimi») e scegli lo zip. Il file viene letto nel browser.",
     reading: "Leggo il file…",

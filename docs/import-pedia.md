@@ -10,8 +10,9 @@ A `.pedia` file is a folder (Finder shows it as a single file) containing an XML
 
 - **Drag** the `.pedia` into the window: the browser reads the whole folder.
 - **A zip** of the `.pedia` (right click in Finder, «Compress»): this is the safest route, because the Mac file picker does not always enter packages.
-- **The folder**, with the «Scegli la cartella» (choose folder) button.
-- **Just the XML**, if you don't need the covers.
+- **The `.pedia` itself**, with the «Scegli il .pedia» (choose the .pedia) button.
+
+Only the whole `.pedia` is accepted: the XML on its own is refused, because the covers would be missing.
 
 The file is read entirely in the browser; the server only receives the book data and the images, one request at a time (none exceeds Vercel's size limits).
 

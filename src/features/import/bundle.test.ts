@@ -1,6 +1,6 @@
 import { zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
-import { bundleFromFiles, readBundle } from "./bundle";
+import { bundleFromFiles, isLooseXml, readBundle } from "./bundle";
 
 const file = (path: string, content = "x") => ({ path, blob: new Blob([content]) });
 
@@ -30,5 +30,13 @@ describe("readBundle", () => {
     const bundle = await readBundle([{ path: "Libri.pedia.zip", blob: new Blob([zip]) }]);
     expect(await bundle.xml?.blob.text()).toBe("<collection/>");
     expect(bundle.images[0].blob.type).toBe("image/jpeg");
+  });
+});
+
+describe("isLooseXml", () => {
+  it("riconosce un XML scelto da solo, fuori dal suo .pedia", () => {
+    expect(isLooseXml([file("Info.xml")])).toBe(true);
+    expect(isLooseXml([file("Libri.pedia/Info.xml")])).toBe(false);
+    expect(isLooseXml([file("Libri.pedia.zip")])).toBe(false);
   });
 });

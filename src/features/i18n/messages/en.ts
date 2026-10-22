@@ -165,6 +165,7 @@ export const en: Messages = {
     menu: "Import .pedia",
     title: "Import from Bookpedia",
     noXml: "There is no XML in the file: choose the whole .pedia folder or its zip.",
+    xmlAlone: "Choose the whole .pedia file (or its zip), not the XML inside it: the covers are needed too.",
     unreadable: (path: string, reason: string) => `Can't read ${path}: ${reason}`,
     noRecords: (path: string) => `No book records found in ${path}.`,
     readFailed: (reason: string) => `Reading failed: ${reason}`,
@@ -196,8 +197,8 @@ export const en: Messages = {
     dropBefore: "Drop the ",
     dropAfter: " file exported from Bookpedia here,",
     dropZip: "or the zip that contains it.",
-    chooseFolder: "Choose the folder",
-    chooseFile: "Choose zip or XML",
+    chooseFolder: "Choose the .pedia",
+    chooseFile: "Choose the .pedia zip",
     macHint:
       "On a Mac a .pedia is a package: if the picker won't open it, drag it here or compress it (right click, “Compress”) and choose the zip. The file is read in your browser.",
     reading: "Reading the file…",

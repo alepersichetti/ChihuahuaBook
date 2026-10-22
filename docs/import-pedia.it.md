@@ -8,8 +8,9 @@ Un file `.pedia` è una cartella (il Finder la mostra come un file unico) con un
 
 - **Trascinare** il `.pedia` nella finestra: il browser legge tutta la cartella.
 - **Uno zip** del `.pedia` (tasto destro nel Finder, «Comprimi»): è la strada più sicura, perché il selettore di file del Mac non sempre entra nei pacchetti.
-- **La cartella** con il pulsante «Scegli la cartella».
-- **Solo l'XML**, se le copertine non servono.
+- **Il `.pedia` stesso**, con il pulsante «Scegli il .pedia».
+
+Si accetta solo il `.pedia` intero: l'XML da solo viene rifiutato, perché mancherebbero le copertine.
 
 Il file viene letto interamente nel browser; al server arrivano solo i dati dei libri e le immagini, una richiesta alla volta (nessuna supera i limiti di dimensione di Vercel).
 
