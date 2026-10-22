@@ -97,13 +97,12 @@ export const en: Messages = {
     alreadyIn: (title: string, name: string) => `“${title}” is already in ${name}`,
     ofBook: {
       title: "Collections",
-      none: "Not in any collection.",
-      add: "Add to collection",
+      placeholder: "Add to a collection…",
+      suggestions: "Suggested collections",
+      create: (name: string) => `Create the collection “${name}”`,
       remove: (name: string) => `Remove from ${name}`,
       open: (name: string) => `Open ${name}`,
-      filter: "Find a collection",
-      noMatches: "No collections found.",
-      noneYet: "There are no collections yet.",
+      noMatches: "No collections to add.",
     },
     search: {
       open: "Add books",

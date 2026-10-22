@@ -95,13 +95,12 @@ export const it = {
     alreadyIn: (title: string, name: string) => `«${title}» è già in ${name}`,
     ofBook: {
       title: "Collezioni",
-      none: "In nessuna collezione.",
-      add: "Aggiungi a collezione",
+      placeholder: "Aggiungi a una collezione…",
+      suggestions: "Collezioni suggerite",
+      create: (name: string) => `Crea la collezione «${name}»`,
       remove: (name: string) => `Togli da ${name}`,
       open: (name: string) => `Apri ${name}`,
-      filter: "Cerca una collezione",
-      noMatches: "Nessuna collezione trovata.",
-      noneYet: "Non ci sono ancora collezioni.",
+      noMatches: "Nessuna collezione da aggiungere.",
     },
     search: {
       open: "Aggiungi libri",
