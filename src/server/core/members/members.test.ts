@@ -16,7 +16,7 @@ const echoUpdate: Pick<MemberStore, "update"> = {
     okAsync({ user_id, email: "x@example.com", display_name: null, role: "reader", active: true, created_at: "", ...patch } as Member),
 };
 
-const settings = { open_signup: false, signup_role: "reader", language: "it" } as const;
+const settings = { open_signup: false, language: "it" } as const;
 
 describe("membri", () => {
   it("l'admin cambia il ruolo di un altro membro", async () => {
@@ -43,8 +43,15 @@ describe("membri", () => {
   it("normalizza l'email dell'invito", async () => {
     const result = await inviteMember({
       invite: (input) => okAsync({ ...input, created_at: "", expires_at: "" }),
-    })({ email: " Marta@Example.COM ", role: "librarian" });
-    expect(result._unsafeUnwrap()).toMatchObject({ email: "marta@example.com", role: "librarian" });
+    })({ email: " Marta@Example.COM " });
+    expect(result._unsafeUnwrap()).toMatchObject({ email: "marta@example.com" });
+  });
+
+  it("l'invito non sceglie il ruolo: si entra come lettore", async () => {
+    const result = await inviteMember({
+      invite: (input) => okAsync({ ...input, created_at: "", expires_at: "" }),
+    })({ email: "marta@example.com", role: "librarian" });
+    expect(result._unsafeUnwrapErr().kind).toBe("validation");
   });
 
   it("accetta solo le lingue previste", async () => {
@@ -53,9 +60,9 @@ describe("membri", () => {
     expect((await changeSettings(store)(admin, { language: "fr" }))._unsafeUnwrapErr().kind).toBe("validation");
   });
 
-  it("la registrazione aperta non può dare il ruolo di admin", async () => {
+  it("la registrazione aperta non sceglie il ruolo: si entra come lettore", async () => {
     const result = await changeSettings({ updateSettings: () => okAsync(settings) })(admin, {
-      signup_role: "admin",
+      signup_role: "librarian",
     });
     expect(result._unsafeUnwrapErr().kind).toBe("validation");
   });

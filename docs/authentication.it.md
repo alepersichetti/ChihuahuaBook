@@ -12,11 +12,11 @@ I ruoli sono applicati in tre punti, così un errore in uno strato non apre i da
 
 1. **Database (RLS)**: `supabase/migrations/20261022160000_roles.sql`. La funzione `public.has_role()` legge il ruolo da `public.members` e ogni policy la usa. È la garanzia vera: vale anche per chi chiama Supabase direttamente con il proprio token.
 2. **API**: ogni rotta in `src/server/http` dichiara il ruolo minimo (`guarded("read" | "edit" | "administer")`) e risponde `401` senza sessione, `403` con un ruolo insufficiente.
-3. **Interfaccia**: il lettore non vede i comandi di modifica; il lettore non apre le Impostazioni; solo l'amministratore vi vede la sezione **Utenti e accessi**.
+3. **Interfaccia**: il lettore non vede i comandi di modifica; il lettore non apre le Impostazioni; solo l'amministratore vi vede la sezione **Utenti e ruoli**.
 
 ## Impostazioni e lingua
 
-Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (palette colori, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e accessi**.
+Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (palette colori, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e ruoli**.
 
 L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutta l'istanza (`instance_settings.language`, italiano se non scelta): la cambia solo l'amministratore, e la usa anche la pagina di accesso. I testi sono in `src/features/i18n/messages/` (`it.ts` è il riferimento, `en.ts` deve avere le stesse chiavi e TypeScript lo verifica).
 
@@ -24,7 +24,16 @@ L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutt
 
 Su un'istanza nuova **il primo account che si registra diventa amministratore**. La pagina di accesso lo dice ("questa istanza è nuova").
 
-Da lì in poi la registrazione è **su invito**: in Impostazioni → *Utenti e accessi* l'amministratore inserisce un'email e un ruolo, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti, con ruolo iniziale Lettore o Bibliotecario.
+Da lì in poi la registrazione è **su invito**: in Impostazioni → *Utenti e ruoli* l'amministratore inserisce un'email, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti.
+
+## Utenti e ruoli
+
+**Chi entra è sempre Lettore**, sia con un invito sia con la registrazione aperta: l'invito non sceglie il ruolo. Bibliotecario e Amministratore si diventano solo per promozione, dalla sezione *Utenti e ruoli* delle Impostazioni (visibile solo all'amministratore):
+
+- in cima, i tre ruoli con cosa può fare ciascuno e quanti membri attivi ne hanno;
+- per ogni membro, un selettore Lettore / Bibliotecario / Amministratore: il cambio vale subito, e la promozione ad amministratore chiede una conferma;
+- il pulsante accanto al nome disattiva o riattiva l'account;
+- con più di quattro membri compare una ricerca per nome o email.
 
 Tutto avviene in un trigger su `auth.users` (`public.handle_new_user`), quindi all'app non serve la chiave `service_role`. Una registrazione senza invito viene rifiutata dal database e la pagina spiega perché.
 

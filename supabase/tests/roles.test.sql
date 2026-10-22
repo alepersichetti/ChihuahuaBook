@@ -33,12 +33,14 @@ select pg_temp.expect((select role from public.members where email = 'admin@exam
 select pg_temp.expect(public.signup_mode() = 'invite_only', 'poi serve un invito');
 select pg_temp.expect(pg_temp.fails($$insert into auth.users (email) values ('stranger@example.com')$$), 'senza invito la registrazione fallisce');
 
-insert into public.invitations (email, role) values ('lib@example.com', 'librarian'), ('reader@example.com', 'reader');
+insert into public.invitations (email) values ('lib@example.com'), ('reader@example.com');
 insert into auth.users (email) values ('lib@example.com'), ('reader@example.com');
-select pg_temp.expect((select role from public.members where email = 'lib@example.com') = 'librarian', 'l''invito assegna il ruolo');
+select pg_temp.expect((select bool_and(role = 'reader') from public.members where email in ('lib@example.com', 'reader@example.com')), 'chi è invitato entra come lettore');
 select pg_temp.expect(not exists (select 1 from public.invitations), 'l''invito usato sparisce');
+-- Bibliotecario si diventa solo per promozione.
+update public.members set role = 'librarian' where email = 'lib@example.com';
 
-insert into public.invitations (email, role, expires_at) values ('late@example.com', 'reader', now() - interval '1 day');
+insert into public.invitations (email, expires_at) values ('late@example.com', now() - interval '1 day');
 select pg_temp.expect(pg_temp.fails($$insert into auth.users (email) values ('late@example.com')$$), 'l''invito scaduto non vale');
 
 update public.instance_settings set open_signup = true;

@@ -15,14 +15,12 @@ export type Member = {
 
 export type Invitation = {
   readonly email: string;
-  readonly role: Role;
   readonly created_at: string;
   readonly expires_at: string;
 };
 
 export type InstanceSettings = {
   readonly open_signup: boolean;
-  readonly signup_role: "reader" | "librarian";
   readonly language: Language;
 };
 
@@ -64,7 +62,7 @@ export const adminApi = {
   updateMember: (id: string, patch: Partial<Pick<Member, "role" | "active">>) =>
     request<Member>(`/members/${id}`, send("PATCH", patch)),
   invitations: () => request<readonly Invitation[]>("/invitations"),
-  invite: (email: string, role: Role) => request<Invitation>("/invitations", send("POST", { email, role })),
+  invite: (email: string) => request<Invitation>("/invitations", send("POST", { email })),
   revoke: (email: string) => request<void>(`/invitations/${encodeURIComponent(email)}`, send("DELETE")),
   settings: () => request<InstanceSettings>("/settings"),
   updateSettings: (patch: Partial<InstanceSettings>) => request<InstanceSettings>("/settings", send("PATCH", patch)),

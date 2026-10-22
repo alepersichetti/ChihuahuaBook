@@ -103,7 +103,6 @@ type MemberRow = {
 
 type InvitationRow = {
   email: string;
-  role: AppRole;
   invited_by: string | null;
   created_at: string;
   expires_at: string;
@@ -112,7 +111,6 @@ type InvitationRow = {
 type InstanceSettingsRow = {
   id: boolean;
   open_signup: boolean;
-  signup_role: AppRole;
   language: "it" | "en";
   updated_at: string;
   updated_by: string | null;
@@ -187,7 +185,7 @@ export type Database = {
         Row: InstanceSettingsRow;
         Insert: Partial<InstanceSettingsRow>;
         Update: Partial<
-          Pick<InstanceSettingsRow, "open_signup" | "signup_role" | "language" | "updated_by">
+          Pick<InstanceSettingsRow, "open_signup" | "language" | "updated_by">
         >;
         Relationships: [];
       };
