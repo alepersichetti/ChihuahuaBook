@@ -52,7 +52,11 @@ export const it = {
     list: "Tabella",
     grid: "Griglia",
     carousel: "Galleria",
-    shelf: "Scaffale",
+    hints: {
+      list: "un libro per riga, con le colonne da ordinare e scegliere",
+      grid: "le copertine affiancate, di dimensione regolabile",
+      carousel: "le copertine a scorrimento, con quella scelta in primo piano",
+    },
   },
   search: {
     label: "Cerca",

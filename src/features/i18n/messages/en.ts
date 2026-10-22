@@ -54,7 +54,11 @@ export const en: Messages = {
     list: "Table",
     grid: "Grid",
     carousel: "Gallery",
-    shelf: "Shelf",
+    hints: {
+      list: "one book per row, with columns you can sort and choose",
+      grid: "covers side by side, at an adjustable size",
+      carousel: "scrolling covers, with the chosen one in front",
+    },
   },
   search: {
     label: "Search",

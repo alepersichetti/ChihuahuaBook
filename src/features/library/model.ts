@@ -87,8 +87,8 @@ export type Library = {
   readonly collections: readonly Collection[];
 };
 
-// Tabella, griglia, galleria (carosello) e scaffale (carosello con la scheda sotto).
-export const viewModes = ["list", "grid", "carousel", "shelf"] as const;
+// Tabella, griglia e galleria (carosello).
+export const viewModes = ["list", "grid", "carousel"] as const;
 export type ViewMode = (typeof viewModes)[number];
 
 export const columnKeys = [
