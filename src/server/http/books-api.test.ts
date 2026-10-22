@@ -156,4 +156,17 @@ describe("books API", () => {
     const missing = await call(handler, "GET", "/api/search?source=altro&q=x");
     expect(missing.status).toBe(400);
   });
+
+  it("passa al browser il motivo per cui il catalogo ha rifiutato la ricerca", async () => {
+    const searchSources = [
+      {
+        id: "fake",
+        label: "Finta",
+        search: () => errAsync({ kind: "upstream" as const, message: "429", reason: "key_missing" as const }),
+      },
+    ];
+    const response = await call(app({ searchSources }), "GET", "/api/search?source=fake&q=Dune");
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({ error: "upstream", reason: "key_missing" });
+  });
 });

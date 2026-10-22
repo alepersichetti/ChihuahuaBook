@@ -60,7 +60,11 @@ const choose: Stage = { kind: "choose" };
 const searchFields: readonly SearchField[] = ["any", "isbn", "title", "author"];
 
 const errorText = (t: Messages, error: ApiError) =>
-  error.kind === "server" ? t.addBook.errors.server(error.status) : t.addBook.errors[error.kind];
+  error.kind === "server"
+    ? t.addBook.errors.server(error.status)
+    : error.kind === "upstream" && error.reason
+      ? t.addBook.errors.upstreamReasons[error.reason]
+      : t.addBook.errors[error.kind];
 
 const button = "flex h-10 items-center justify-center gap-2 rounded-lg px-4";
 const input =

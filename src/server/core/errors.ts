@@ -1,12 +1,15 @@
 import type { ValidationIssue } from "./result";
 
+/** Perché un servizio esterno ha rifiutato la richiesta, quando lo si sa: la UI lo spiega. */
+export type UpstreamReason = "key_missing" | "key_invalid" | "key_restricted" | "api_disabled" | "quota";
+
 export type AppError =
   | { readonly kind: "validation"; readonly issues: readonly ValidationIssue[] }
   | { readonly kind: "not_found" }
   | { readonly kind: "unauthenticated" }
   | { readonly kind: "forbidden" }
   | { readonly kind: "conflict"; readonly message: string }
-  | { readonly kind: "upstream"; readonly message: string }
+  | { readonly kind: "upstream"; readonly message: string; readonly reason?: UpstreamReason }
   | { readonly kind: "unexpected"; readonly message: string };
 
 export const validationError = (

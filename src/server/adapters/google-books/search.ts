@@ -2,6 +2,7 @@ import { errAsync, okAsync } from "neverthrow";
 import { z } from "zod";
 import { cleanIsbn, isValidIsbn10, isValidIsbn13 } from "../../core/books/isbn";
 import type { SearchHit, SearchSource } from "../../core/books/ports";
+import type { UpstreamReason } from "../../core/errors";
 import type { BookSearchQuery } from "../../core/books/search";
 import { fetchJson, upstream, yearOf } from "../http";
 
@@ -31,6 +32,39 @@ const responseSchema = z.object({
 });
 
 type Volume = z.infer<typeof volumeSchema>;
+
+const errorSchema = z.object({
+  error: z.object({
+    message: z.string().optional(),
+    errors: z.array(z.object({ reason: z.string().optional() })).optional(),
+    details: z.array(z.object({ reason: z.string().optional() })).optional(),
+  }),
+});
+
+/**
+ * Traduce gli errori di Google in un motivo che l'utente può risolvere:
+ * chiave assente o sbagliata, chiave limitata ai siti web, API non abilitata, quota.
+ */
+export const explainGoogleError =
+  (hasKey: boolean) =>
+  (status: number, body: unknown): UpstreamReason | undefined => {
+    const parsed = errorSchema.safeParse(body);
+    const reasons = parsed.success
+      ? [...(parsed.data.error.errors ?? []), ...(parsed.data.error.details ?? [])].flatMap((item) =>
+          item.reason ? [item.reason] : [],
+        )
+      : [];
+    const message = parsed.success ? (parsed.data.error.message ?? "") : "";
+    const has = (...names: readonly string[]) => reasons.some((reason) => names.includes(reason));
+
+    if (has("API_KEY_INVALID", "keyInvalid") || /API key not valid/i.test(message)) return "key_invalid";
+    if (has("API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED", "API_KEY_SERVICE_BLOCKED", "ipRefererBlocked"))
+      return "key_restricted";
+    if (has("SERVICE_DISABLED", "accessNotConfigured")) return "api_disabled";
+    if (status === 429 || has("RATE_LIMIT_EXCEEDED", "rateLimitExceeded", "dailyLimitExceeded"))
+      return hasKey ? "quota" : "key_missing";
+    return undefined;
+  };
 
 // Google Books ha una sintassi propria per cercare in un solo campo.
 export const toGoogleQuery = ({ field, text }: BookSearchQuery): string => {
@@ -86,11 +120,16 @@ export const toSearchHit = (volume: Volume): SearchHit | null => {
 };
 
 /**
- * Ricerca su Google Books (API pubblica v1). La chiave è facoltativa ma, senza,
- * Google applica una quota condivisa per IP che si esaurisce presto.
+ * Ricerca su Google Books (API pubblica v1). Senza chiave Google risponde con una
+ * quota pari a zero, quindi in pratica la chiave serve sempre.
  */
 export const googleBooksSource = (
-  options: { readonly apiKey?: string; readonly fetch?: typeof fetch } = {},
+  options: {
+    readonly apiKey?: string;
+    readonly fetch?: typeof fetch;
+    /** Indirizzo dell'app: serve se la chiave è limitata ai siti web (referrer HTTP). */
+    readonly referer?: string;
+  } = {},
 ): SearchSource => ({
   id: "google_books",
   label: "Google Books",
@@ -101,7 +140,10 @@ export const googleBooksSource = (
     url.searchParams.set("printType", "books");
     if (options.apiKey) url.searchParams.set("key", options.apiKey);
 
-    return fetchJson(options.fetch ?? fetch, "Google Books")(url).andThen((body) => {
+    return fetchJson(options.fetch ?? fetch, "Google Books", {
+      headers: options.referer ? { Referer: options.referer } : {},
+      explain: explainGoogleError(Boolean(options.apiKey)),
+    })(url).andThen((body) => {
       const parsed = responseSchema.safeParse(body);
       if (!parsed.success) return errAsync(upstream(parsed.error.message));
       // Un volume malformato non deve far perdere gli altri risultati.

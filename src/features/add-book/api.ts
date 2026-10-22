@@ -1,6 +1,7 @@
 import type { Book as StoredBook, NewBook } from "@/server/core/books/book";
 import type { SearchHit } from "@/server/core/books/ports";
 import type { SearchField, SourceInfo } from "@/server/core/books/search";
+import type { UpstreamReason } from "@/server/core/errors";
 
 // Chiamate all'API per la ricerca online e il salvataggio di un libro.
 // Gli errori sono codici: i testi, nella lingua dell'interfaccia, li sceglie la UI.
@@ -11,14 +12,22 @@ export const defaultSources: readonly SourceInfo[] = [
 ];
 
 export type ApiError =
-  | { readonly kind: "unauthenticated" | "forbidden" | "misconfigured" | "upstream" | "network" | "invalid" }
+  | { readonly kind: "unauthenticated" | "forbidden" | "misconfigured" | "network" | "invalid" }
+  | { readonly kind: "upstream"; readonly reason?: UpstreamReason }
   | { readonly kind: "server"; readonly status: number };
 
 export type Outcome<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: ApiError };
 
 type Options = { readonly fetch?: typeof fetch; readonly baseUrl?: string };
 
-const errorOf = (status: number, body: { error?: string }): ApiError =>
+const upstreamReasons: readonly UpstreamReason[] = ["key_missing", "key_invalid", "key_restricted", "api_disabled", "quota"];
+
+const upstreamOf = (reason: unknown): ApiError => {
+  const known = upstreamReasons.find((item) => item === reason);
+  return known ? { kind: "upstream", reason: known } : { kind: "upstream" };
+};
+
+const errorOf = (status: number, body: { error?: string; reason?: unknown }): ApiError =>
   status === 401
     ? { kind: "unauthenticated" }
     : status === 403
@@ -26,7 +35,7 @@ const errorOf = (status: number, body: { error?: string }): ApiError =>
       : body.error === "misconfigured"
         ? { kind: "misconfigured" }
         : body.error === "upstream"
-          ? { kind: "upstream" }
+          ? upstreamOf(body.reason)
           : status === 400
             ? { kind: "invalid" }
             : { kind: "server", status };

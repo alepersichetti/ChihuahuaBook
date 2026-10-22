@@ -274,7 +274,7 @@ In **Impostazioni** (in basso a sinistra) → **Utenti e ruoli**:
 Da amministratore o bibliotecario, con il pulsante **Aggiungi**:
 
 - [ ] **Inserimento manuale**: compila almeno il titolo e salva. Il libro compare nella lista e in Studio, tabella `books`.
-- [ ] **Compilazione automatica → Google Books**: cerca `eco nome della rosa`, premi **Usa** su un risultato: il modulo si apre già compilato, copertina compresa. Salva. Senza `GOOGLE_BOOKS_API_KEY` la ricerca può fallire per la quota: dipende da Google, non dall'app.
+- [ ] **Compilazione automatica → Google Books**: cerca `eco nome della rosa`, premi **Usa** su un risultato: il modulo si apre già compilato, copertina compresa. Salva. Senza `GOOGLE_BOOKS_API_KEY` Google rifiuta la ricerca e la finestra lo spiega.
 - [ ] **Compilazione automatica → Open Library**: cerca per ISBN, es. `9788845292613`. Se l'ISBN è già in libreria, la finestra lo segnala.
 - [ ] La copertina del libro salvato è in Studio → Storage → `covers`.
 - [ ] Da lettore i libri nuovi si vedono ma non si possono modificare.

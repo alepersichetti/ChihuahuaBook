@@ -43,6 +43,7 @@ export const createApp = (
             googleBooksSource({
               apiKey: config.googleBooksApiKey,
               fetch: options.fetch,
+              referer: `${new URL(request.url).origin}/`,
             }),
             openLibrarySource({ fetch: options.fetch }),
           ],

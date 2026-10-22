@@ -15,7 +15,7 @@ Senza accesso o senza Supabase configurato il libro viene aggiunto solo nella sc
 
 | Catalogo | Chiave | Note |
 |---|---|---|
-| Google Books | facoltativa, `GOOGLE_BOOKS_API_KEY` | Google Books cerca nel testo completo dei libri e delle riviste che Google ha scansionato, convertito in testo con il riconoscimento ottico dei caratteri (OCR) e archiviato nel suo database digitale. Senza chiave Google applica una quota giornaliera condivisa per IP che si esaurisce presto: crea una chiave gratuita nella console Google Cloud (Books API) e impostala su Vercel. |
+| Google Books | necessaria, `GOOGLE_BOOKS_API_KEY` | Google Books cerca nel testo completo dei libri e delle riviste che Google ha scansionato, convertito in testo con il riconoscimento ottico dei caratteri (OCR) e archiviato nel suo database digitale. Senza chiave Google ora risponde a ogni ricerca con una quota pari a zero (errore 429): crea una chiave gratuita nella console Google Cloud (abilitando la Books API), impostala su Vercel e rifai il deploy. Se limiti la chiave, usa "Siti web" con l'indirizzo dell'app (il server lo invia come referrer) e la limitazione alla "Books API"; evita "Indirizzi IP", perché quelli di Vercel cambiano. |
 | Open Library | nessuna | Open Library è un catalogo aperto e modificabile da tutti, che punta ad avere una pagina web per ogni libro mai pubblicato. Gestito da Internet Archive, raggruppa le edizioni in opere, quindi l'ISBN viene compilato solo se hai cercato per ISBN. |
 
 Le copertine restano collegamenti all'immagine del catalogo, non vengono copiate.
