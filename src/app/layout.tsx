@@ -19,7 +19,7 @@ const baskerville = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: "pedia-next",
+  title: "ChihuahaBook",
   description: "Il catalogo personale dei tuoi libri",
 };
 

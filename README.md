@@ -1,4 +1,4 @@
-# pedia-next
+# ChihuahaBook
 
 Web app personale e open source per catalogare la propria libreria, pensata come sostituto di Bookpedia, con import diretto dei file `.pedia`.
 
