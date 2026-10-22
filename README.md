@@ -10,3 +10,54 @@ Stack previsto: Next.js (App Router), Supabase, Vercel. Requisiti e architettura
 npm install
 npm run dev
 ```
+
+## Backend (Supabase)
+
+Lo schema del database è in `supabase/migrations/`: libri, collezioni, prestiti e il bucket `covers` per le copertine. Ogni tabella ha la Row Level Security attiva e ogni utente vede solo i propri dati.
+
+Per applicarlo a un progetto Supabase:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+```
+
+Variabili d'ambiente (vedi `.env.example`): `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, anche con prefisso `NEXT_PUBLIC_`. È accettata anche `NEXT_PUBLIC_SUPABASE_ANON_KEY`, che è quella impostata dall'integrazione Supabase di Vercel.
+
+Dopo una nuova migrazione, rigenera i tipi con `npm run db:types`.
+
+### Architettura
+
+Il backend vive in `src/server` ed è scritto in stile funzionale: niente classi né eccezioni, errori come valori (`Result` di `neverthrow`), dipendenze passate come funzioni. Non dipende da Vercel né da Next: gira su qualsiasi runtime con le Web API standard (`Request`/`Response`).
+
+```
+src/server/
+  core/        dominio puro: tipi, validazione (zod), casi d'uso, porte. Solo zod e neverthrow.
+  adapters/    implementazioni delle porte: Supabase (libri, sessione) e Open Library.
+  http/        router e rotte su Request/Response standard.
+  config/      lettura delle variabili d'ambiente.
+  app/         composizione: collega adattatori, casi d'uso e rotte → (Request) => Promise<Response>.
+  platform/    unico codice legato a Next: refresh della sessione nel proxy.
+```
+
+I confini sono controllati da ESLint (`eslint-plugin-boundaries`): il nucleo non può importare adattatori, HTTP o Next, e Next compare solo in `platform/` e `src/app/`.
+
+In Next tutta l'API passa da `src/app/api/[...path]/route.ts`, che inoltra la richiesta a `appFromEnv(process.env)`. Per usare il backend su un altro runtime basta passare lo stesso handler al server (es. `Deno.serve(appFromEnv(Deno.env.toObject()))` o `export default { fetch: app }` su Workers).
+
+### API
+
+Tutte le rotte richiedono un utente autenticato (cookie di sessione o `Authorization: Bearer <jwt>`).
+
+| Metodo | Percorso | |
+| --- | --- | --- |
+| GET | `/api/books?q=&status=&tag=&favorite=&collection=&sort=&order=&limit=&offset=` | elenco con ricerca e filtri |
+| POST | `/api/books` | crea un libro |
+| GET / PATCH / DELETE | `/api/books/:id` | legge, modifica, elimina |
+| GET | `/api/isbn/:isbn` | bozza da Open Library e copie già in catalogo |
+
+### Test
+
+```bash
+npm test
+```
