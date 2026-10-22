@@ -25,12 +25,12 @@ export function LoginForm() {
   );
 
   useEffect(() => {
-    createClient()
-      .rpc("signup_mode")
-      .then(({ data }) => {
+    createClient().map((supabase) =>
+      supabase.rpc("signup_mode").then(({ data }) => {
         if (data) setSignupMode(data);
         if (data === "first_admin") setMode("signup");
-      });
+      }),
+    );
   }, []);
 
   const confirmUrl = (after: string) =>
@@ -41,7 +41,9 @@ export function LoginForm() {
     const data = new FormData(event.currentTarget);
     const email = String(data.get("email") ?? "").trim();
     const password = String(data.get("password") ?? "");
-    const supabase = createClient();
+    const client = createClient();
+    if (client.isErr()) return setStatus({ kind: "error", text: t.auth.errors.generic });
+    const supabase = client.value;
     setStatus({ kind: "busy" });
 
     if (mode === "signin") {

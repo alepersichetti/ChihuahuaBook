@@ -20,8 +20,10 @@ export function PasswordForm() {
     const password = String(data.get("password") ?? "");
     if (password !== String(data.get("confirm") ?? ""))
       return setStatus({ kind: "error", text: t.auth.passwordsDiffer });
+    const client = createClient();
+    if (client.isErr()) return setStatus({ kind: "error", text: t.auth.errors.generic });
     setStatus({ kind: "busy" });
-    const { error } = await createClient().auth.updateUser({ password });
+    const { error } = await client.value.auth.updateUser({ password });
     setStatus(error ? { kind: "error", text: t.auth.errors[authErrorKey(error, "password")] } : { kind: "done" });
   };
 
