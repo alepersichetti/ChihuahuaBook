@@ -5,6 +5,16 @@
     "svg": "/brand/chihuahua.svg",
     "png": "/brand/favicon-32.png",
     "ico": "/brand/favicon.ico",
-    "appleTouchIcon": "/brand/apple-touch-icon.png"
+    "appleTouchIcon": "/brand/apple-touch-icon.png",
+    "android": [
+      {
+        "src": "/brand/icon-192.png",
+        "sizes": "192x192"
+      },
+      {
+        "src": "/brand/icon-512.png",
+        "sizes": "512x512"
+      }
+    ]
   }
 }

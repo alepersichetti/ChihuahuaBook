@@ -14,6 +14,8 @@ const schema = z.object({
     png: path.optional(),
     ico: path.optional(),
     appleTouchIcon: path.optional(),
+    // Icone per la schermata home di Android, nel manifest (192 e 512 px).
+    android: z.array(z.object({ src: path, sizes: z.string().regex(/^\d+x\d+$/) })).optional(),
   }),
 });
 

@@ -25,12 +25,17 @@ Logo e favicon si configurano in `branding.json`, nella radice del progetto:
     "svg": "/brand/chihuahua.svg",
     "png": "/brand/favicon-32.png",
     "ico": "/brand/favicon.ico",
-    "appleTouchIcon": "/brand/apple-touch-icon.png"
+    "appleTouchIcon": "/brand/apple-touch-icon.png",
+    "android": [
+      { "src": "/brand/icon-192.png", "sizes": "192x192" },
+      { "src": "/brand/icon-512.png", "sizes": "512x512" }
+    ]
   }
 }
 ```
 
 - `logo` è l'immagine in alto a sinistra nell'app; `name` il titolo della pagina e il testo accanto al logo.
+- `android` finisce nel web manifest, per l'icona sulla schermata home.
 - Le voci di `favicon` sono tutte facoltative: si mettono solo quelle che servono.
 - I percorsi partono da `public/` (il file `public/brand/favicon.ico` si scrive `/brand/favicon.ico`); vanno bene anche URL completi.
 - Per cambiare favicon basta copiare il nuovo file in `public/` e aggiornare il percorso. La configurazione è letta in fase di build: in sviluppo il cambio è immediato, in produzione serve un nuovo deploy. Se il JSON non è valido la build si ferma con un errore.
