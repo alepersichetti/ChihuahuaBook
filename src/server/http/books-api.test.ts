@@ -27,6 +27,7 @@ const app = (deps: Partial<BooksApiDeps>) =>
     session: { userId: () => okAsync("user") },
     books: store({}),
     lookupIsbn: unreachable,
+    searchSources: [],
     ...deps,
   }));
 
@@ -98,5 +99,34 @@ describe("books API", () => {
     expect((await call(app({}), "GET", "/api/nulla")).status).toBe(404);
     expect((await call(app({}), "PATCH", "/api/books")).status).toBe(405);
     expect((await call(app({}), "GET", "/altro/books")).status).toBe(404);
+  });
+
+  it("cerca nella fonte scelta e elenca le fonti", async () => {
+    const searchSources = [
+      {
+        id: "fake",
+        label: "Finta",
+        search: (query: { text: string }) =>
+          okAsync([
+            {
+              source: "fake",
+              sourceId: "1",
+              link: null,
+              draft: { title: query.text },
+            },
+          ]),
+      },
+    ];
+    const handler = app({ searchSources });
+
+    const sources = await call(handler, "GET", "/api/search/sources");
+    expect(await sources.json()).toEqual([{ id: "fake", label: "Finta" }]);
+
+    const hits = await call(handler, "GET", "/api/search?source=fake&q=Dune");
+    expect(hits.status).toBe(200);
+    expect(await hits.json()).toMatchObject([{ draft: { title: "Dune" } }]);
+
+    const missing = await call(handler, "GET", "/api/search?source=altro&q=x");
+    expect(missing.status).toBe(400);
   });
 });

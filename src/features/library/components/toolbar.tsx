@@ -128,8 +128,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
       <div className="flex flex-wrap items-center gap-1">
         <button
           type="button"
-          disabled
-          title="In arrivo"
+          onClick={() => dispatch({ type: "setAddOpen", open: true })}
           className="flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 font-semibold text-accent-ink disabled:opacity-70"
         >
           <Plus size={16} aria-hidden="true" />

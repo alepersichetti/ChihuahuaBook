@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Library } from "../model";
+import { AddBookDialog } from "./add-book-dialog";
 import { DesktopShell } from "./desktop";
 import { ImportDialog } from "./import-dialog";
 import { LibraryProvider, useLibrary } from "./library-context";
@@ -22,6 +23,7 @@ function Screens() {
       </div>
       <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
       <ImportDialog />
+      <AddBookDialog />
     </div>
   );
 }

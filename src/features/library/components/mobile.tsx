@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, ScanBarcode, BookCopy } from "lucide-react";
+import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, Plus, BookCopy } from "lucide-react";
 import type { ReactNode } from "react";
 import { loanState } from "../query";
 import { BookDetails } from "./book-details";
@@ -174,12 +174,11 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
           </main>
           <button
             type="button"
-            aria-label="Scansiona ISBN"
-            title="In arrivo"
-            disabled
+            aria-label="Aggiungi libro"
+            onClick={() => dispatch({ type: "setAddOpen", open: true })}
             className="fixed right-4 bottom-24 flex size-15 items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_rgba(47,91,211,0.35)] disabled:opacity-80"
           >
-            <ScanBarcode size={26} />
+            <Plus size={26} />
           </button>
         </>
       )}

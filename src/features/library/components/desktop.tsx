@@ -126,8 +126,7 @@ function GalleryShell({ onLend }: ShellProps) {
           <LayoutPicker />
           <button
             type="button"
-            disabled
-            title="In arrivo"
+            onClick={() => dispatch({ type: "setAddOpen", open: true })}
             className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 font-semibold text-accent-ink disabled:opacity-70"
           >
             <ScanBarcode size={16} aria-hidden="true" />
