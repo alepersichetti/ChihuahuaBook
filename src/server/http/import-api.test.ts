@@ -10,8 +10,10 @@ const id = "4b6f2d4e-5c1a-4f0e-9a7b-1c2d3e4f5a6b";
 
 const imports: ImportStore = {
   findBySource: () => okAsync([]),
-  insertMany: (books) => okAsync(books.map((book) => ({ id, source_id: book.source_id }))),
+  insertMany: (books) => okAsync(books.map((book) => ({ id, source_id: book.source_id, import_hash: book.import_hash }))),
   replace: () => okAsync(undefined),
+  listAll: () => okAsync([{ id, source: null, source_id: null, cover_path: null }]),
+  removeMany: () => okAsync(undefined),
 };
 
 const app = (deps: Partial<ImportApiDeps> = {}) =>
@@ -22,7 +24,7 @@ const app = (deps: Partial<ImportApiDeps> = {}) =>
       update: (_id: string, patch: object) => okAsync({ id, ...patch } as Book),
     } as unknown as BookStore,
     imports,
-    covers: { put: (path) => okAsync(path) },
+    covers: { put: (path) => okAsync(path), remove: () => okAsync(undefined) },
     ...deps,
   }));
 
@@ -40,7 +42,7 @@ describe("import API", () => {
 
   it("riceve la copertina come corpo binario", async () => {
     const put = vi.fn((...args: [string, Uint8Array, string]) => okAsync(args[0]));
-    const response = await app({ covers: { put } })(
+    const response = await app({ covers: { put, remove: () => okAsync(undefined) } })(
       new Request(`http://localhost/api/books/${id}/cover`, {
         method: "PUT",
         headers: { "content-type": "image/png" },
@@ -64,5 +66,14 @@ describe("import API", () => {
       new Request("http://localhost/api/import/books", { method: "POST", body: "{}" }),
     );
     expect(response.status).toBe(403);
+  });
+  it("conta i libri che una sostituzione eliminerebbe", async () => {
+    const response = await app()(
+      new Request("http://localhost/api/import/prune", {
+        method: "POST",
+        body: JSON.stringify({ keep_source_ids: ["1"] }),
+      }),
+    );
+    expect(await response.json()).toEqual({ dry_run: true, removed: 1, kept: 0 });
   });
 });

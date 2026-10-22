@@ -5,6 +5,7 @@ import { validate, type ValidationIssue } from "../result";
 import { withDerivedIsbn, type Book } from "./book";
 import type {
   BookStore,
+  CatalogEntry,
   CoverStore,
   ImportedBook,
   ImportedRef,
@@ -26,8 +27,11 @@ const importItemSchema = z.object({
 
 export const importRequestSchema = z.object({
   source: z.enum(importSources).default("bookpedia"),
-  /** Cosa fare con i libri già importati in passato dalla stessa fonte. */
-  on_existing: z.enum(["update", "skip"]).default("update"),
+  /**
+   * Cosa fare con i libri già importati in passato dalla stessa fonte:
+   * "update" li riscrive tutti, "changed" solo quelli la cui scheda è cambiata, "skip" nessuno.
+   */
+  on_existing: z.enum(["update", "changed", "skip"]).default("update"),
   items: z.array(importItemSchema).min(1).max(maxImportBatch),
 });
 
@@ -36,7 +40,7 @@ export type ImportRequest = z.input<typeof importRequestSchema>;
 export type ImportItemResult =
   | {
       readonly source_id: string;
-      readonly status: "created" | "updated" | "skipped";
+      readonly status: "created" | "updated" | "unchanged" | "skipped";
       readonly id: string;
     }
   | {
@@ -48,6 +52,7 @@ export type ImportItemResult =
 export type ImportReport = {
   readonly created: number;
   readonly updated: number;
+  readonly unchanged: number;
   readonly skipped: number;
   readonly failed: number;
   readonly items: readonly ImportItemResult[];
@@ -68,10 +73,35 @@ const messageOf = (error: AppError) =>
 const report = (items: readonly ImportItemResult[]): ImportReport => ({
   created: items.filter((item) => item.status === "created").length,
   updated: items.filter((item) => item.status === "updated").length,
+  unchanged: items.filter((item) => item.status === "unchanged").length,
   skipped: items.filter((item) => item.status === "skipped").length,
   failed: items.filter((item) => item.status === "failed").length,
   items,
 });
+
+/** JSON con le chiavi in ordine: lo stesso contenuto dà sempre lo stesso testo. */
+const stableJson = (value: unknown): string =>
+  Array.isArray(value)
+    ? `[${value.map(stableJson).join(",")}]`
+    : value !== null && typeof value === "object"
+      ? `{${Object.keys(value)
+          .toSorted()
+          .filter((key) => (value as Record<string, unknown>)[key] !== undefined)
+          .map((key) => `${JSON.stringify(key)}:${stableJson((value as Record<string, unknown>)[key])}`)
+          .join(",")}}`
+      : JSON.stringify(value);
+
+const fnv1a = (text: string, seed: number) =>
+  [...text]
+    .reduce((total, char) => Math.imul(total ^ char.charCodeAt(0), 16777619) >>> 0, seed)
+    .toString(16)
+    .padStart(8, "0");
+
+/** Impronta a 64 bit (due FNV-1a con semi diversi): basta per accorgersi di una modifica. */
+export const contentHash = (value: unknown): string => {
+  const text = stableJson(value);
+  return fnv1a(text, 2166136261) + fnv1a(text, 0x811c9dc5 ^ 0x5bd1e995);
+};
 
 type Indexed<T> = { readonly index: number; readonly value: T };
 
@@ -112,6 +142,7 @@ const checkItems = (request: z.output<typeof importRequestSchema>): Checked => {
                     source: request.source,
                     source_id: item.source_id,
                     extra: item.extra,
+                    import_hash: contentHash({ book, extra: item.extra }),
                   },
                 },
               ],
@@ -176,12 +207,13 @@ const replaceOne = (
     ),
   );
 
-const skipped = (
+const leftAlone = (
+  status: "skipped" | "unchanged",
   id: string,
   { index, value: book }: Indexed<ImportedBook>,
 ): Indexed<ImportItemResult> => ({
   index,
-  value: { source_id: book.source_id, status: "skipped", id },
+  value: { source_id: book.source_id, status, id },
 });
 
 /**
@@ -203,18 +235,29 @@ export const importBooks =
                 valid.map(({ value }) => value.source_id),
               );
         return lookup.andThen((existing) => {
-          const idOf = new Map(existing.map((ref) => [ref.source_id, ref.id]));
-          const fresh = valid.filter(({ value }) => !idOf.has(value.source_id));
+          const refOf = new Map(existing.map((ref) => [ref.source_id, ref]));
+          const fresh = valid.filter(({ value }) => !refOf.has(value.source_id));
           const known = valid.flatMap((item) => {
-            const id = idOf.get(item.value.source_id);
-            return id ? [{ id, item }] : [];
+            const ref = refOf.get(item.value.source_id);
+            return ref ? [{ ref, item }] : [];
           });
+          const untouched = ({ ref, item }: (typeof known)[number]) =>
+            request.on_existing === "skip" ||
+            (request.on_existing === "changed" && ref.import_hash === item.value.import_hash);
           const updates: ResultAsync<readonly Indexed<ImportItemResult>[], never> =
-            request.on_existing === "skip"
-              ? okAsync(known.map(({ id, item }) => skipped(id, item)))
-              : ResultAsync.combine(
-                  known.map(({ id, item }) => replaceOne(store, id, item)),
-                );
+            ResultAsync.combine(
+              known.map((entry) =>
+                untouched(entry)
+                  ? okAsync<Indexed<ImportItemResult>, never>(
+                      leftAlone(
+                        request.on_existing === "skip" ? "skipped" : "unchanged",
+                        entry.ref.id,
+                        entry.item,
+                      ),
+                    )
+                  : replaceOne(store, entry.ref.id, entry.item),
+              ),
+            );
           return ResultAsync.combine([insertAll(store, fresh), updates] as const).map(
             ([created, updated]) =>
               report(
@@ -226,6 +269,61 @@ export const importBooks =
           );
         });
       });
+
+// Sostituzione della biblioteca -------------------------------------------------
+
+export const pruneRequestSchema = z.object({
+  source: z.enum(importSources).default("bookpedia"),
+  /** Gli id d'origine di tutte le schede del file: i libri corrispondenti restano. */
+  keep_source_ids: z.array(z.string().trim().min(1).max(200)).min(1).max(100_000),
+  /** Per sicurezza, senza `dry_run: false` si conta soltanto. */
+  dry_run: z.boolean().default(true),
+});
+
+export type PruneReport = {
+  readonly dry_run: boolean;
+  /** Libri che non sono nel file: eliminati, o da eliminare se dry_run. */
+  readonly removed: number;
+  readonly kept: number;
+};
+
+/** I libri della biblioteca che non vengono dal file: tutti quelli non abbinati a una sua scheda. */
+export const booksToPrune = (
+  catalog: readonly CatalogEntry[],
+  source: string,
+  keepSourceIds: ReadonlySet<string>,
+): readonly CatalogEntry[] =>
+  catalog.filter(
+    (entry) =>
+      !(entry.source === source && entry.source_id !== null && keepSourceIds.has(entry.source_id)),
+  );
+
+/**
+ * Rende la biblioteca uguale al file importato eliminando i libri che non ci sono,
+ * con le loro copertine. Va chiamato dopo aver importato tutte le schede.
+ */
+export const pruneLibrary =
+  (store: Pick<ImportStore, "listAll" | "removeMany">, covers: Pick<CoverStore, "remove">) =>
+  (input: unknown): ResultAsync<PruneReport, AppError> =>
+    validate(pruneRequestSchema)(input)
+      .mapErr(validationError)
+      .asyncAndThen((request) =>
+        store.listAll().andThen((catalog) => {
+          const doomed = booksToPrune(catalog, request.source, new Set(request.keep_source_ids));
+          const summary = {
+            dry_run: request.dry_run,
+            removed: doomed.length,
+            kept: catalog.length - doomed.length,
+          };
+          if (request.dry_run || doomed.length === 0) return okAsync(summary);
+          const paths = doomed.flatMap((entry) => (entry.cover_path ? [entry.cover_path] : []));
+          return store
+            .removeMany(doomed.map((entry) => entry.id))
+            // Una copertina rimasta orfana non deve far sembrare fallita l'eliminazione.
+            .andThen(() => (paths.length > 0 ? covers.remove(paths).orElse(() => okAsync(undefined)) : okAsync(undefined)))
+            .map(() => summary);
+        }),
+      );
 
 // Copertine ---------------------------------------------------------------------
 
@@ -243,7 +341,7 @@ const coverIssue = (message: string) =>
 
 /** Salva la copertina di un libro in `<libro>.<estensione>` e la collega al libro. */
 export const setBookCover =
-  (books: Pick<BookStore, "get" | "update">, covers: CoverStore) =>
+  (books: Pick<BookStore, "get" | "update">, covers: Pick<CoverStore, "put">) =>
   (
     id: unknown,
     contentType: string | null,

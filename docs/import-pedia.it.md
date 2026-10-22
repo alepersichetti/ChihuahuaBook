@@ -39,15 +39,21 @@ La lettura è comunque tollerante, così funziona anche con altri formati:
 
 Le copertine si abbinano per nome del file (id della scheda, ISBN o titolo). Se nessun nome corrisponde ma le immagini sono numerate (`1.jpg`, `2.jpg`…), si abbinano nell'ordine delle schede e l'anteprima lo segnala. Immagini TIFF, GIF o troppo grandi vengono convertite in JPEG nel browser, se il browser le sa leggere.
 
-## Reimportare
+## Novità o sostituzione
 
-Ogni libro importato ricorda la fonte (`source = 'bookpedia'`) e l'id della scheda d'origine (`source_id`); per le schede senza id si usa un'impronta di titolo, autori e ISBN. Reimportare lo stesso file quindi non crea doppioni: i libri già presenti vengono aggiornati, oppure lasciati come sono se si toglie la spunta «Aggiorna i libri già importati».
+Ogni libro importato ricorda la fonte (`source = 'bookpedia'`), l'id della scheda d'origine (`source_id`; per le schede senza id un'impronta di titolo, autori e ISBN) e un'impronta del contenuto della scheda (`import_hash`). Reimportare quindi non crea mai doppioni. Nell'anteprima si sceglie come procedere:
+
+- **Aggiungi solo le novità** (predefinita): i libri nuovi vengono aggiunti, quelli la cui scheda è cambiata in Bookpedia vengono aggiornati, gli altri restano come sono (comprese le modifiche fatte nell'app). Nessun libro viene eliminato.
+- **Sostituisci tutta la libreria**: ogni libro del file viene riscritto com'è nella scheda e, alla fine, vengono eliminati tutti i libri che non sono nel file (anche quelli aggiunti a mano), con i prestiti, le appartenenze alle collezioni e le copertine. Prima di procedere l'anteprima mostra quanti libri verranno eliminati e serve spuntare una conferma. L'eliminazione parte solo dopo che tutte le schede sono state salvate.
+
+Entrambe le modalità richiedono il ruolo di bibliotecario o amministratore.
 
 ## API
 
 | Metodo | Percorso | Corpo |
 | --- | --- | --- |
-| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "skip", items: [{ source_id, book, extra }] }`, al massimo 100 libri; risponde con l'esito di ognuno |
+| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "changed" \| "skip", items: [{ source_id, book, extra }] }`, al massimo 100 libri; risponde con l'esito di ognuno (`created`, `updated`, `unchanged`, `skipped`, `failed`) |
+| `POST` | `/api/import/prune` | `{ source: "bookpedia", keep_source_ids: [...], dry_run: true }`: conta (o, con `dry_run: false`, elimina) i libri che non corrispondono a nessuna scheda del file |
 | `PUT` | `/api/books/:id/cover` | l'immagine (JPEG, PNG o WebP, massimo 5 MB) con il suo `Content-Type`; la salva in `covers/<utente>/<libro>.<ext>` |
 
 Finché l'interfaccia non è collegata a Supabase con l'accesso utente, i libri importati compaiono comunque nella libreria della scheda aperta (in una collezione «Bookpedia: nome del file»), e la finestra dice che non sono stati salvati sul server.

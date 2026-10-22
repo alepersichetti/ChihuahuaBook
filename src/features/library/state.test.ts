@@ -71,15 +71,30 @@ describe("importBooks", () => {
       type: "importBooks",
       collectionName: "Libri",
       books: [imported("bookpedia:1", "Dune")],
+      replace: false,
     });
     const twice = libraryReducer(once, {
       type: "importBooks",
       collectionName: "Libri",
       books: [imported("bookpedia:1", "Dune (2a ed.)")],
+      replace: false,
     });
     expect(twice.library.books).toHaveLength(sampleLibrary.books.length + 1);
     expect(twice.library.books.at(-1)?.title).toBe("Dune (2a ed.)");
     expect(twice.library.collections.filter((item) => item.name === "Libri")).toHaveLength(1);
     expect(twice.collectionId).toBe(importCollectionId("Libri"));
+  });
+
+  it("sostituendo, la biblioteca contiene solo i libri del file", () => {
+    const next = libraryReducer(initialState(sampleLibrary), {
+      type: "importBooks",
+      collectionName: "Libri",
+      books: [imported("bookpedia:1", "Dune")],
+      replace: true,
+    });
+    expect(next.library.books.map((book) => book.id)).toEqual(["bookpedia:1"]);
+    expect(
+      next.library.collections.flatMap((item) => (item.kind === "regular" ? item.bookIds : [])),
+    ).toEqual(["bookpedia:1"]);
   });
 });

@@ -35,9 +35,23 @@ export type ImportedBook = NewBook & {
   readonly source: string;
   readonly source_id: string;
   readonly extra: Readonly<Record<string, unknown>>;
+  /** Impronta di libro ed extra: se non cambia, la scheda d'origine non è cambiata. */
+  readonly import_hash: string;
 };
 
-export type ImportedRef = { readonly id: string; readonly source_id: string };
+export type ImportedRef = {
+  readonly id: string;
+  readonly source_id: string;
+  readonly import_hash: string | null;
+};
+
+/** Un libro del catalogo visto dall'import: quanto basta per decidere se eliminarlo. */
+export type CatalogEntry = {
+  readonly id: string;
+  readonly source: string | null;
+  readonly source_id: string | null;
+  readonly cover_path: string | null;
+};
 
 /** Porta per gli import: ritrova i libri già importati dalla stessa fonte. */
 export type ImportStore = {
@@ -52,6 +66,10 @@ export type ImportStore = {
     id: string,
     book: ImportedBook,
   ) => ResultAsync<void, AppError>;
+  /** Tutti i libri della biblioteca. */
+  readonly listAll: () => ResultAsync<readonly CatalogEntry[], AppError>;
+  /** Elimina i libri (con prestiti e appartenenze alle collezioni). */
+  readonly removeMany: (ids: readonly string[]) => ResultAsync<void, AppError>;
 };
 
 /** Porta verso lo spazio file delle copertine. Restituisce il percorso salvato. */
@@ -61,6 +79,7 @@ export type CoverStore = {
     bytes: Uint8Array,
     contentType: string,
   ) => ResultAsync<string, AppError>;
+  readonly remove: (paths: readonly string[]) => ResultAsync<void, AppError>;
 };
 
 /** Ricerca di libri in un catalogo esterno: un risultato è una bozza da rivedere. */
