@@ -33,8 +33,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.4.2",
-    "eslint-plugin-boundaries": "^7.2.1",
+    "eslint-config-next": "^14.2.35",
+    "eslint-plugin-boundaries": "^1.1.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vitest": "^5.0.5"
