@@ -9,7 +9,6 @@ import {
   BookPlus,
   CheckCircle2,
   ExternalLink,
-  Globe,
   LoaderCircle,
   PenLine,
   Search,
@@ -20,6 +19,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "rea
 import { loadSources, saveBook, searchOnline, sourceDescriptions, type SaveResult } from "../../add-book/api";
 import { emptyForm, formFromDraft, toLibraryBook, validateForm, type BookForm, type FormIssues } from "../../add-book/form";
 import { useLibrary } from "./library-context";
+import { SourceIcon } from "./source-icons";
 
 type Origin = { readonly source: SourceInfo; readonly hit: SearchHit } | null;
 
@@ -396,7 +396,11 @@ export function AddBookDialog() {
           <h2 id="add-book-title" className="mr-auto flex items-center gap-2 text-lg font-semibold">
             <BookPlus size={20} className="text-accent" aria-hidden="true" />
             {titles[stage.kind]}
-            {stage.kind === "search" && <span className="font-normal text-muted">· {stage.source.label}</span>}
+            {stage.kind === "search" && (
+              <span className="flex items-center gap-1.5 font-normal text-muted">
+                · <SourceIcon id={stage.source.id} size={16} /> {stage.source.label}
+              </span>
+            )}
           </h2>
           <button
             type="button"
@@ -439,7 +443,7 @@ export function AddBookDialog() {
               stage.sources.map((source) => (
                 <ChoiceCard
                   key={source.id}
-                  icon={<Globe size={20} />}
+                  icon={<SourceIcon id={source.id} />}
                   title={source.label}
                   text={sourceDescriptions[source.id] ?? "Catalogo online."}
                   onClick={() => go({ kind: "search", source })}
