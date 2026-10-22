@@ -11,7 +11,38 @@ Ci sono due modi:
 | **A. Modalità demo** | l'interfaccia con dati di esempio e un amministratore finto, non si salva nulla | Node | 5 minuti |
 | **B. Stack completo** | accesso vero, ruoli, database, copertine, import, cataloghi online | Node + Docker | 15 minuti la prima volta |
 
-Per la modalità demo bastano i passi 1 e 2; per lo stack completo i passi 1 e 3–6.
+## Avvio rapido: tutto con un comando
+
+Con Docker acceso:
+
+```bash
+git clone https://github.com/alepersichetti/ChihuahuaBook.git
+cd ChihuahuaBook
+npm ci
+npm run dev:all
+```
+
+Apri <http://127.0.0.1:3000> e passa alla [checklist di verifica](#5-checklist-di-verifica). `Ctrl+C` ferma tutto.
+
+`npm run dev:all` (`scripts/dev.mjs`) fa in ordine quello che i passi 3 e 4 qui sotto spiegano a mano:
+
+1. controlla che Docker risponda;
+2. avvia il Supabase locale (`npx supabase start`, senza i servizi che l'app non usa), che la prima volta scarica le immagini Docker;
+3. applica le migrazioni nuove (`npx supabase migration up --local`);
+4. legge indirizzo e chiave da `npx supabase status` e, se `.env.local` non esiste, lo crea;
+5. avvia `next dev` su `127.0.0.1:3000` e stampa gli indirizzi di app, Studio, Mailpit e Postgres;
+6. con `Ctrl+C` ferma il server e poi Supabase (`npx supabase stop`: i dati restano).
+
+Opzioni:
+
+```bash
+npm run dev:all -- --keep-db   # lascia Supabase acceso all'uscita: il prossimo avvio è immediato
+npm run dev:all -- -p 3001     # gli altri argomenti vanno a next dev
+```
+
+`dev:all` usa sempre il database locale: indirizzo e chiave di `supabase status` hanno la precedenza su quelli di `.env.local`, mentre le altre variabili di `.env.local` (come `GOOGLE_BOOKS_API_KEY`) restano valide. Funziona allo stesso modo su macOS, Linux e Windows.
+
+Il resto della guida spiega i passi uno per uno, per quando vuoi lanciarli separatamente o qualcosa non va. Per la modalità demo bastano i passi 1 e 2; per lo stack completo i passi 1 e 3–6.
 
 ## 0. Prerequisiti
 
@@ -195,6 +226,8 @@ Al posto della publishable key va bene anche la vecchia "anon key" in `NEXT_PUBL
 npm run dev
 ```
 
+(`npm run dev:all` fa 3.1, 4.1 e 4.2 in un colpo solo: vedi l'[avvio rapido](#avvio-rapido-tutto-con-un-comando).)
+
 Apri **<http://127.0.0.1:3000>** (non `localhost`): i link delle email di conferma puntano a `127.0.0.1:3000`, come impostato in `supabase/config.toml`, e il browser tiene la sessione separata per i due nomi.
 
 Next legge `.env.local` solo all'avvio: riavvia il server dopo averlo cambiato.
@@ -300,6 +333,7 @@ Senza configurazione Supabase una build di produzione risponde `503` a ogni pagi
 
 | Comando | Cosa fa |
 | --- | --- |
+| `npm run dev:all` | database e server insieme (vedi l'[avvio rapido](#avvio-rapido-tutto-con-un-comando)) |
 | `npm test` | test unitari con Vitest (non servono né database né rete) |
 | `npm run test:watch` | come sopra, rieseguiti a ogni modifica |
 | `npm run lint` | ESLint, compresi i confini tra `core`, `adapters`, `http` e Next |
