@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo/chihuahua.svg" alt="ChihuahaBook" width="200">
+</p>
+
 # ChihuahaBook
 
 Web app personale e open source per catalogare la propria libreria, pensata come sostituto di Bookpedia, con import diretto dei file `.pedia`.
