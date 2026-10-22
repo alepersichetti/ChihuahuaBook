@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { defaultSources, loadSources, saveBook, searchOnline } from "./api";
+import { defaultSources, loadSources, saveBook, searchOnline, uploadCover } from "./api";
 
 const reply = (body: unknown, status = 200) => vi.fn(async () => new Response(JSON.stringify(body), { status }));
 
@@ -28,5 +28,16 @@ describe("api aggiunta libro", () => {
     expect((await saveBook({ title: "Dune" } as never, { fetch: reply({ error: "misconfigured" }, 500) })).kind).toBe("local");
     expect((await saveBook({ title: "" } as never, { fetch: reply({ error: "validation" }, 400) })).kind).toBe("failed");
     expect((await saveBook({ title: "Dune" } as never, { fetch: reply({}, 403) })).kind).toBe("failed");
+  });
+});
+
+describe("uploadCover", () => {
+  it("manda l'immagine con il suo tipo", async () => {
+    const fetchImpl = reply({}, 200);
+    const image = new Blob(["x"], { type: "image/png" });
+    expect(await uploadCover("b1", image, { fetch: fetchImpl })).toMatchObject({ ok: true });
+    const [url, init] = fetchImpl.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/books/b1/cover");
+    expect(init).toMatchObject({ method: "PUT", headers: { "content-type": "image/png" } });
   });
 });
