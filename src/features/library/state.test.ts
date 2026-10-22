@@ -34,9 +34,9 @@ describe("libraryReducer", () => {
     expect(currentView(back)).toBe("grid");
   });
 
-  it("cambiare layout porta alla sua vista preferita", () => {
-    expect(currentView(run({ type: "setLayout", layout: "gallery" }))).toBe("grid");
-    expect(currentView(run({ type: "setLayout", layout: "shelf" }))).toBe("carousel");
+  it("cambiare layout non cambia la vista", () => {
+    const grid = run({ type: "setView", view: "grid" });
+    expect(currentView(libraryReducer(grid, { type: "setLayout", layout: "shelf" }))).toBe("grid");
   });
 
   it("non permette di togliere la colonna del titolo", () => {

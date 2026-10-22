@@ -12,12 +12,13 @@ describe("preferenze", () => {
 
   it("scarta solo i campi non validi", () => {
     expect(parsePreferences({ layout: "nuovo", coverSize: 180 })).toEqual({ ...defaultPreferences, coverSize: 180 });
-    expect(parsePreferences({ layout: "gallery", coverSize: 9999 })).toEqual({ ...defaultPreferences, layout: "gallery" });
+    expect(parsePreferences({ layout: "shelf", coverSize: 9999 })).toMatchObject({ layout: "shelf", coverSize: defaultPreferences.coverSize });
     expect(parsePreferences("rotto")).toEqual(defaultPreferences);
   });
 
   it("ricava la palette dai vecchi layout che la includevano", () => {
-    expect(parsePreferences({ layout: "warm" })).toMatchObject({ layout: "gallery", palette: "warm" });
+    expect(parsePreferences({ layout: "warm" })).toMatchObject({ layout: "classic", palette: "warm" });
+    expect(parsePreferences({ layout: "gallery" })).toMatchObject({ layout: "classic", palette: "light" });
     expect(parsePreferences({ layout: "shelf" })).toMatchObject({ layout: "shelf", palette: "dark" });
     expect(parsePreferences({ layout: "shelf", palette: "light" })).toMatchObject({ palette: "light" });
   });

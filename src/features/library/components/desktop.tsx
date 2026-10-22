@@ -96,7 +96,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// A e B: collezioni, libri e dettagli affiancati. B parte dalle copertine.
+// A: collezioni, libri e dettagli affiancati.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -145,7 +145,6 @@ export function DesktopShell({ onLend }: ShellProps) {
   const { state } = useLibrary();
   switch (state.layout) {
     case "classic":
-    case "gallery":
       return <ClassicShell onLend={onLend} />;
 
     case "shelf":

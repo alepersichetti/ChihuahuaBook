@@ -117,7 +117,7 @@ export type ValueFilter = {
 };
 
 // Disposizione della finestra: A classica (predefinita), B galleria, C scaffale scuro.
-export const layouts = ["classic", "gallery", "shelf"] as const;
+export const layouts = ["classic", "shelf"] as const;
 export type Layout = (typeof layouts)[number];
 
 // La palette cambia solo i colori (e il carattere dei titoli), con qualsiasi layout.

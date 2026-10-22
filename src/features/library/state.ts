@@ -72,12 +72,6 @@ export const defaultColumns: readonly ColumnKey[] = [
 
 export const defaultSort: readonly SortKey[] = [{ column: "title", direction: "asc" }];
 
-// Ogni layout parte dalla vista che lo caratterizza.
-export const preferredView: Record<Layout, ViewMode> = {
-  classic: "list",
-  gallery: "grid",
-  shelf: "carousel",
-};
 
 export const coverSizes = { min: 96, max: 220, initial: 136 } as const;
 
@@ -220,15 +214,9 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return updateBook(state, action.bookId, (book) => ({ ...book, loan: action.loan }));
     case "returnBook":
       return updateBook(state, action.bookId, (book) => ({ ...book, loan: null }));
-    case "setLayout": {
-      const view = preferredView[action.layout];
-      return {
-        ...state,
-        layout: action.layout,
-        lastView: view,
-        viewByCollection: { ...state.viewByCollection, [state.collectionId]: view },
-      };
-    }
+    // Il layout cambia solo la disposizione: la vista (lista, griglia, carosello) resta quella scelta.
+    case "setLayout":
+      return { ...state, layout: action.layout };
     case "setMobileScreen":
       return { ...state, mobileScreen: action.screen };
     case "openBook":

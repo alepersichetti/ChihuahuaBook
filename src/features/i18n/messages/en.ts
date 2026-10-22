@@ -51,7 +51,6 @@ export const en: Messages = {
   },
   layouts: {
     classic: "Classic",
-    gallery: "Gallery",
     shelf: "Shelf",
   },
   views: {

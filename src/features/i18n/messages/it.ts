@@ -49,7 +49,6 @@ export const it = {
   },
   layouts: {
     classic: "Classica",
-    gallery: "Galleria",
     shelf: "Scaffale",
   },
   views: {

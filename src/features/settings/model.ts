@@ -27,15 +27,16 @@ const asRecord = (input: unknown): Record<string, unknown> =>
 
 const coverSizeSchema = z.number().int().min(coverSizes.min).max(coverSizes.max);
 
-// Prima la palette era legata al layout ("warm" era un layout, "shelf" era sempre scuro):
-// chi aveva salvato quelle scelte ritrova gli stessi colori.
+// Prima la palette era legata al layout ("warm" era un layout, "shelf" era sempre scuro)
+// e "gallery" era un layout invece di una vista: chi aveva salvato quelle scelte
+// ritrova gli stessi colori, con il layout classico.
 const legacyPalette = (layout: unknown): Palette =>
   layout === "warm" ? "warm" : layout === "shelf" ? "dark" : defaultPreferences.palette;
 
 export const parsePreferences = (input: unknown): Preferences => {
   const raw = asRecord(input);
   return {
-    layout: fieldOr(z.enum(layouts), raw.layout === "warm" ? "gallery" : raw.layout, defaultPreferences.layout),
+    layout: fieldOr(z.enum(layouts), raw.layout === "warm" || raw.layout === "gallery" ? "classic" : raw.layout, defaultPreferences.layout),
     palette: fieldOr(z.enum(palettes), raw.palette, legacyPalette(raw.layout)),
     coverSize: fieldOr(coverSizeSchema, raw.coverSize, defaultPreferences.coverSize),
   };
