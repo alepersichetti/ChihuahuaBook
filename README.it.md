@@ -15,6 +15,7 @@ Per farla girare sul tuo computer (Node, Supabase locale, migrazioni, test) segu
 ## Documentazione
 
 - [Sviluppo in locale](docs/local-development.it.md)
+- [Accesso, ruoli e sicurezza](docs/authentication.it.md)
 - [Import dei file .pedia di Bookpedia](docs/import-pedia.it.md)
 - [Logo e favicon](logo/README.it.md)
 
@@ -56,7 +57,7 @@ Logo e favicon si configurano in `branding.json`, nella radice del progetto:
 
 ## Backend (Supabase)
 
-Lo schema del database è in `supabase/migrations/`: libri, collezioni, prestiti e il bucket `covers` per le copertine. Ogni tabella ha la Row Level Security attiva e ogni utente vede solo i propri dati.
+Lo schema del database è in `supabase/migrations/`: libri, collezioni, prestiti, membri con i loro ruoli e il bucket `covers` per le copertine. La biblioteca è condivisa da tutta l'istanza: la Row Level Security fa leggere i lettori, modificare i bibliotecari e gestire gli utenti agli amministratori. Vedi [Accesso, ruoli e sicurezza](docs/authentication.it.md).
 
 Per applicarlo a un progetto Supabase:
 
@@ -90,7 +91,7 @@ In Next tutta l'API passa da `src/app/api/[...path]/route.ts`, che inoltra la ri
 
 ### API
 
-Tutte le rotte richiedono un utente autenticato (cookie di sessione o `Authorization: Bearer <jwt>`).
+Tutte le rotte richiedono un membro attivo (cookie di sessione o `Authorization: Bearer <jwt>`) e un ruolo minimo: `401` senza sessione, `403` se il ruolo non basta. Le chiamate che modificano dati con il cookie di sessione devono arrivare dalla stessa origine.
 
 | Metodo | Percorso | |
 | --- | --- | --- |
@@ -98,6 +99,14 @@ Tutte le rotte richiedono un utente autenticato (cookie di sessione o `Authoriza
 | POST | `/api/books` | crea un libro |
 | GET / PATCH / DELETE | `/api/books/:id` | legge, modifica, elimina |
 | GET | `/api/isbn/:isbn` | bozza da Open Library e copie già in catalogo |
+| POST | `/api/import/books` | importa un lotto di libri (bibliotecario) |
+| PUT | `/api/books/:id/cover` | carica una copertina (bibliotecario) |
+| GET | `/api/me` | utente corrente e ruolo |
+| GET / PATCH | `/api/admin/members`, `/api/admin/members/:id` | membri, ruolo e stato (amministratore) |
+| GET / POST / DELETE | `/api/admin/invitations`, `/api/admin/invitations/:email` | inviti (amministratore) |
+| GET / PATCH | `/api/admin/settings` | impostazioni dell'istanza (amministratore) |
+
+Le rotte di lettura chiedono un lettore, quelle che modificano i libri un bibliotecario.
 
 ### Test
 

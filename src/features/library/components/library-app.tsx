@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import type { SignedInViewer } from "@/features/auth/viewer";
 import { SettingsDialog } from "../../settings/components/settings-panel";
-import type { Role } from "../../settings/model";
 import { SettingsProvider } from "../../settings/settings-context";
 import type { Library } from "../model";
 import { DesktopShell } from "./desktop";
@@ -12,7 +12,7 @@ import { LoanDialog } from "./loan-dialog";
 import { MobileShell } from "./mobile";
 
 function Screens() {
-  const { state, selected } = useLibrary();
+  const { state, selected, canEdit } = useLibrary();
   const [lending, setLending] = useState(false);
   const lend = () => setLending(true);
   return (
@@ -23,17 +23,21 @@ function Screens() {
       <div className="md:hidden">
         <MobileShell onLend={lend} />
       </div>
-      <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
-      <ImportDialog />
+      {canEdit && (
+        <>
+          <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
+          <ImportDialog />
+        </>
+      )}
       <SettingsDialog />
     </div>
   );
 }
 
-export function LibraryApp({ library, role }: { library: Library; role?: Role }) {
+export function LibraryApp({ library, viewer }: { library: Library; viewer: SignedInViewer }) {
   return (
-    <SettingsProvider role={role}>
-      <LibraryProvider library={library}>
+    <SettingsProvider role={viewer.role} userId={viewer.userId}>
+      <LibraryProvider library={library} viewer={viewer}>
         <Screens />
       </LibraryProvider>
     </SettingsProvider>

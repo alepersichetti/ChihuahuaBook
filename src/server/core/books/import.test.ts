@@ -76,17 +76,17 @@ describe("setBookCover", () => {
     update: vi.fn((_id: string, patch: object) => okAsync({ id, ...patch } as Book)),
   };
 
-  it("salva in <utente>/<libro>.<ext> e collega il percorso al libro", async () => {
+  it("salva in <libro>.<ext> e collega il percorso al libro", async () => {
     const put = vi.fn((path: string) => okAsync(path));
     const book = (
-      await setBookCover(books, { put })("user", id, "image/jpeg", new Uint8Array([1, 2]))
+      await setBookCover(books, { put })(id, "image/jpeg", new Uint8Array([1, 2]))
     )._unsafeUnwrap();
-    expect(put).toHaveBeenCalledWith(`user/${id}.jpg`, expect.any(Uint8Array), "image/jpeg");
-    expect(book.cover_path).toBe(`user/${id}.jpg`);
+    expect(put).toHaveBeenCalledWith(`${id}.jpg`, expect.any(Uint8Array), "image/jpeg");
+    expect(book.cover_path).toBe(`${id}.jpg`);
   });
 
   it("rifiuta formati non ammessi dal bucket", async () => {
-    const result = await setBookCover(books, { put: vi.fn() })("user", id, "image/tiff", new Uint8Array([1]));
+    const result = await setBookCover(books, { put: vi.fn() })(id, "image/tiff", new Uint8Array([1]));
     expect(result._unsafeUnwrapErr()).toMatchObject({ kind: "validation" });
   });
 });

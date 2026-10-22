@@ -15,6 +15,7 @@ To run it on your computer (Node, local Supabase, migrations, tests) follow the 
 ## Documentation
 
 - [Local development](docs/local-development.md)
+- [Sign-in, roles and security](docs/authentication.md)
 - [Importing Bookpedia .pedia files](docs/import-pedia.md)
 - [Logo and favicon](logo/README.md)
 
@@ -56,7 +57,7 @@ The logo and favicon are configured in `branding.json`, at the project root:
 
 ## Backend (Supabase)
 
-The database schema lives in `supabase/migrations/`: books, collections, loans and the `covers` bucket for cover images. Every table has Row Level Security enabled and each user sees only their own data.
+The database schema lives in `supabase/migrations/`: books, collections, loans, members with their roles, and the `covers` bucket for cover images. The library is shared by the whole instance: Row Level Security lets readers read, librarians edit and administrators manage users. See [Sign-in, roles and security](docs/authentication.md).
 
 To apply it to a Supabase project:
 
@@ -90,7 +91,7 @@ In Next the whole API goes through `src/app/api/[...path]/route.ts`, which forwa
 
 ### API
 
-Every route requires an authenticated user (session cookie or `Authorization: Bearer <jwt>`).
+Every route requires an active member (session cookie or `Authorization: Bearer <jwt>`) and a minimum role: `401` without a session, `403` if the role isn't enough. Calls that change data with the session cookie must come from the same origin.
 
 | Method | Path | |
 | --- | --- | --- |
@@ -98,6 +99,14 @@ Every route requires an authenticated user (session cookie or `Authorization: Be
 | POST | `/api/books` | create a book |
 | GET / PATCH / DELETE | `/api/books/:id` | read, update, delete |
 | GET | `/api/isbn/:isbn` | draft from Open Library and copies already in the catalogue |
+| POST | `/api/import/books` | import a batch of books (librarian) |
+| PUT | `/api/books/:id/cover` | upload a cover (librarian) |
+| GET | `/api/me` | current user and role |
+| GET / PATCH | `/api/admin/members`, `/api/admin/members/:id` | members, role and active state (administrator) |
+| GET / POST / DELETE | `/api/admin/invitations`, `/api/admin/invitations/:email` | invitations (administrator) |
+| GET / PATCH | `/api/admin/settings` | instance settings (administrator) |
+
+Reading routes need a reader, the ones that change books a librarian.
 
 ### Tests
 

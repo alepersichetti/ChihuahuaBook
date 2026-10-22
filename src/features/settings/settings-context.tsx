@@ -9,12 +9,13 @@ const preferencesStore = localStore("chihuahuabook:preferences", parsePreference
 // Sul server non c'è localStorage: si parte dai predefiniti e il browser li corregge.
 const serverPreferences = () => defaultPreferences;
 
-const useSettingsValue = (role: Role) => {
+const useSettingsValue = (role: Role, userId: string) => {
   const preferences = useSyncExternalStore(preferencesStore.subscribe, preferencesStore.get, serverPreferences);
   const [panelOpen, setPanelOpen] = useState(false);
   return useMemo(
     () => ({
       role,
+      userId,
       canOpen: canOpenSettings(role),
       panelOpen: panelOpen && canOpenSettings(role),
       openPanel: () => setPanelOpen(true),
@@ -23,7 +24,7 @@ const useSettingsValue = (role: Role) => {
       setPreference: <K extends keyof Preferences>(key: K, value: Preferences[K]) =>
         preferencesStore.set({ ...preferencesStore.get(), [key]: value }),
     }),
-    [role, preferences, panelOpen],
+    [role, userId, preferences, panelOpen],
   );
 };
 
@@ -32,11 +33,11 @@ type SettingsContextValue = ReturnType<typeof useSettingsValue>;
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 /**
- * Impostazioni dell'app per chi la sta usando.
- * Finché il login non esiste, chi apre l'app è amministratore.
+ * Impostazioni dell'app per chi la sta usando: il ruolo decide cosa vede
+ * (il server ricontrolla comunque ogni modifica).
  */
-export function SettingsProvider({ role = "admin", children }: { role?: Role; children: ReactNode }) {
-  return <SettingsContext value={useSettingsValue(role)}>{children}</SettingsContext>;
+export function SettingsProvider({ role, userId, children }: { role: Role; userId: string; children: ReactNode }) {
+  return <SettingsContext value={useSettingsValue(role, userId)}>{children}</SettingsContext>;
 }
 
 export const useSettings = () => {

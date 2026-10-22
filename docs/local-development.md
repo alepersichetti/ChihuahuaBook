@@ -40,9 +40,9 @@ npm ci
 npm run dev
 ```
 
-Open <http://localhost:3000>. The library shows the sample data from `src/features/library/sample-library.ts` and works without any environment variables. File changes show up immediately (hot reload).
+Open <http://localhost:3000>. The library shows the sample data from `src/features/library/sample-library.ts` and works without any environment variables, signed in as a demo administrator (`DEMO_ROLE=reader npm run dev` to try another role). File changes show up immediately (hot reload).
 
-Without Supabase configuration the page works, while the APIs answer `500 misconfigured`: that's expected, see the next step.
+Without Supabase configuration the page works, while the APIs answer `500 misconfigured`: that's expected, see the next step. The demo user exists only in `npm run dev`.
 
 ## 3. Local Supabase
 
@@ -97,9 +97,11 @@ Restart `npm run dev` after changing `.env.local`: Next reads the variables only
 curl -i http://localhost:3000/api/books
 ```
 
-The expected response is `401 {"error":"unauthenticated"}`: the backend is configured and wants a user. There is no sign-in UI yet, so to try the APIs with a real user:
+The expected response is `401 {"error":"unauthenticated"}`: the backend is configured and wants a user. Open <http://localhost:3000>: you land on the sign-in page, and the first account you create becomes the administrator (the confirmation email is in Mailpit, <http://127.0.0.1:54324>). Roles and invitations are explained in [authentication.md](authentication.md).
 
-1. Create a user from Studio (<http://127.0.0.1:54323> → Authentication → Add user) or from the terminal. Locally, emails don't need confirming.
+To try the APIs from the terminal with a real user:
+
+1. Create a user from Studio (<http://127.0.0.1:54323> → Authentication → Add user) or from the terminal. From Studio tick *Auto Confirm User*; from the terminal open the confirmation link in Mailpit (<http://127.0.0.1:54324>). The first user becomes administrator; any other email needs an invitation first.
 
    ```bash
    KEY=sb_publishable_...   # the same key as in .env.local

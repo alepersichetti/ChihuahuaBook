@@ -1,7 +1,8 @@
 "use client";
 
 import { X } from "lucide-react";
-import { plural, valueFilterLabel } from "../labels";
+import { useT } from "../../i18n/i18n-context";
+import { collectionName } from "../labels";
 import { loanState } from "../query";
 import { useSettings } from "../../settings/settings-context";
 import { coverSizes } from "../state";
@@ -13,6 +14,7 @@ import { BookCarousel, BookGrid, BookTable, EmptyState } from "./views";
 
 function FilterChip() {
   const { state, dispatch } = useLibrary();
+  const t = useT();
   if (!state.valueFilter) return null;
   const { field, value } = state.valueFilter;
   return (
@@ -21,20 +23,21 @@ function FilterChip() {
       onClick={() => dispatch({ type: "setValueFilter", filter: null })}
       className="flex items-center gap-1.5 rounded-full bg-selected py-1 pr-2 pl-3 text-xs font-medium"
     >
-      {valueFilterLabel[field]}: {value}
-      <X size={13} aria-label="Togli filtro" />
+      {t.fields[field]}: {value}
+      <X size={13} aria-label={t.library.removeFilter} />
     </button>
   );
 }
 
 function MainHeader() {
   const { collection, books } = useLibrary();
+  const t = useT();
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-4 pb-3">
       <h1 className="font-display text-xl font-bold">
-        {collection?.name}
+        {collection && collectionName(collection, t)}
       </h1>
-      <span className="text-muted">{plural(books.length, "libro", "libri")}</span>
+      <span className="text-muted">{t.library.books(books.length)}</span>
       <FilterChip />
     </div>
   );
@@ -56,17 +59,18 @@ function BooksView() {
 function StatusBar() {
   const { books, today, view } = useLibrary();
   const { preferences, setPreference } = useSettings();
+  const t = useT();
   const loans = books.map((book) => loanState(book, today));
   const loaned = loans.filter((loan) => loan.kind !== "none").length;
   const late = loans.filter((loan) => loan.kind === "overdue").length;
   return (
     <footer className="flex flex-wrap items-center gap-4 border-t border-line px-4 py-2 text-xs text-muted">
-      <span>{plural(books.length, "libro", "libri")}</span>
-      {loaned > 0 && <span>{loaned} in prestito</span>}
-      {late > 0 && <span className="font-semibold text-danger">{late} in ritardo</span>}
+      <span>{t.library.books(books.length)}</span>
+      {loaned > 0 && <span>{t.library.onLoan(loaned)}</span>}
+      {late > 0 && <span className="font-semibold text-danger">{t.library.late(late)}</span>}
       {view === "grid" && (
         <label className="ml-auto flex items-center gap-2">
-          Dimensione copertine
+          {t.settings.coverSize}
           <input
             type="range"
             min={coverSizes.min}
@@ -82,9 +86,10 @@ function StatusBar() {
 }
 
 function NoSelection() {
+  const t = useT();
   return (
     <aside className="flex w-[340px] shrink-0 items-center justify-center border-l border-line p-8 text-center text-sm text-muted">
-      Seleziona un libro per vederne i dettagli.
+      {t.library.noSelection}
     </aside>
   );
 }
