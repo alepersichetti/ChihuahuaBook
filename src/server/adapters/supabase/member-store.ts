@@ -4,8 +4,8 @@ import { run } from "./book-store";
 import type { Supabase } from "./client";
 
 const memberColumns = "user_id, email, display_name, role, active, created_at";
-const invitationColumns = "email, role, created_at, expires_at";
-const settingsColumns = "open_signup, signup_role, language";
+const invitationColumns = "email, created_at, expires_at";
+const settingsColumns = "open_signup, language";
 
 // La RLS limita ogni query all'admin; qui c'è solo la traduzione in PostgREST.
 export const supabaseMemberStore = (supabase: Supabase): MemberStore => ({
@@ -35,14 +35,13 @@ export const supabaseMemberStore = (supabase: Supabase): MemberStore => ({
         .order("created_at", { ascending: false }),
     ),
 
-  // Reinvitare la stessa email rinnova la scadenza e aggiorna il ruolo.
-  invite: ({ email, role }) =>
+  // Reinvitare la stessa email rinnova la scadenza.
+  invite: ({ email }) =>
     run(
       supabase
         .from("invitations")
         .upsert({
           email,
-          role,
           created_at: new Date().toISOString(),
           expires_at: new Date(
             Date.now() + 14 * 24 * 3600 * 1000,

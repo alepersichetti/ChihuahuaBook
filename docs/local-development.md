@@ -123,6 +123,7 @@ On startup the CLI applies the migrations in `supabase/migrations/`, in name ord
 | `20261022140000_catalog.sql` | tables `books`, `collections`, `collection_books`, `loans`; full-text search; the private `covers` bucket (JPEG, PNG and WebP, at most 5 MB) |
 | `20261022160000_roles.sql` | `members` (role and active state of each user), `invitations`, `instance_settings` (language, sign-up mode); the sign-up trigger that makes the first user administrator; RLS policies by role on tables and covers |
 | `20261022180000_import_hash.sql` | the `import_hash` column, which lets a `.pedia` re-import know which books changed |
+| `20261022210000_reader_by_default.sql` | everyone who joins (by invitation or open sign-up) starts as reader: removes the role from invitations and open sign-up |
 
 To check they were all applied:
 
@@ -256,14 +257,15 @@ To keep several users signed in at once, use different browsers or private windo
 
 ### 5.2 Invitations and roles
 
-In **Settings** (bottom left) → **Users and access**:
+In **Settings** (bottom left) → **Users and roles**:
 
-- [ ] Invite `lib@example.com` as **Librarian** and `reader@example.com` as **Reader**. They appear under Invitations, with their expiry date (14 days).
+- [ ] Invite `lib@example.com` and `reader@example.com`. They appear under Invitations as Reader, with their expiry date (14 days).
 - [ ] In another browser, sign up as `stranger@example.com`, who wasn't invited: sign-up is refused.
-- [ ] Sign up as `lib@example.com` and confirm from Mailpit: they get in as librarian. The invitation disappears from the list.
+- [ ] Sign up as `lib@example.com` and confirm from Mailpit: they get in as reader. The invitation disappears from the list.
 - [ ] Do the same for `reader@example.com`.
+- [ ] As administrator, pick **Librarian** in the selector for `lib@example.com`: the count at the top updates. Then pick **Administrator**: a confirmation appears; press **Cancel**.
 - [ ] As the reader: no **Add** button, no editing controls, Settings can't be opened.
-- [ ] As the librarian: Add and Import `.pedia` are there; in Settings only Appearance and About, no Language or Users and access.
+- [ ] As the librarian: Add and Import `.pedia` are there; in Settings only Appearance and About, no Language or Users and roles.
 - [ ] As administrator, try demoting yourself: the interface doesn't allow it. Deactivate the reader: after a reload they see an empty library.
 - [ ] Reactivate the reader.
 

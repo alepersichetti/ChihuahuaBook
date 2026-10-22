@@ -12,11 +12,11 @@ Roles are enforced in three places, so a bug in one layer doesn't open the data:
 
 1. **Database (RLS)**: `supabase/migrations/20261022160000_roles.sql`. The `public.has_role()` function reads the role from `public.members` and every policy uses it. This is the real guarantee: it also holds for anyone calling Supabase directly with their own token.
 2. **API**: every route in `src/server/http` declares the minimum role (`guarded("read" | "edit" | "administer")`) and answers `401` without a session, `403` with an insufficient role.
-3. **Interface**: readers don't see editing controls; readers can't open Settings; only administrators see the **Users and access** section there.
+3. **Interface**: readers don't see editing controls; readers can't open Settings; only administrators see the **Users and roles** section there.
 
 ## Settings and language
 
-Readers can't open Settings. Librarians see their personal preferences (color palette, cover size) and the About section. Administrators also see **Language** and **Users and access**.
+Readers can't open Settings. Librarians see their personal preferences (color palette, cover size) and the About section. Administrators also see **Language** and **Users and roles**.
 
 The interface is available in Italian and English. The language is one for the whole instance (`instance_settings.language`, Italian by default): only an administrator can change it, and the sign-in page uses it too. The texts are in `src/features/i18n/messages/` (`it.ts` is the reference, `en.ts` must have the same keys, and TypeScript checks it).
 
@@ -24,7 +24,16 @@ The interface is available in Italian and English. The language is one for the w
 
 On a fresh instance **the first account that signs up becomes administrator**. The sign-in page says so ("this instance is new").
 
-After that, sign-up is **by invitation**: in Settings → *Users and access* the administrator enters an email and a role, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone, with Reader or Librarian as the starting role.
+After that, sign-up is **by invitation**: in Settings → *Users and roles* the administrator enters an email, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone.
+
+## Users and roles
+
+**Everyone starts as a Reader**, whether invited or signed up on their own: an invitation doesn't pick a role. Librarian and Administrator are reached only by promotion, from the *Users and roles* section of Settings (visible to administrators only):
+
+- at the top, the three roles with what each can do and how many active members have it;
+- for each member, a Reader / Librarian / Administrator selector: the change applies at once, and promoting to administrator asks for confirmation;
+- the button next to the name deactivates or reactivates the account;
+- with more than four members a search by name or email appears.
 
 Everything happens in a trigger on `auth.users` (`public.handle_new_user`), so no `service_role` key is needed in the app. A sign-up without invitation is rejected by the database and the page explains why.
 

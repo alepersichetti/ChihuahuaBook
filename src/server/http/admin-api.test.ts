@@ -13,8 +13,8 @@ const members = (overrides: Partial<MemberStore> = {}): MemberStore => ({
   invitations: () => okAsync([]),
   invite: (input) => okAsync({ ...input, created_at: "", expires_at: "" }),
   revoke: () => okAsync(undefined),
-  settings: () => okAsync({ open_signup: false, signup_role: "reader", language: "it" }),
-  updateSettings: (patch) => okAsync({ open_signup: false, signup_role: "reader", language: "it", ...patch }),
+  settings: () => okAsync({ open_signup: false, language: "it" }),
+  updateSettings: (patch) => okAsync({ open_signup: false, language: "it", ...patch }),
   ...overrides,
 });
 
@@ -58,7 +58,6 @@ describe("admin API", () => {
   it("l'admin invita e cambia le impostazioni", async () => {
     const invite = await call("admin", "POST", "/api/admin/invitations", {
       email: "Marta@Example.com",
-      role: "librarian",
     });
     expect(invite.status).toBe(201);
     expect(await invite.json()).toMatchObject({ email: "marta@example.com" });

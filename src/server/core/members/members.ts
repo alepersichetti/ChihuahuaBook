@@ -17,9 +17,9 @@ export type Member = {
   readonly created_at: string;
 };
 
+/** Chi è invitato entra come lettore: i ruoli più alti si danno dopo, per promozione. */
 export type Invitation = {
   readonly email: string;
-  readonly role: Role;
   readonly created_at: string;
   readonly expires_at: string;
 };
@@ -31,7 +31,6 @@ export type InstanceLanguage = (typeof instanceLanguages)[number];
 
 export type InstanceSettings = {
   readonly open_signup: boolean;
-  readonly signup_role: Exclude<Role, "admin">;
   readonly language: InstanceLanguage;
 };
 
@@ -53,7 +52,6 @@ export type MemberPatch = z.output<typeof memberPatchSchema>;
 export const invitationInputSchema = z
   .object({
     email: z.string().trim().toLowerCase().pipe(z.email()),
-    role: roleSchema.default("reader"),
   })
   .strict();
 
@@ -62,7 +60,6 @@ export type InvitationInput = z.output<typeof invitationInputSchema>;
 export const settingsPatchSchema = z
   .object({
     open_signup: z.boolean().optional(),
-    signup_role: z.enum(["reader", "librarian"]).optional(),
     language: z.enum(instanceLanguages).optional(),
   })
   .strict()

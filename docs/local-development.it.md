@@ -123,6 +123,7 @@ All'avvio la CLI applica le migrazioni di `supabase/migrations/`, in ordine di n
 | `20261022140000_catalog.sql` | tabelle `books`, `collections`, `collection_books`, `loans`; ricerca testuale; il bucket privato `covers` (JPEG, PNG e WebP, al massimo 5 MB) |
 | `20261022160000_roles.sql` | `members` (ruolo e stato di ogni utente), `invitations`, `instance_settings` (lingua, modalità di registrazione); il trigger di registrazione che fa amministratore il primo utente; le regole RLS per ruolo su tabelle e copertine |
 | `20261022180000_import_hash.sql` | la colonna `import_hash`, che permette a un nuovo import `.pedia` di capire quali libri sono cambiati |
+| `20261022210000_reader_by_default.sql` | chi entra (con invito o registrazione aperta) è sempre lettore: toglie il ruolo dagli inviti e dalla registrazione aperta |
 
 Per controllare che siano state applicate tutte:
 
@@ -256,14 +257,15 @@ Per tenere aperti più utenti insieme usa browser diversi o finestre private.
 
 ### 5.2 Inviti e ruoli
 
-In **Impostazioni** (in basso a sinistra) → **Utenti e accessi**:
+In **Impostazioni** (in basso a sinistra) → **Utenti e ruoli**:
 
-- [ ] Invita `lib@example.com` come **Bibliotecario** e `reader@example.com` come **Lettore**. Compaiono sotto Inviti, con la scadenza (14 giorni).
+- [ ] Invita `lib@example.com` e `reader@example.com`. Compaiono sotto Inviti come Lettore, con la scadenza (14 giorni).
 - [ ] In un altro browser registrati come `stranger@example.com`, che non è invitato: la registrazione viene rifiutata.
-- [ ] Registrati come `lib@example.com` e conferma da Mailpit: entra come bibliotecario. L'invito sparisce dalla lista.
+- [ ] Registrati come `lib@example.com` e conferma da Mailpit: entra come lettore. L'invito sparisce dalla lista.
 - [ ] Lo stesso per `reader@example.com`.
+- [ ] Da amministratore, nel selettore di `lib@example.com` scegli **Bibliotecario**: il conteggio in cima si aggiorna. Scegli poi **Amministratore**: compare la conferma; premi **Annulla**.
 - [ ] Da lettore: niente pulsante **Aggiungi**, niente comandi di modifica, Impostazioni non si apre.
-- [ ] Da bibliotecario: ci sono Aggiungi e Importa .pedia; in Impostazioni solo Aspetto e Informazioni, niente Lingua né Utenti e accessi.
+- [ ] Da bibliotecario: ci sono Aggiungi e Importa .pedia; in Impostazioni solo Aspetto e Informazioni, niente Lingua né Utenti e ruoli.
 - [ ] Da amministratore prova a toglierti il ruolo: l'interfaccia non lo permette. Disattiva il lettore: ricaricando vede la libreria vuota.
 - [ ] Riattiva il lettore.
 
