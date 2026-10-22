@@ -4,14 +4,13 @@ export function cleanIsbn(raw: string): string {
   return raw.replace(/[\s-]/g, "").toUpperCase();
 }
 
+// Somma pesata delle cifre: `weight` riceve la posizione della cifra.
+const weightedSum = (digits: string, weight: (index: number) => number): number =>
+  [...digits].reduce((sum, char, index) => sum + (char === "X" ? 10 : Number(char)) * weight(index), 0);
+
 export function isValidIsbn10(value: string): boolean {
   if (!/^\d{9}[\dX]$/.test(value)) return false;
-  let sum = 0;
-  for (let i = 0; i < 10; i++) {
-    const digit = value[i] === "X" ? 10 : Number(value[i]);
-    sum += digit * (10 - i);
-  }
-  return sum % 11 === 0;
+  return weightedSum(value, (i) => 10 - i) % 11 === 0;
 }
 
 export function isValidIsbn13(value: string): boolean {
@@ -20,18 +19,12 @@ export function isValidIsbn13(value: string): boolean {
 }
 
 function isbn13CheckDigit(first12: string): string {
-  let sum = 0;
-  for (let i = 0; i < 12; i++) {
-    sum += Number(first12[i]) * (i % 2 === 0 ? 1 : 3);
-  }
+  const sum = weightedSum(first12, (i) => (i % 2 === 0 ? 1 : 3));
   return String((10 - (sum % 10)) % 10);
 }
 
 function isbn10CheckDigit(first9: string): string {
-  let sum = 0;
-  for (let i = 0; i < 9; i++) {
-    sum += Number(first9[i]) * (10 - i);
-  }
+  const sum = weightedSum(first9, (i) => 10 - i);
   const check = (11 - (sum % 11)) % 11;
   return check === 10 ? "X" : String(check);
 }
