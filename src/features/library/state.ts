@@ -32,6 +32,7 @@ export type LibraryState = {
   readonly layout: Layout;
   // Su telefono si vede una schermata alla volta.
   readonly mobileScreen: "list" | "book" | "collections";
+  readonly importOpen: boolean;
 };
 
 export type LibraryAction =
@@ -54,7 +55,9 @@ export type LibraryAction =
   | { readonly type: "returnBook"; readonly bookId: string }
   | { readonly type: "setLayout"; readonly layout: Layout }
   | { readonly type: "setMobileScreen"; readonly screen: LibraryState["mobileScreen"] }
-  | { readonly type: "openBook"; readonly bookId: string };
+  | { readonly type: "openBook"; readonly bookId: string }
+  | { readonly type: "setImportOpen"; readonly open: boolean }
+  | { readonly type: "importBooks"; readonly books: readonly Book[]; readonly collectionName: string };
 
 export const defaultColumns: readonly ColumnKey[] = [
   "title",
@@ -92,6 +95,7 @@ export const initialState = (library: Library): LibraryState => ({
   collapsedFolders: [],
   layout: "classic",
   mobileScreen: "list",
+  importOpen: false,
 });
 
 // Selettori -------------------------------------------------------------------
@@ -120,6 +124,33 @@ const updateBook = (state: LibraryState, bookId: string, update: (book: Book) =>
     books: state.library.books.map((book) => (book.id === bookId ? update(book) : book)),
   },
 });
+
+// Ogni import finisce anche in una collezione col nome del file, come in Bookpedia.
+export const importCollectionId = (name: string) => `import:${name.trim().toLowerCase()}`;
+
+const addImported = (state: LibraryState, books: readonly Book[], name: string): LibraryState => {
+  const ids = new Set(books.map((book) => book.id));
+  const id = importCollectionId(name);
+  const collection: Collection = {
+    id,
+    name,
+    parentId: null,
+    kind: "regular",
+    bookIds: books.map((book) => book.id),
+    excluded: false,
+  };
+  return {
+    ...state,
+    library: {
+      // Reimportare sostituisce i libri con lo stesso id invece di duplicarli.
+      books: [...state.library.books.filter((book) => !ids.has(book.id)), ...books],
+      collections: [...state.library.collections.filter((item) => item.id !== id), collection],
+    },
+    collectionId: id,
+    selectedBookId: null,
+    valueFilter: null,
+  };
+};
 
 const toggleIn = <T,>(values: readonly T[], value: T) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
@@ -198,5 +229,9 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return { ...state, mobileScreen: action.screen };
     case "openBook":
       return { ...state, selectedBookId: action.bookId, mobileScreen: "book" };
+    case "setImportOpen":
+      return { ...state, importOpen: action.open };
+    case "importBooks":
+      return addImported(state, action.books, action.collectionName);
   }
 };

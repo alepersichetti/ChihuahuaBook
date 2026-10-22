@@ -5,5 +5,6 @@ const app = appFromEnv(process.env);
 
 export const GET = (request: Request) => app(request);
 export const POST = (request: Request) => app(request);
+export const PUT = (request: Request) => app(request);
 export const PATCH = (request: Request) => app(request);
 export const DELETE = (request: Request) => app(request);
