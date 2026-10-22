@@ -2,7 +2,6 @@ import type {
   Book,
   Collection,
   ColumnKey,
-  Layout,
   Library,
   Loan,
   ReadStatus,
@@ -29,7 +28,6 @@ export type LibraryState = {
   readonly sidebarOpen: boolean;
   readonly coverSize: number;
   readonly collapsedFolders: readonly string[];
-  readonly layout: Layout;
   // Su telefono si vede una schermata alla volta.
   readonly mobileScreen: "list" | "book" | "collections";
   readonly importOpen: boolean;
@@ -54,7 +52,6 @@ export type LibraryAction =
   | { readonly type: "toggleFavorite"; readonly bookId: string }
   | { readonly type: "lend"; readonly bookId: string; readonly loan: Loan }
   | { readonly type: "returnBook"; readonly bookId: string }
-  | { readonly type: "setLayout"; readonly layout: Layout }
   | { readonly type: "setMobileScreen"; readonly screen: LibraryState["mobileScreen"] }
   | { readonly type: "openBook"; readonly bookId: string }
   | { readonly type: "setImportOpen"; readonly open: boolean }
@@ -78,13 +75,6 @@ export const defaultColumns: readonly ColumnKey[] = [
 
 export const defaultSort: readonly SortKey[] = [{ column: "title", direction: "asc" }];
 
-// Ogni layout parte dalla vista che lo caratterizza.
-export const preferredView: Record<Layout, ViewMode> = {
-  classic: "list",
-  gallery: "grid",
-  warm: "grid",
-  shelf: "carousel",
-};
 
 export const coverSizes = { min: 96, max: 220, initial: 136 } as const;
 
@@ -103,7 +93,6 @@ export const initialState = (library: Library): LibraryState => ({
   sidebarOpen: false,
   coverSize: coverSizes.initial,
   collapsedFolders: [],
-  layout: "classic",
   mobileScreen: "list",
   importOpen: false,
   addOpen: false,
@@ -237,15 +226,6 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return updateBook(state, action.bookId, (book) => ({ ...book, loan: action.loan }));
     case "returnBook":
       return updateBook(state, action.bookId, (book) => ({ ...book, loan: null }));
-    case "setLayout": {
-      const view = preferredView[action.layout];
-      return {
-        ...state,
-        layout: action.layout,
-        lastView: view,
-        viewByCollection: { ...state.viewByCollection, [state.collectionId]: view },
-      };
-    }
     case "setMobileScreen":
       return { ...state, mobileScreen: action.screen };
     case "openBook":

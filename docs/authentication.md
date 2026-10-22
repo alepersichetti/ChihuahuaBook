@@ -16,7 +16,7 @@ Roles are enforced in three places, so a bug in one layer doesn't open the data:
 
 ## Settings and language
 
-Readers can't open Settings. Librarians see their personal preferences (layout, cover size) and the About section. Administrators also see **Language** and **Users and access**.
+Readers can't open Settings. Librarians see their personal preferences (color palette, cover size) and the About section. Administrators also see **Language** and **Users and access**.
 
 The interface is available in Italian and English. The language is one for the whole instance (`instance_settings.language`, Italian by default): only an administrator can change it, and the sign-in page uses it too. The texts are in `src/features/i18n/messages/` (`it.ts` is the reference, `en.ts` must have the same keys, and TypeScript checks it).
 

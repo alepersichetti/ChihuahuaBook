@@ -49,17 +49,16 @@ export const en: Messages = {
     publishedYear: "Year",
     readStatus: "Reading",
   },
-  layouts: {
-    classic: "Classic",
-    gallery: "Gallery",
-    warm: "Warm",
-    shelf: "Shelf",
-  },
   views: {
     label: "View",
-    list: "List view",
-    grid: "Grid view",
-    carousel: "Carousel view",
+    list: "Table",
+    grid: "Grid",
+    carousel: "Gallery",
+    hints: {
+      list: "one book per row, with columns you can sort and choose",
+      grid: "covers side by side, at an adjustable size",
+      carousel: "scrolling covers, with the chosen one in front",
+    },
   },
   search: {
     label: "Search",
@@ -282,12 +281,16 @@ export const en: Messages = {
   },
   settings: {
     title: "Settings",
-    layout: "Layout",
-    layoutHints: {
-      classic: "Three columns: collections, list and book details",
-      gallery: "Like Classic, with covers in a grid",
-      warm: "Like Gallery, with the warm palette",
-      shelf: "Dark theme with a carousel and details below",
+    palette: "Color palette",
+    palettes: {
+      light: "Light",
+      warm: "Warm",
+      dark: "Dark",
+    },
+    paletteHints: {
+      light: "White and blue, the default theme",
+      warm: "Cream and terracotta tones, serif headings",
+      dark: "Dark background with amber accents",
     },
     coverSize: "Cover size",
     coverSizeHint: "In the grid view.",

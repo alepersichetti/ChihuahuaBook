@@ -16,7 +16,7 @@ I ruoli sono applicati in tre punti, così un errore in uno strato non apre i da
 
 ## Impostazioni e lingua
 
-Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (layout, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e accessi**.
+Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (palette colori, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e accessi**.
 
 L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutta l'istanza (`instance_settings.language`, italiano se non scelta): la cambia solo l'amministratore, e la usa anche la pagina di accesso. I testi sono in `src/features/i18n/messages/` (`it.ts` è il riferimento, `en.ts` deve avere le stesse chiavi e TypeScript lo verifica).
 

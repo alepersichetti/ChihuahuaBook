@@ -87,7 +87,7 @@ function CollectionTree({ parentId, depth }: { parentId: string; depth: number }
   );
 }
 
-// Colonna delle collezioni dei layout classico e scaffale.
+// Colonna delle collezioni.
 export function Sidebar({ className = "w-58 border-r" }: { className?: string }) {
   const { state, dispatch, canEdit } = useLibrary();
   const t = useT();

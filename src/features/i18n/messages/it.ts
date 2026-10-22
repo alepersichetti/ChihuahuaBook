@@ -47,17 +47,16 @@ export const it = {
     publishedYear: "Anno",
     readStatus: "Lettura",
   },
-  layouts: {
-    classic: "Classica",
-    gallery: "Galleria",
-    warm: "Calda",
-    shelf: "Scaffale",
-  },
   views: {
     label: "Vista",
-    list: "Vista lista",
-    grid: "Vista griglia",
-    carousel: "Vista carosello",
+    list: "Tabella",
+    grid: "Griglia",
+    carousel: "Galleria",
+    hints: {
+      list: "un libro per riga, con le colonne da ordinare e scegliere",
+      grid: "le copertine affiancate, di dimensione regolabile",
+      carousel: "le copertine a scorrimento, con quella scelta in primo piano",
+    },
   },
   search: {
     label: "Cerca",
@@ -280,12 +279,16 @@ export const it = {
   },
   settings: {
     title: "Impostazioni",
-    layout: "Layout",
-    layoutHints: {
-      classic: "Tre colonne: collezioni, elenco e scheda del libro",
-      gallery: "Come la classica, con le copertine in griglia",
-      warm: "Come la galleria, con la palette calda",
-      shelf: "Tema scuro con carosello e scheda sotto",
+    palette: "Palette colori",
+    palettes: {
+      light: "Chiara",
+      warm: "Calda",
+      dark: "Scura",
+    },
+    paletteHints: {
+      light: "Bianco e blu, il tema predefinito",
+      warm: "Toni crema e terracotta, titoli con grazie",
+      dark: "Sfondo scuro e accenti ambra",
     },
     coverSize: "Dimensione copertine",
     coverSizeHint: "Nella vista a griglia.",

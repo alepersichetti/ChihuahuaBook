@@ -96,7 +96,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// A, B e Calda: collezioni, libri e dettagli affiancati. B e Calda partono dalle copertine; Calda ha la palette calda.
+// Collezioni, libri e dettagli affiancati.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -116,40 +116,6 @@ function ClassicShell({ onLend }: ShellProps) {
   );
 }
 
-// C: tema scuro, carosello in alto e dettaglio sotto, come Bookpedia.
-function ShelfShell({ onLend }: ShellProps) {
-  const { state, selected, view } = useLibrary();
-  return (
-    <>
-      <Toolbar onLend={onLend} />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col">
-          {view !== "carousel" && <MainHeader />}
-          <div className={view === "carousel" ? "contents" : "flex min-h-0 flex-1 flex-col"}>
-            <BooksView />
-          </div>
-          {state.detailsOpen && selected && (
-            <div className={`border-t border-line ${view === "carousel" ? "min-h-0 flex-1 overflow-auto" : "max-h-[45%] overflow-auto"}`}>
-              <BookDetails book={selected} variant="below" onLend={onLend} />
-            </div>
-          )}
-        </main>
-      </div>
-      <StatusBar />
-    </>
-  );
-}
-
 export function DesktopShell({ onLend }: ShellProps) {
-  const { state } = useLibrary();
-  switch (state.layout) {
-    case "classic":
-    case "gallery":
-    case "warm":
-      return <ClassicShell onLend={onLend} />;
-
-    case "shelf":
-      return <ShelfShell onLend={onLend} />;
-  }
+  return <ClassicShell onLend={onLend} />;
 }

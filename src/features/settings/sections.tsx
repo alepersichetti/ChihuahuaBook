@@ -10,7 +10,7 @@ import { Logo } from "../library/components/logo";
 import { useI18n, useT } from "../i18n/i18n-context";
 import { languageNames, languages, type Language } from "../i18n/languages";
 import type { Messages } from "../i18n/messages";
-import { layouts, type Layout } from "../library/model";
+import { palettes, type Palette as ColorPalette } from "../library/model";
 import { coverSizes } from "../library/state";
 import pkg from "../../../package.json";
 import type { Role } from "./model";
@@ -28,10 +28,10 @@ export type SettingsSection = {
   readonly Body: ComponentType;
 };
 
-// Ogni anteprima usa i colori veri del suo layout, presi da globals.css tramite data-layout.
-function LayoutSwatch({ layout }: { layout: Layout }) {
+// Ogni anteprima usa i colori veri della sua palette, presi da globals.css tramite data-palette.
+function PaletteSwatch({ palette }: { palette: ColorPalette }) {
   return (
-    <span data-layout={layout} aria-hidden="true" className="flex h-12 w-16 shrink-0 overflow-hidden rounded-md border border-line bg-bg">
+    <span data-palette={palette} aria-hidden="true" className="flex h-12 w-16 shrink-0 overflow-hidden rounded-md border border-line bg-bg">
       <span className="w-3.5 bg-panel" />
       <span className="flex flex-1 flex-col gap-1 p-1.5">
         <span className="h-1.5 w-8 rounded-full bg-accent" />
@@ -48,26 +48,26 @@ function Appearance() {
   return (
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold">{t.settings.layout}</legend>
-        {layouts.map((layout) => (
+        <legend className="mb-2 text-sm font-semibold">{t.settings.palette}</legend>
+        {palettes.map((palette) => (
           <label
-            key={layout}
+            key={palette}
             className={`flex cursor-pointer items-center gap-3 rounded-xl border p-2.5 ${
-              preferences.layout === layout ? "border-accent bg-selected" : "border-line hover:bg-chip"
+              preferences.palette === palette ? "border-accent bg-selected" : "border-line hover:bg-chip"
             }`}
           >
             <input
               type="radio"
-              name="layout"
-              value={layout}
-              checked={preferences.layout === layout}
-              onChange={() => setPreference("layout", layout)}
+              name="palette"
+              value={palette}
+              checked={preferences.palette === palette}
+              onChange={() => setPreference("palette", palette)}
               className="sr-only"
             />
-            <LayoutSwatch layout={layout} />
+            <PaletteSwatch palette={palette} />
             <span className="flex flex-col">
-              <span className="text-sm font-semibold">{t.layouts[layout]}</span>
-              <span className="text-xs text-muted">{t.settings.layoutHints[layout]}</span>
+              <span className="text-sm font-semibold">{t.settings.palettes[palette]}</span>
+              <span className="text-xs text-muted">{t.settings.paletteHints[palette]}</span>
             </span>
           </label>
         ))}
