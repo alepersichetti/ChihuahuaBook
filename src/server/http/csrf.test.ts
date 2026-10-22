@@ -16,6 +16,14 @@ describe("CSRF", () => {
     expect(isSameOriginRequest(request("DELETE", { ...cookie, "sec-fetch-site": "same-origin" }))).toBe(true);
   });
 
+  it("confronta l'origine con l'host usato dal browser, anche quando request.url dice localhost", () => {
+    const local = (origin: string) =>
+      new Request("http://localhost:3100/api/books", { method: "POST", headers: { ...cookie, host: "127.0.0.1:3100", origin } });
+    expect(isSameOriginRequest(local("http://127.0.0.1:3100"))).toBe(true);
+    expect(isSameOriginRequest(local("http://evil.example"))).toBe(false);
+    expect(isSameOriginRequest(local("null"))).toBe(false);
+  });
+
   it("rifiuta le modifiche da un'altra origine o senza indicazioni", () => {
     expect(isSameOriginRequest(request("POST", { ...cookie, origin: "https://evil.example" }))).toBe(false);
     expect(isSameOriginRequest(request("PATCH", { ...cookie, "sec-fetch-site": "cross-site" }))).toBe(false);

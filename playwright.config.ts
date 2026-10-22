@@ -44,7 +44,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   projects: [
-    { name: "setup", testMatch: /auth\.setup\.ts/ },
+    // Il setup non si ripete: dopo il primo tentativo l'amministratore esiste già.
+    { name: "setup", testMatch: /auth\.setup\.ts/, retries: 0 },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },

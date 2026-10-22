@@ -1,3 +1,4 @@
+import { requestHost } from "./origin";
 import { json } from "./responses";
 
 const safeMethods = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -12,7 +13,7 @@ export const isSameOriginRequest = (request: Request): boolean => {
   if (request.headers.has("authorization")) return true;
   if (!request.headers.has("cookie")) return true;
   const origin = request.headers.get("origin");
-  if (origin) return origin === new URL(request.url).origin;
+  if (origin) return URL.canParse(origin) && new URL(origin).host === requestHost(request);
   return request.headers.get("sec-fetch-site") === "same-origin";
 };
 

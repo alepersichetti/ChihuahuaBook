@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { readConfig } from "../../config";
 import type { Database } from "../../adapters/supabase/database.types";
+import { appUrl } from "../../http/origin";
 import { isPublicPath, loginUrl } from "./access";
 
 // Unica parte legata a Next: aggiorna il token di sessione Supabase e lo
@@ -49,7 +50,7 @@ export const refreshSupabaseSession = async (
   // Prima barriera: senza sessione si va al login. Le pagine e l'API
   // ricontrollano comunque utente e ruolo, e la RLS fa l'ultima verifica.
   if (!data?.claims.sub && !isPublicPath(request.nextUrl.pathname)) {
-    const redirect = NextResponse.redirect(loginUrl(request.url));
+    const redirect = NextResponse.redirect(loginUrl(appUrl(request.url, request).toString()));
     response.cookies
       .getAll()
       .forEach((cookie) => redirect.cookies.set(cookie));

@@ -2,6 +2,7 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { appUrl } from "@/server/http/origin";
 import { safeNextPath } from "@/server/platform/next/access";
 
 const otpTypes = new Set<EmailOtpType>(["signup", "invite", "magiclink", "recovery", "email_change", "email"]);
@@ -26,6 +27,6 @@ export async function GET(request: NextRequest) {
         : errAsync("invalid"),
   );
 
-  const target = verified.isOk() ? new URL(next, request.url) : new URL("/login?error=link", request.url);
+  const target = appUrl(verified.isOk() ? next : "/login?error=link", request);
   return NextResponse.redirect(target);
 }
