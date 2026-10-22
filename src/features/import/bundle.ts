@@ -125,7 +125,14 @@ export const filesFromDrop = (items: DataTransferItemList): Promise<BundleFile[]
 
 const isZip = (file: BundleFile) => /\.zip$/i.test(file.path) || file.blob.type === "application/zip";
 
-/** Da ciò che l'utente ha scelto (cartella, zip o un XML da solo) al bundle. */
+/**
+ * Un XML scelto da solo, fuori dal suo .pedia: non si accetta, perché senza
+ * la cartella mancherebbero le copertine.
+ */
+export const isLooseXml = (files: readonly BundleFile[]): boolean =>
+  files.length === 1 && /\.(xml|plist)$/i.test(files[0].path) && !files[0].path.includes("/");
+
+/** Da ciò che l'utente ha scelto (il .pedia come cartella, o il suo zip) al bundle. */
 export const readBundle = async (files: readonly BundleFile[]): Promise<Bundle> => {
   const zip = files.length === 1 && isZip(files[0]) ? files[0] : null;
   return zip

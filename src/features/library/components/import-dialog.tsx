@@ -4,7 +4,7 @@ import { mapPediaRecords, type PediaBook, type PediaRecordError } from "@/server
 import { AlertTriangle, CheckCircle2, FileArchive, FolderOpen, LoaderCircle, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { PruneReport } from "@/server/core/books/import";
-import { filesFromDrop, filesFromInput, readBundle, type Bundle, type BundleFile } from "../../import/bundle";
+import { filesFromDrop, filesFromInput, isLooseXml, readBundle, type Bundle, type BundleFile } from "../../import/bundle";
 import { matchCovers, type CoverMatch } from "../../import/covers";
 import { countReplaced, saveImport, type ImportMode, type SaveOutcome, type SaveProgress } from "../../import/save";
 import { toLibraryBook } from "../../import/to-library";
@@ -32,6 +32,7 @@ const pick: Stage = { kind: "pick", problem: null };
 
 /** Dal bundle all'anteprima: niente viene ancora salvato. */
 const buildPreview = async (files: readonly BundleFile[], t: Messages): Promise<Preview | string> => {
+  if (isLooseXml(files)) return t.importer.xmlAlone;
   const bundle = await readBundle(files);
   if (!bundle.xml) return t.importer.noXml;
   const parsed = parsePediaXml(await bundle.xml.blob.text());
@@ -381,7 +382,7 @@ export function ImportDialog() {
                   {t.importer.chooseFile}
                   <input
                     type="file"
-                    accept=".zip,.xml,.plist,application/zip,text/xml"
+                    accept=".pedia,.zip,application/zip"
                     className="sr-only"
                     onChange={(event) => event.target.files && load(Promise.resolve(filesFromInput([...event.target.files])))}
                   />
