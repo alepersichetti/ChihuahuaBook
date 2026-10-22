@@ -16,6 +16,7 @@ Per farla girare sul tuo computer (Node, Supabase locale, migrazioni, test) segu
 
 - [Sviluppo in locale](docs/local-development.it.md)
 - [Import dei file .pedia di Bookpedia](docs/import-pedia.it.md)
+- [Aggiungere un libro (manuale, Google Books, Open Library)](docs/adding-books.it.md)
 - [Logo e favicon](logo/README.it.md)
 
 Ogni documento esiste in due lingue: `nome.md` in inglese e `nome.it.md` in italiano. Se ne modifichi uno, aggiorna anche l'altro.
