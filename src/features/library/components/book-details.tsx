@@ -15,6 +15,7 @@ import { useI18n, useT } from "../../i18n/i18n-context";
 import type { Messages } from "../../i18n/messages";
 import { readStatuses, type Book, type ReadStatus, type ValueFilter } from "../model";
 import { loanState } from "../query";
+import { BookCollections } from "./book-collections";
 import { Cover } from "./cover";
 import { readStatusIcon } from "./icons";
 import { useLibrary } from "./library-context";
@@ -239,6 +240,7 @@ export function BookDetails({
           ))}
         </dl>
       )}
+      <BookCollections key={book.id} book={book} />
       {book.summary && (
         <section>
           <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">{t.details.summary}</h3>

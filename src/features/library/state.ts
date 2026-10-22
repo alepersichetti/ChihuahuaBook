@@ -10,7 +10,7 @@ import type {
   ValueFilter,
   ViewMode,
 } from "./model";
-import { toggleSort } from "./query";
+import { canMoveInto, toggleSort } from "./query";
 
 export type LibraryState = {
   readonly library: Library;
@@ -32,6 +32,8 @@ export type LibraryState = {
   readonly mobileScreen: "list" | "book" | "collections";
   readonly importOpen: boolean;
   readonly addOpen: boolean;
+  // Ricerca dentro una collezione per aggiungerci libri.
+  readonly collectionSearchOpen: boolean;
 };
 
 export type LibraryAction =
@@ -71,7 +73,18 @@ export type LibraryAction =
       readonly kind?: "regular" | "folder";
       readonly parentId?: string | null;
       readonly select?: boolean;
-    };
+    }
+  | { readonly type: "addToCollection"; readonly bookIds: readonly string[]; readonly collectionId: string }
+  | { readonly type: "removeFromCollection"; readonly bookId: string; readonly collectionId: string }
+  | {
+      readonly type: "moveCollection";
+      readonly collectionId: string;
+      /** La cartella di arrivo; null = fuori dalle cartelle. */
+      readonly parentId: string | null;
+      /** La collezione davanti a cui si mette; null = in fondo alla cartella. */
+      readonly beforeId: string | null;
+    }
+  | { readonly type: "setCollectionSearchOpen"; readonly open: boolean };
 
 export const defaultColumns: readonly ColumnKey[] = [
   "title",
@@ -104,6 +117,7 @@ export const initialState = (library: Library): LibraryState => ({
   mobileScreen: "list",
   importOpen: false,
   addOpen: false,
+  collectionSearchOpen: false,
 });
 
 // Selettori -------------------------------------------------------------------
@@ -170,6 +184,35 @@ const addImported = (state: LibraryState, books: readonly Book[], name: string, 
   };
 };
 
+const withCollections = (state: LibraryState, update: (collections: readonly Collection[]) => readonly Collection[]) => ({
+  ...state,
+  library: { ...state.library, collections: update(state.library.collections) },
+});
+
+// Solo le collezioni normali hanno un elenco di libri: le altre si calcolano da sole.
+const editBookIds = (
+  collections: readonly Collection[],
+  collectionId: string,
+  update: (bookIds: readonly string[]) => readonly string[],
+) =>
+  collections.map((item) => (item.kind === "regular" && item.id === collectionId ? { ...item, bookIds: update(item.bookIds) } : item));
+
+const moveCollection = (
+  collections: readonly Collection[],
+  id: string,
+  parentId: string | null,
+  beforeId: string | null,
+): readonly Collection[] => {
+  const item = collections.find((collection) => collection.id === id);
+  if (!item || beforeId === id || !canMoveInto(collections, id, parentId)) return collections;
+  const rest = collections.filter((collection) => collection.id !== id);
+  const before = rest.findIndex((collection) => collection.id === beforeId && collection.parentId === parentId);
+  // Senza un punto preciso va in fondo alla cartella, dopo l'ultima sorella.
+  const last = rest.findLastIndex((collection) => collection.parentId === parentId);
+  const index = before >= 0 ? before : last >= 0 ? last + 1 : rest.length;
+  return [...rest.slice(0, index), { ...item, parentId }, ...rest.slice(index)];
+};
+
 const toggleIn = <T,>(values: readonly T[], value: T) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 
@@ -183,6 +226,7 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
         valueFilter: null,
         sidebarOpen: false,
         mobileScreen: "list",
+        collectionSearchOpen: false,
       };
     case "selectBook":
       return { ...state, selectedBookId: action.bookId };
@@ -269,6 +313,32 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
         ...(action.select ? { collectionId: action.id, selectedBookId: null, valueFilter: null } : {}),
       };
     }
+    case "addToCollection": {
+      const known = new Set(state.library.books.map((book) => book.id));
+      return withCollections(state, (collections) =>
+        editBookIds(collections, action.collectionId, (bookIds) => [
+          ...bookIds,
+          ...[...new Set(action.bookIds)].filter((id) => known.has(id) && !bookIds.includes(id)),
+        ]),
+      );
+    }
+    case "removeFromCollection":
+      return withCollections(state, (collections) =>
+        editBookIds(collections, action.collectionId, (bookIds) => bookIds.filter((id) => id !== action.bookId)),
+      );
+    case "moveCollection": {
+      const collections = moveCollection(state.library.collections, action.collectionId, action.parentId, action.beforeId);
+      // La cartella di arrivo si apre, così si vede dove è finita.
+      return collections === state.library.collections
+        ? state
+        : {
+            ...state,
+            library: { ...state.library, collections },
+            collapsedFolders: state.collapsedFolders.filter((id) => id !== action.parentId),
+          };
+    }
+    case "setCollectionSearchOpen":
+      return { ...state, collectionSearchOpen: action.open };
   }
 };
 
@@ -284,6 +354,10 @@ export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
   "setAddOpen",
   "addBook",
   "createCollection",
+  "addToCollection",
+  "removeFromCollection",
+  "moveCollection",
+  "setCollectionSearchOpen",
 ]);
 
 /** Il reducer giusto per chi usa l'app: in sola lettura ignora le modifiche. */

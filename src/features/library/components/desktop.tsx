@@ -7,6 +7,7 @@ import { loanState } from "../query";
 import { useSettings } from "../../settings/settings-context";
 import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
+import { CollectionSearch, CollectionSearchButton } from "./collection-search";
 import { useLibrary } from "./library-context";
 import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
@@ -33,13 +34,17 @@ function MainHeader() {
   const { collection, books } = useLibrary();
   const t = useT();
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-4 pb-3">
-      <h1 className="font-display text-xl font-bold">
-        {collection && collectionName(collection, t)}
-      </h1>
-      <span className="text-muted">{t.library.books(books.length)}</span>
-      <FilterChip />
-    </div>
+    <>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-4 pb-3">
+        <h1 className="font-display text-xl font-bold">
+          {collection && collectionName(collection, t)}
+        </h1>
+        <span className="text-muted">{t.library.books(books.length)}</span>
+        <FilterChip />
+        <CollectionSearchButton className="ml-auto" />
+      </div>
+      <CollectionSearch className="mx-5 mb-3" />
+    </>
   );
 }
 

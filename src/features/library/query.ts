@@ -320,3 +320,66 @@ export const foldersWithPath = (collections: readonly Collection[]) =>
     .filter((item) => item.kind === "folder")
     .map((folder) => ({ id: folder.id, label: [...folderPath(collections, folder.parentId), folder.name].join(" / ") }))
     .sort((a, b) => a.label.localeCompare(b.label));
+
+// Riorganizzare le collezioni ------------------------------------------------
+
+/** Libreria, In prestito e Lista desideri: fisse, non si spostano e non ricevono libri a mano. */
+export const isSystemCollection = (collection: Collection) =>
+  collection.kind === "library" || collection.kind === "loaned" || collection.kind === "wishlist";
+
+/** Vero se `id` è `ancestorId` stessa o sta dentro di lei, a qualsiasi profondità. */
+export const isInside = (collections: readonly Collection[], id: string | null, ancestorId: string): boolean => {
+  const walk = (current: string | null, depth: number): boolean =>
+    current !== null &&
+    depth <= 20 &&
+    (current === ancestorId || walk(collections.find((item) => item.id === current)?.parentId ?? null, depth + 1));
+  return walk(id, 0);
+};
+
+/** Una collezione può entrare in `parentId` (null = fuori dalle cartelle) senza creare cicli? */
+export const canMoveInto = (collections: readonly Collection[], id: string, parentId: string | null) => {
+  const item = collections.find((collection) => collection.id === id);
+  if (!item || isSystemCollection(item)) return false;
+  if (parentId === null) return true;
+  return collections.some((collection) => collection.id === parentId && collection.kind === "folder") && !isInside(collections, parentId, id);
+};
+
+/** Le collezioni dell'utente nella stessa cartella, nell'ordine della barra laterale. */
+export const siblingsOf = (collections: readonly Collection[], id: string) => {
+  const item = collections.find((collection) => collection.id === id);
+  return item ? childrenOf(collections, item.parentId).filter((collection) => !isSystemCollection(collection)) : [];
+};
+
+/**
+ * Dove finisce una collezione spostata di un posto in su (-1) o in giù (+1) tra le sorelle:
+ * `beforeId` è la collezione davanti a cui va, null = in fondo. Null se è già al limite.
+ */
+export const stepPosition = (collections: readonly Collection[], id: string, step: -1 | 1) => {
+  const siblings = siblingsOf(collections, id);
+  const index = siblings.findIndex((collection) => collection.id === id);
+  const target = index + step;
+  if (index < 0 || target < 0 || target >= siblings.length) return null;
+  const parentId = siblings[index]?.parentId ?? null;
+  // In giù si salta la sorella successiva: si va davanti a quella dopo ancora.
+  const before = step < 0 ? siblings[target] : siblings[target + 1];
+  return { parentId, beforeId: before?.id ?? null };
+};
+
+/** Le cartelle dove si può spostare una collezione: non sé stessa né quelle che contiene. */
+export const moveDestinations = (collections: readonly Collection[], id: string) =>
+  foldersWithPath(collections).filter((folder) => canMoveInto(collections, id, folder.id));
+
+/** Le collezioni normali che contengono il libro. */
+export const collectionsWithBook = (collections: readonly Collection[], bookId: string) =>
+  collections.filter((collection) => collection.kind === "regular" && collection.bookIds.includes(bookId));
+
+/** I libri da proporre per una collezione: quelli che non contiene ancora e rispondono alla ricerca. */
+export const booksToAdd = (library: Library, collection: Collection, query: string, limit = 8): readonly Book[] => {
+  if (collection.kind !== "regular" || query.trim() === "") return [];
+  const present = new Set(collection.bookIds);
+  return library.books
+    .filter((book) => !present.has(book.id))
+    .filter(matchesSearch(query, "all"))
+    .toSorted(compareBooks([{ column: "title", direction: "asc" }]))
+    .slice(0, limit);
+};

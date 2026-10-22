@@ -7,6 +7,8 @@ import { useI18n, useT } from "../../i18n/i18n-context";
 import { columnKeys, type Book, type ColumnKey } from "../model";
 import { loanState } from "../query";
 import { Cover } from "./cover";
+import { CollectionSearchButton } from "./collection-search";
+import { draggableBook } from "./drag";
 import { useLibrary } from "./library-context";
 import { Rating } from "./rating";
 
@@ -96,7 +98,7 @@ function ColumnPicker() {
 }
 
 export function BookTable() {
-  const { books, columns, sort, selected, dispatch } = useLibrary();
+  const { books, columns, sort, selected, dispatch, canEdit } = useLibrary();
   const { t, locale } = useI18n();
   const onArrow = useArrowSelection();
   const primary = sort[0];
@@ -144,6 +146,7 @@ export function BookTable() {
               <tr
                 key={book.id}
                 aria-selected={book.id === selected?.id}
+                {...draggableBook(book.id, canEdit)}
                 onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
                 className={`cursor-default ${book.id === selected?.id ? "bg-selected" : "hover:bg-chip/60"}`}
               >
@@ -170,7 +173,7 @@ export function BookTable() {
 }
 
 export function BookGrid() {
-  const { books, selected, state, today, dispatch } = useLibrary();
+  const { books, selected, state, today, dispatch, canEdit } = useLibrary();
   return (
     <ul
       className="grid content-start gap-x-5 gap-y-7 overflow-auto px-6 pb-6"
@@ -181,6 +184,7 @@ export function BookGrid() {
           <button
             type="button"
             aria-pressed={book.id === selected?.id}
+            {...draggableBook(book.id, canEdit)}
             onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
             className="flex w-full flex-col gap-2 text-left"
           >
@@ -202,7 +206,7 @@ export function BookGrid() {
 }
 
 export function BookCarousel() {
-  const { books, selected, today, dispatch } = useLibrary();
+  const { books, selected, today, dispatch, canEdit } = useLibrary();
   const t = useT();
   const onArrow = useArrowSelection();
   const track = useRef<HTMLUListElement>(null);
@@ -243,6 +247,7 @@ export function BookCarousel() {
                 type="button"
                 aria-pressed={active}
                 aria-label={book.title}
+                {...draggableBook(book.id, canEdit)}
                 onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
                 className={`block transition-all duration-200 ${active ? "w-[180px]" : "w-[130px] opacity-60 hover:opacity-90"}`}
               >
@@ -270,12 +275,16 @@ export function BookCarousel() {
 }
 
 export function EmptyState() {
-  const { state, dispatch } = useLibrary();
+  const { state, collection, dispatch, canEdit } = useLibrary();
   const t = useT();
   const filtered = state.query !== "" || state.valueFilter !== null;
+  // Una collezione vuota spiega come riempirla.
+  const fillable = !filtered && canEdit && collection?.kind === "regular";
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center text-muted">
       <p>{filtered ? t.library.noMatches : t.library.emptyCollection}</p>
+      {fillable && <p className="max-w-sm text-sm">{t.collections.search.emptyHint}</p>}
+      {fillable && <CollectionSearchButton />}
       {filtered && (
         <button
           type="button"

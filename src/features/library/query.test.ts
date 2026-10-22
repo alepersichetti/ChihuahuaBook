@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import type { Collection } from "./model";
 import {
   booksInCollection,
+  booksToAdd,
+  canMoveInto,
+  collectionsWithBook,
+  isInside,
+  stepPosition,
   folderPath,
   foldersWithPath,
   compareBooks,
@@ -134,5 +139,39 @@ describe("folderPath", () => {
     expect(folderPath(collections, "b")).toEqual(["Autori", "Italiani"]);
     expect(folderPath(collections, null)).toEqual([]);
     expect(foldersWithPath(collections).map((folder) => folder.label)).toEqual(["Autori", "Autori / Italiani"]);
+  });
+});
+
+describe("riorganizzare le collezioni", () => {
+  const { collections } = sampleLibrary;
+
+  it("riconosce cosa sta dentro una cartella", () => {
+    expect(isInside(collections, "calvino", "authors")).toBe(true);
+    expect(isInside(collections, "import", "authors")).toBe(false);
+  });
+
+  it("non sposta in una cartella che non esiste o dentro sé stessa", () => {
+    expect(canMoveInto(collections, "calvino", null)).toBe(true);
+    expect(canMoveInto(collections, "calvino", "import")).toBe(false);
+    expect(canMoveInto(collections, "authors", "authors")).toBe(false);
+    expect(canMoveInto(collections, "loaned", null)).toBe(false);
+  });
+
+  it("calcola lo spostamento di un posto tra le sorelle", () => {
+    expect(stepPosition(collections, "top-rated", -1)).toEqual({ parentId: null, beforeId: "authors" });
+    expect(stepPosition(collections, "top-rated", 1)).toEqual({ parentId: null, beforeId: null });
+    expect(stepPosition(collections, "authors", -1)).toBeNull();
+    expect(stepPosition(collections, "import", 1)).toBeNull();
+  });
+
+  it("propone i libri che la collezione non ha ancora", () => {
+    const calvino = collection("calvino");
+    expect(booksToAdd(sampleLibrary, calvino, "calvino").map((book) => book.id)).toEqual([]);
+    expect(booksToAdd(sampleLibrary, calvino, "gattopardo").map((book) => book.id)).toEqual(["gattopardo"]);
+    expect(booksToAdd(sampleLibrary, calvino, "  ")).toEqual([]);
+  });
+
+  it("elenca le collezioni che contengono un libro", () => {
+    expect(collectionsWithBook(collections, "barone-rampante").map((item) => item.id)).toEqual(["calvino"]);
   });
 });
