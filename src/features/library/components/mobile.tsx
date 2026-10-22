@@ -6,6 +6,7 @@ import { loanState } from "../query";
 import { BookDetails } from "./book-details";
 import { Cover, loanBanner } from "./cover";
 import { useLibrary } from "./library-context";
+import { Logo } from "./logo";
 import { Rating } from "./rating";
 import { Sidebar } from "./sidebar";
 import { SearchBox } from "./toolbar";
@@ -154,14 +155,17 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
       ) : (
         <>
           <header className="flex flex-col gap-3 px-4 pt-5 pb-2.5">
-            <button
-              type="button"
-              onClick={() => dispatch({ type: "setMobileScreen", screen: "collections" })}
-              className="flex items-center gap-1 self-start font-display text-[26px] font-bold"
-            >
-              {collection?.name}
-              <ChevronDown size={20} className="text-muted" aria-hidden="true" />
-            </button>
+            <div className="flex items-center gap-2.5">
+              <Logo size={40} />
+              <button
+                type="button"
+                onClick={() => dispatch({ type: "setMobileScreen", screen: "collections" })}
+                className="flex items-center gap-1 font-display text-[26px] font-bold"
+              >
+                {collection?.name}
+                <ChevronDown size={20} className="text-muted" aria-hidden="true" />
+              </button>
+            </div>
             <SearchBox className="h-11 rounded-xl border-0 bg-chip" />
             <QuickFilters />
           </header>

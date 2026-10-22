@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, Libre_Baskerville } from "next/font/google";
+import { branding, brandingIcons } from "@/config/branding";
 import "./globals.css";
 
 const inter = Inter({
@@ -19,8 +20,9 @@ const baskerville = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: "ChihuahaBook",
+  title: branding.name,
   description: "Il catalogo personale dei tuoi libri",
+  icons: brandingIcons(branding),
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,0 +1,10 @@
+{
+  "name": "ChihuahaBook",
+  "logo": "/brand/chihuahua.svg",
+  "favicon": {
+    "svg": "/brand/chihuahua.svg",
+    "png": "/brand/favicon-32.png",
+    "ico": "/brand/favicon.ico",
+    "appleTouchIcon": "/brand/apple-touch-icon.png"
+  }
+}
