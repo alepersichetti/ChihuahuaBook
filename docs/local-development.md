@@ -144,7 +144,7 @@ Studio connects as an administrator and **ignores RLS**: it shows every row what
 
 ### 3.4 Verify the security rules (RLS)
 
-The automatic tests in `supabase/tests/roles.test.sql` check 30 rules (first administrator, invitations, what each role can read and write, covers, the last administrator who can't be removed, anonymous visitors). They need an **empty** database and roll back everything at the end:
+The automatic tests in `supabase/tests/roles.test.sql` check 32 rules (first administrator, invitations, what each role can read and write, covers, the last administrator who can't be removed, anonymous visitors). They need an **empty** database and roll back everything at the end:
 
 ```bash
 npx supabase db reset
@@ -265,7 +265,7 @@ In **Settings** (bottom left) → **Users and roles**:
 - [ ] Do the same for `reader@example.com`.
 - [ ] As administrator, pick **Librarian** in the selector for `lib@example.com`: the count at the top updates. Then pick **Administrator**: a confirmation appears; press **Cancel**.
 - [ ] As the reader: no **Add** button, no editing controls, Settings can't be opened.
-- [ ] As the librarian: Add and Import `.pedia` are there; in Settings only Appearance and About, no Language or Users and roles.
+- [ ] As the librarian: Add and Import `.pedia` are there; in Settings only Appearance, Invitations and About, no Language or Users and roles. An invitation sent from here also shows up in the administrator's list.
 - [ ] As administrator, try demoting yourself: the interface doesn't allow it. Deactivate the reader: after a reload they see an empty library.
 - [ ] Reactivate the reader.
 

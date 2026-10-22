@@ -5,7 +5,7 @@ Ogni istanza di ChihuahuaBook ha **una sola biblioteca condivisa**. Chi accede v
 | Ruolo | Può |
 | --- | --- |
 | **Lettore** | Consultare tutto il catalogo, in sola lettura. Nessun accesso alle impostazioni. |
-| **Bibliotecario** | Tutto ciò che fa il lettore, più aggiungere, modificare ed eliminare libri, collezioni, prestiti e copertine, e importare file `.pedia`. |
+| **Bibliotecario** | Tutto ciò che fa il lettore, più aggiungere, modificare ed eliminare libri, collezioni, prestiti e copertine, importare file `.pedia` e invitare nuovi utenti (che entrano come lettori). |
 | **Amministratore** | Tutto ciò che fa il bibliotecario, più gestire gli utenti (ruoli, inviti, disattivazione) e le impostazioni dell'istanza, compresa la lingua dell'interfaccia. |
 
 I ruoli sono applicati in tre punti, così un errore in uno strato non apre i dati:
@@ -16,7 +16,7 @@ I ruoli sono applicati in tre punti, così un errore in uno strato non apre i da
 
 ## Impostazioni e lingua
 
-Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (palette colori, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e ruoli**.
+Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (palette colori, dimensione delle copertine), **Inviti** e Informazioni. L'amministratore vede anche **Lingua** e **Utenti e ruoli**: solo lui cambia i ruoli, disattiva gli account e apre la registrazione.
 
 L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutta l'istanza (`instance_settings.language`, italiano se non scelta): la cambia solo l'amministratore, e la usa anche la pagina di accesso. I testi sono in `src/features/i18n/messages/` (`it.ts` è il riferimento, `en.ts` deve avere le stesse chiavi e TypeScript lo verifica).
 
@@ -24,7 +24,7 @@ L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutt
 
 Su un'istanza nuova **il primo account che si registra diventa amministratore**. La pagina di accesso lo dice ("questa istanza è nuova").
 
-Da lì in poi la registrazione è **su invito**: in Impostazioni → *Utenti e ruoli* l'amministratore inserisce un'email, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti.
+Da lì in poi la registrazione è **su invito**: in Impostazioni → *Inviti* un amministratore o un bibliotecario inserisce un'email, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti.
 
 ## Utenti e ruoli
 

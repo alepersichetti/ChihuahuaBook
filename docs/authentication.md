@@ -5,7 +5,7 @@ Each ChihuahuaBook instance has **one shared library**. Everyone who signs in se
 | Role | Can do |
 | --- | --- |
 | **Reader** | Browse the whole catalogue, read-only. No access to settings. |
-| **Librarian** | Everything a reader can, plus add, edit and delete books, collections, loans and covers, and import `.pedia` files. |
+| **Librarian** | Everything a reader can, plus add, edit and delete books, collections, loans and covers, import `.pedia` files and invite new users (who start as readers). |
 | **Administrator** | Everything a librarian can, plus manage users (roles, invitations, deactivation) and instance settings, including the interface language. |
 
 Roles are enforced in three places, so a bug in one layer doesn't open the data:
@@ -16,7 +16,7 @@ Roles are enforced in three places, so a bug in one layer doesn't open the data:
 
 ## Settings and language
 
-Readers can't open Settings. Librarians see their personal preferences (color palette, cover size) and the About section. Administrators also see **Language** and **Users and roles**.
+Readers can't open Settings. Librarians see their personal preferences (color palette, cover size), **Invitations** and About. Administrators also see **Language** and **Users and roles**: only they change roles, deactivate accounts and open sign-up.
 
 The interface is available in Italian and English. The language is one for the whole instance (`instance_settings.language`, Italian by default): only an administrator can change it, and the sign-in page uses it too. The texts are in `src/features/i18n/messages/` (`it.ts` is the reference, `en.ts` must have the same keys, and TypeScript checks it).
 
@@ -24,7 +24,7 @@ The interface is available in Italian and English. The language is one for the w
 
 On a fresh instance **the first account that signs up becomes administrator**. The sign-in page says so ("this instance is new").
 
-After that, sign-up is **by invitation**: in Settings → *Users and roles* the administrator enters an email, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone.
+After that, sign-up is **by invitation**: in Settings → *Invitations* an administrator or a librarian enters an email, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone.
 
 ## Users and roles
 

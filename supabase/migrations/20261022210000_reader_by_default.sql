@@ -2,6 +2,7 @@
 -- Il primo utente resta amministratore; tutti gli altri, invitati o registrati
 -- con la registrazione aperta, partono come lettori. Bibliotecario e
 -- amministratore si diventano solo per promozione, da Impostazioni → Utenti e ruoli.
+-- Visto che un invito non dà più un ruolo, possono invitare anche i bibliotecari.
 
 alter table public.invitations drop column role;
 alter table public.instance_settings drop column signup_role;
@@ -48,3 +49,9 @@ end;
 $$;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+drop policy "invitations: admin full access" on public.invitations;
+create policy "invitations: librarians full access" on public.invitations
+  for all to authenticated
+  using ((select public.has_role('librarian')))
+  with check ((select public.has_role('librarian')));

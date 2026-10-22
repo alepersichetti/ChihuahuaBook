@@ -17,6 +17,8 @@ export type AdminApiDeps = {
 
 const member = guarded<AdminApiDeps>("read");
 const admin = guarded<AdminApiDeps>("administer");
+// Gli inviti li gestisce anche il bibliotecario: chi entra è comunque lettore.
+const librarian = guarded<AdminApiDeps>("edit");
 
 export const adminRoutes = [
   // Chi sono e cosa posso fare: serve all'interfaccia per mostrare i comandi giusti.
@@ -42,12 +44,12 @@ export const adminRoutes = [
   route<AdminApiDeps>(
     "GET",
     "/admin/invitations",
-    admin(({ deps }) => deps.members.invitations()),
+    librarian(({ deps }) => deps.members.invitations()),
   ),
   route<AdminApiDeps>(
     "POST",
     "/admin/invitations",
-    admin(
+    librarian(
       ({ request, deps }) =>
         readJson(request).andThen(inviteMember(deps.members)),
       201,
@@ -56,7 +58,7 @@ export const adminRoutes = [
   route<AdminApiDeps>(
     "DELETE",
     "/admin/invitations/:email",
-    admin(
+    librarian(
       ({ params, deps }) => revokeInvitation(deps.members)(params.email),
       204,
     ),

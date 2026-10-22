@@ -1,9 +1,9 @@
 "use client";
 
-import { Info, Languages, Palette, Users, type LucideIcon } from "lucide-react";
+import { Info, Languages, MailPlus, Palette, Users, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { adminApi } from "../admin/api";
-import { UsersAndAccess } from "../admin/components/users-and-access";
+import { Invitations, UsersAndAccess } from "../admin/components/users-and-access";
 import type { ComponentType } from "react";
 import { branding } from "@/config/branding";
 import { Logo } from "../library/components/logo";
@@ -132,7 +132,7 @@ function LanguageSection() {
   );
 }
 
-// Ruoli, inviti e registrazione: il componente parla con /api/admin.
+// Ruoli, stato dei membri e registrazione: il componente parla con /api/admin.
 function UsersSection() {
   const { userId } = useSettings();
   return <UsersAndAccess currentUserId={userId} />;
@@ -177,6 +177,12 @@ export const settingsSections: readonly SettingsSection[] = [
     Icon: Users,
     minRole: "admin",
     Body: UsersSection,
+  },
+  {
+    id: "invitations",
+    Icon: MailPlus,
+    minRole: "librarian",
+    Body: Invitations,
   },
   {
     id: "about",

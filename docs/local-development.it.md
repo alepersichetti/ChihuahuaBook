@@ -144,7 +144,7 @@ Studio si collega come amministratore e **ignora la RLS**: mostra tutte le righe
 
 ### 3.4 Verificare le regole di sicurezza (RLS)
 
-I test automatici in `supabase/tests/roles.test.sql` controllano 30 regole (primo amministratore, inviti, cosa può leggere e scrivere ogni ruolo, copertine, l'ultimo amministratore che non si può togliere, visitatori anonimi). Vanno lanciati su un database **vuoto** e alla fine annullano tutto:
+I test automatici in `supabase/tests/roles.test.sql` controllano 32 regole (primo amministratore, inviti, cosa può leggere e scrivere ogni ruolo, copertine, l'ultimo amministratore che non si può togliere, visitatori anonimi). Vanno lanciati su un database **vuoto** e alla fine annullano tutto:
 
 ```bash
 npx supabase db reset
@@ -265,7 +265,7 @@ In **Impostazioni** (in basso a sinistra) → **Utenti e ruoli**:
 - [ ] Lo stesso per `reader@example.com`.
 - [ ] Da amministratore, nel selettore di `lib@example.com` scegli **Bibliotecario**: il conteggio in cima si aggiorna. Scegli poi **Amministratore**: compare la conferma; premi **Annulla**.
 - [ ] Da lettore: niente pulsante **Aggiungi**, niente comandi di modifica, Impostazioni non si apre.
-- [ ] Da bibliotecario: ci sono Aggiungi e Importa .pedia; in Impostazioni solo Aspetto e Informazioni, niente Lingua né Utenti e ruoli.
+- [ ] Da bibliotecario: ci sono Aggiungi e Importa .pedia; in Impostazioni solo Aspetto, Inviti e Informazioni, niente Lingua né Utenti e ruoli. Un invito fatto da qui compare anche nella lista dell'amministratore.
 - [ ] Da amministratore prova a toglierti il ruolo: l'interfaccia non lo permette. Disattiva il lettore: ricaricando vede la libreria vuota.
 - [ ] Riattiva il lettore.
 

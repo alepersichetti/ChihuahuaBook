@@ -60,7 +60,8 @@ insert into public.loans (book_id, borrower) select id, 'Marta' from public.book
 select pg_temp.expect(pg_temp.fails($$update public.members set role = 'admin' where email = 'lib@example.com'$$)
   or not exists (select 1 from public.members where role = 'admin' and email = 'lib@example.com'), 'il bibliotecario non si promuove');
 select pg_temp.expect((select count(*) from public.members) = 1, 'il bibliotecario vede solo sé stesso tra i membri');
-select pg_temp.expect(pg_temp.fails($$insert into public.invitations (email) values ('x@example.com')$$), 'il bibliotecario non invita');
+insert into public.invitations (email) values ('x@example.com');
+select pg_temp.expect((select count(*) from public.invitations where email = 'x@example.com') = 1, 'il bibliotecario invita');
 
 -- Lettore
 select pg_temp.as_user('reader@example.com');
@@ -77,6 +78,8 @@ select pg_temp.expect(pg_temp.fails($$update public.instance_settings set open_s
 update public.instance_settings set language = 'en';
 select pg_temp.expect((select language from public.instance_settings) = 'it', 'il lettore non cambia la lingua');
 select pg_temp.expect(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('covers', 'a.jpg')$$), 'il lettore non carica copertine');
+select pg_temp.expect(pg_temp.fails($$insert into public.invitations (email) values ('y@example.com')$$), 'il lettore non invita');
+select pg_temp.expect(not exists (select 1 from public.invitations), 'il lettore non vede gli inviti');
 
 -- Admin
 select pg_temp.as_user('admin@example.com');

@@ -10,7 +10,6 @@ import { countByRole, initials, needsConfirmation, searchMembers } from "../memb
 
 type Data = {
   readonly members: readonly Member[];
-  readonly invitations: readonly Invitation[];
   readonly settings: InstanceSettings;
 };
 
@@ -33,11 +32,11 @@ const nameOf = (member: Member) => member.display_name || member.email;
 
 /**
  * Utenti e ruoli, solo per amministratori. Chi entra è sempre Lettore;
- * da qui lo si promuove a Bibliotecario o Amministratore, si disattiva,
- * si invita. Il server ricontrolla tutto (API e RLS).
+ * da qui lo si promuove a Bibliotecario o Amministratore o lo si disattiva.
+ * Il server ricontrolla tutto (API e RLS).
  */
 export function UsersAndAccess({ currentUserId }: { currentUserId: string }) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<AdminError | null>(null);
   const [query, setQuery] = useState("");
@@ -45,8 +44,8 @@ export function UsersAndAccess({ currentUserId }: { currentUserId: string }) {
 
   const load = useCallback(
     () =>
-      ResultAsync.combine([adminApi.members(), adminApi.invitations(), adminApi.settings()] as const).match(
-        ([members, invitations, settings]) => setData({ members, invitations, settings }),
+      ResultAsync.combine([adminApi.members(), adminApi.settings()] as const).match(
+        ([members, settings]) => setData({ members, settings }),
         setError,
       ),
     [],
@@ -73,13 +72,6 @@ export function UsersAndAccess({ currentUserId }: { currentUserId: string }) {
   const confirm = (userId: string, role: Role) => {
     setPending(null);
     void run(adminApi.updateMember(userId, { role }));
-  };
-
-  const invite = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const values = new FormData(form);
-    void run(adminApi.invite(String(values.get("email") ?? ""))).then(() => form.reset());
   };
 
   if (!data) {
@@ -225,43 +217,6 @@ export function UsersAndAccess({ currentUserId }: { currentUserId: string }) {
         )}
       </section>
 
-      <section className="flex flex-col gap-3">
-        <h2 className={sectionTitle}>{t.admin.invitations}</h2>
-        <form onSubmit={invite} className="flex items-end gap-2">
-          <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
-            {t.auth.email}
-            <input name="email" type="email" required className={input} />
-          </label>
-          <button type="submit" className="flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-accent-ink">
-            <MailPlus size={15} aria-hidden="true" />
-            {t.admin.invite}
-          </button>
-        </form>
-        <p className="text-xs text-muted">{t.admin.inviteHint}</p>
-        {data.invitations.length > 0 && (
-          <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
-            {data.invitations.map((invitation) => (
-              <li key={invitation.email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate">{invitation.email}</div>
-                  <div className="text-xs text-muted">
-                    {t.admin.invitationInfo(formatDate(invitation.expires_at, locale))}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  aria-label={t.admin.revoke(invitation.email)}
-                  onClick={() => void run(adminApi.revoke(invitation.email))}
-                  className="flex size-9 items-center justify-center rounded-lg text-danger hover:bg-danger-soft"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <section className="flex flex-col gap-2">
         <h2 className={sectionTitle}>{t.admin.signup}</h2>
         <label className="flex items-center gap-2.5 text-sm">
@@ -275,6 +230,87 @@ export function UsersAndAccess({ currentUserId }: { currentUserId: string }) {
         </label>
         <p className="text-xs text-muted">{t.admin.openSignupHint}</p>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Inviti: li gestiscono bibliotecari e amministratori. Chi è invitato
+ * entra sempre come Lettore.
+ */
+export function Invitations() {
+  const { t, locale } = useI18n();
+  const [invitations, setInvitations] = useState<readonly Invitation[] | null>(null);
+  const [error, setError] = useState<AdminError | null>(null);
+
+  const load = useCallback(() => adminApi.invitations().match(setInvitations, setError), []);
+
+  useEffect(() => {
+    // Primo caricamento: la risposta arriva dopo il montaggio.
+    void load();
+  }, [load]);
+
+  const run = async (action: ResultAsync<unknown, AdminError>) => {
+    const result = await action;
+    setError(result.isOk() ? null : result.error);
+    await load();
+  };
+
+  const invite = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    void run(adminApi.invite(String(values.get("email") ?? ""))).then(() => form.reset());
+  };
+
+  if (!invitations) {
+    return error ? (
+      <p role="alert" className="text-sm text-danger">{t.admin.errors[error]}</p>
+    ) : (
+      <p className="text-sm text-muted" aria-busy="true">{t.common.loading}</p>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {error && (
+        <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2 text-sm text-danger">
+          {t.admin.errors[error]}
+        </p>
+      )}
+      <form onSubmit={invite} className="flex items-end gap-2">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+          {t.auth.email}
+          <input name="email" type="email" required className={input} />
+        </label>
+        <button type="submit" className="flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 text-sm font-medium text-accent-ink">
+          <MailPlus size={15} aria-hidden="true" />
+          {t.admin.invite}
+        </button>
+      </form>
+      <p className="text-xs text-muted">{t.admin.inviteHint}</p>
+      {invitations.length > 0 && (
+        <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
+          {invitations.map((invitation) => (
+            <li key={invitation.email} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="truncate">{invitation.email}</div>
+                <div className="text-xs text-muted">
+                  {t.admin.invitationInfo(formatDate(invitation.expires_at, locale))}
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label={t.admin.revoke(invitation.email)}
+                onClick={() => void run(adminApi.revoke(invitation.email))}
+                className="flex size-9 items-center justify-center rounded-lg text-danger hover:bg-danger-soft"
+              >
+                <Trash2 size={16} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

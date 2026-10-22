@@ -38,13 +38,10 @@ describe("admin API", () => {
     expect(await response.json()).toEqual({ userId: "me", role: "reader" });
   });
 
-  it("solo l'admin gestisce utenti, inviti e impostazioni", async () => {
+  it("solo l'admin gestisce utenti, ruoli e impostazioni", async () => {
     const requests = [
       ["GET", "/api/admin/members"],
       ["PATCH", `/api/admin/members/${other}`, { role: "librarian" }],
-      ["GET", "/api/admin/invitations"],
-      ["POST", "/api/admin/invitations", { email: "a@example.com" }],
-      ["DELETE", "/api/admin/invitations/a%40example.com"],
       ["GET", "/api/admin/settings"],
       ["PATCH", "/api/admin/settings", { open_signup: true }],
     ] as const;
@@ -52,6 +49,18 @@ describe("admin API", () => {
       for (const [method, path, body] of requests) {
         expect((await call(role, method, path, body)).status).toBe(403);
       }
+    }
+  });
+
+  it("il bibliotecario gestisce gli inviti, il lettore no", async () => {
+    const requests = [
+      ["GET", "/api/admin/invitations", undefined, 200],
+      ["POST", "/api/admin/invitations", { email: "a@example.com" }, 201],
+      ["DELETE", "/api/admin/invitations/a%40example.com", undefined, 204],
+    ] as const;
+    for (const [method, path, body, status] of requests) {
+      expect((await call("librarian", method, path, body)).status).toBe(status);
+      expect((await call("reader", method, path, body)).status).toBe(403);
     }
   });
 
