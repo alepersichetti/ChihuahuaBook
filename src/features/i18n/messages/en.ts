@@ -131,6 +131,7 @@ export const en: Messages = {
     removeFilter: "Remove filter",
     noSelection: "Select a book to see its details.",
     showDetails: "Show details",
+    showCollections: "Show collections",
     hideDetails: "Hide details",
     columns: "Columns",
     visibleColumns: "Visible columns",

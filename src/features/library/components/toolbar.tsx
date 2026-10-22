@@ -5,6 +5,7 @@ import {
   HandHelping,
   LayoutGrid,
   List,
+  PanelLeft,
   ListPlus,
   type LucideIcon,
   PanelRight,
@@ -29,7 +30,7 @@ const viewButtons: readonly { view: ViewMode; Icon: LucideIcon }[] = [
 ];
 
 const iconButton =
-  "flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-chip disabled:opacity-40 disabled:hover:bg-transparent";
+  "flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-chip disabled:opacity-40 disabled:hover:bg-transparent touch:size-11";
 
 // Tabella, griglia e galleria; il tooltip spiega cosa mostra ciascuna.
 export function ViewSwitcher() {
@@ -45,7 +46,7 @@ export function ViewSwitcher() {
           title={`${t.views[mode]}: ${t.views.hints[mode]}`}
           aria-pressed={view === mode}
           onClick={() => dispatch({ type: "setView", view: mode })}
-          className={`flex h-[30px] w-[34px] items-center justify-center rounded-[7px] ${
+          className={`flex h-[30px] w-[34px] items-center justify-center rounded-[7px] touch:h-10 touch:w-12 ${
             view === mode ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
           }`}
         >
@@ -75,7 +76,7 @@ export function SearchBox({ className = "" }: { className?: string }) {
   }, []);
 
   return (
-    <div className={`flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-2.5 text-muted ${className}`}>
+    <div className={`flex h-9 items-center gap-2 rounded-lg touch:h-11 border border-line-strong bg-surface px-2.5 text-muted ${className}`}>
       <Search size={16} aria-hidden="true" />
       <input
         ref={input}
@@ -108,16 +109,27 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
   const loaned = selected?.loan != null;
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-bg px-4 py-2.5">
+      {/* Sotto i 1024 px (iPad in verticale) le collezioni stanno in un riquadro che si apre da qui. */}
+      <button
+        type="button"
+        aria-label={t.library.showCollections}
+        title={t.library.showCollections}
+        aria-expanded={state.sidebarOpen}
+        onClick={() => dispatch({ type: "setSidebarOpen", open: true })}
+        className={`${iconButton} lg:hidden`}
+      >
+        <PanelLeft size={18} />
+      </button>
       <div className="flex items-center gap-2 text-base font-bold tracking-tight">
         <Logo size={40} />
-        {branding.name}
+        <span className="hidden lg:inline">{branding.name}</span>
       </div>
       {canEdit && (
       <div className="flex flex-wrap items-center gap-1">
         <button
           type="button"
           onClick={() => dispatch({ type: "setAddOpen", open: true })}
-          className="flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 font-semibold text-accent-ink disabled:opacity-70"
+          className="flex h-9 items-center gap-1.5 rounded-lg bg-accent px-3 font-semibold text-accent-ink disabled:opacity-70 touch:h-11 touch:px-4"
         >
           <Plus size={16} aria-hidden="true" />
           {t.library.add}
@@ -148,14 +160,14 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
         aria-label={state.detailsOpen ? t.library.hideDetails : t.library.showDetails}
         aria-pressed={state.detailsOpen}
         onClick={() => dispatch({ type: "toggleDetails" })}
-        className={`flex size-9 items-center justify-center rounded-lg ${
+        className={`hidden size-9 items-center justify-center rounded-lg lg:flex touch:size-11 ${
           state.detailsOpen ? "bg-selected text-accent" : "text-ink-soft hover:bg-chip"
         }`}
       >
         <PanelRight size={18} />
       </button>
       <div className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3">
-        <SearchBox className="max-w-90 min-w-52 flex-1" />
+        <SearchBox className="min-w-52 flex-1 lg:max-w-90" />
         <AccountMenu />
       </div>
     </header>

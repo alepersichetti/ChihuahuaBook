@@ -11,6 +11,7 @@ import { ImportDialog } from "./import-dialog";
 import { LibraryProvider, useLibrary } from "./library-context";
 import { LoanDialog } from "./loan-dialog";
 import { MobileShell } from "./mobile";
+import { TouchDragProvider } from "./touch-drag";
 
 function Screens() {
   const { selected, canEdit } = useLibrary();
@@ -41,7 +42,9 @@ export function LibraryApp({ library, viewer }: { library: Library; viewer: Sign
   return (
     <SettingsProvider role={viewer.role} userId={viewer.userId}>
       <LibraryProvider library={library} viewer={viewer}>
-        <Screens />
+        <TouchDragProvider>
+          <Screens />
+        </TouchDragProvider>
       </LibraryProvider>
     </SettingsProvider>
   );

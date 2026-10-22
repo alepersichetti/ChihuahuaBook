@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useEffect } from "react";
 import { useT } from "../../i18n/i18n-context";
 import { collectionName } from "../labels";
 import { loanState } from "../query";
@@ -9,6 +10,7 @@ import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
 import { CollectionSearch, CollectionSearchButton } from "./collection-search";
 import { useLibrary } from "./library-context";
+import { useWide } from "./media";
 import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { BookCarousel, BookGrid, BookTable, EmptyState } from "./views";
@@ -101,20 +103,73 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
+const useEscape = (active: boolean, onEscape: () => void) => {
+  useEffect(() => {
+    if (!active) return;
+    const listener = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onEscape();
+    };
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  });
+};
+
+// Barra delle collezioni: colonna fissa da 1024 px, sotto (iPad in verticale) un riquadro
+// che scorre da sinistra e si chiude scegliendo una collezione o toccando fuori.
+function Collections() {
+  const { state, dispatch } = useLibrary();
+  const wide = useWide();
+  const open = state.sidebarOpen && !wide;
+  const close = () => dispatch({ type: "setSidebarOpen", open: false });
+  useEscape(open, close);
+  return (
+    <>
+      {open && <div aria-hidden="true" onClick={close} className="fixed inset-0 z-30 bg-black/30 lg:hidden" />}
+      <div
+        inert={!wide && !open}
+        className={`flex max-lg:fixed max-lg:inset-y-0 max-lg:left-0 max-lg:z-40 max-lg:transition-transform max-lg:duration-200 ${
+          open ? "max-lg:shadow-2xl" : "max-lg:-translate-x-full"
+        }`}
+      >
+        <Sidebar className="w-72 border-r lg:w-52 xl:w-58" />
+      </div>
+    </>
+  );
+}
+
+// Sotto i 1024 px la scheda del libro si apre sopra l'elenco, da destra, e si chiude con la X.
+function DetailsSheet({ onLend }: ShellProps) {
+  const { selected, dispatch } = useLibrary();
+  const close = () => dispatch({ type: "selectBook", bookId: null });
+  useEscape(selected !== undefined && selected !== null, close);
+  if (!selected) return null;
+  return (
+    <div
+      onClick={(event) => event.target === event.currentTarget && close()}
+      className="fixed inset-0 z-40 flex justify-end bg-black/30"
+    >
+      <BookDetails book={selected} variant="drawer" onLend={onLend} onClose={close} />
+    </div>
+  );
+}
+
 // Tabella e griglia: collezioni, libri e dettagli affiancati.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
+  const wide = useWide();
   return (
     <>
       <Toolbar onLend={onLend} />
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
+        <Collections />
         <main className="flex min-w-0 flex-1 flex-col">
           <MainHeader />
           <BooksView />
         </main>
-        {state.detailsOpen &&
-          (selected ? <BookDetails book={selected} variant="side" onLend={onLend} /> : <NoSelection />)}
+        {wide
+          ? state.detailsOpen &&
+            (selected ? <BookDetails book={selected} variant="side" onLend={onLend} /> : <NoSelection />)
+          : <DetailsSheet onLend={onLend} />}
       </div>
       <StatusBar />
     </>
@@ -123,12 +178,13 @@ function ClassicShell({ onLend }: ShellProps) {
 
 // Galleria: carosello in alto e scheda del libro nel riquadro sotto, senza pannello a destra.
 function GalleryShell({ onLend }: ShellProps) {
-  const { state, selected } = useLibrary();
+  const { state, selected, books } = useLibrary();
+  const t = useT();
   return (
     <>
       <Toolbar onLend={onLend} />
       <div className="flex min-h-0 flex-1">
-        <Sidebar />
+        <Collections />
         <main className="flex min-w-0 flex-1 flex-col">
           <MainHeader />
           <BooksView />
@@ -136,6 +192,11 @@ function GalleryShell({ onLend }: ShellProps) {
             <div className="min-h-0 flex-1 overflow-auto border-t border-line">
               <BookDetails book={selected} variant="below" onLend={onLend} />
             </div>
+          )}
+          {state.detailsOpen && !selected && books.length > 0 && (
+            <p className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted">
+              {t.library.noSelection}
+            </p>
           )}
         </main>
       </div>
