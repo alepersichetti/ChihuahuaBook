@@ -17,7 +17,7 @@ import { loanState } from "../query";
 import { Cover } from "./cover";
 import { readStatusIcon } from "./icons";
 import { useLibrary } from "./library-context";
-import { RatingInput } from "./rating";
+import { Rating, RatingInput } from "./rating";
 
 const formatDate = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
@@ -75,9 +75,10 @@ const facts = (book: Book): readonly { label: string; value: ReactNode }[] =>
   ].filter((fact) => fact.value !== null && fact.value !== false && fact.value !== undefined);
 
 function LoanBox({ book, onLend }: { book: Book; onLend: () => void }) {
-  const { today, dispatch } = useLibrary();
+  const { today, dispatch, canEdit } = useLibrary();
   const loan = loanState(book, today);
   if (loan.kind === "none" || !book.loan) {
+    if (!canEdit) return null;
     return (
       <button
         type="button"
@@ -109,21 +110,31 @@ function LoanBox({ book, onLend }: { book: Book; onLend: () => void }) {
           {loan.daysLeft === 0 ? "Rientra oggi" : `Rientra tra ${loan.daysLeft} giorni`}
         </div>
       )}
-      <button
-        type="button"
-        onClick={() => dispatch({ type: "returnBook", bookId: book.id })}
-        className="flex h-9 items-center justify-center gap-2 rounded-lg bg-accent font-semibold text-accent-ink"
-      >
-        <Undo2 size={16} aria-hidden="true" />
-        Restituito
-      </button>
+      {canEdit && (
+        <button
+          type="button"
+          onClick={() => dispatch({ type: "returnBook", bookId: book.id })}
+          className="flex h-9 items-center justify-center gap-2 rounded-lg bg-accent font-semibold text-accent-ink"
+        >
+          <Undo2 size={16} aria-hidden="true" />
+          Restituito
+        </button>
+      )}
     </div>
   );
 }
 
 function ReadStatusSelect({ book }: { book: Book }) {
-  const { dispatch } = useLibrary();
+  const { dispatch, canEdit } = useLibrary();
   const Icon = readStatusIcon[book.readStatus];
+  if (!canEdit) {
+    return (
+      <span className="flex items-center gap-1.5 self-start rounded-full bg-chip px-2.5 py-1 text-xs font-semibold">
+        <Icon size={13} aria-hidden="true" />
+        {readStatusLabel[book.readStatus]}
+      </span>
+    );
+  }
   return (
     <label className="flex items-center gap-1.5 self-start rounded-full bg-chip py-1 pr-1 pl-2.5 text-xs font-semibold">
       <Icon size={13} aria-hidden="true" />
@@ -184,7 +195,7 @@ export function BookDetails({
   onLend: () => void;
   onClose?: () => void;
 }) {
-  const { dispatch } = useLibrary();
+  const { dispatch, canEdit } = useLibrary();
   const list = facts(book);
   const header = (
     <div className={`flex gap-4 ${variant === "drawer" ? "flex-col items-center text-center" : ""}`}>
@@ -201,7 +212,11 @@ export function BookDetails({
         <div className="font-medium">
           {joinNodes(book.authors.map((author) => <FilterValue key={author} field="authors" value={author} />))}
         </div>
-        <RatingInput rating={book.rating} onChange={(rating) => dispatch({ type: "setRating", bookId: book.id, rating })} />
+        {canEdit ? (
+          <RatingInput rating={book.rating} onChange={(rating) => dispatch({ type: "setRating", bookId: book.id, rating })} />
+        ) : (
+          <Rating rating={book.rating} />
+        )}
         <ReadStatusSelect book={book} />
       </div>
     </div>
@@ -235,6 +250,7 @@ export function BookDetails({
   const actions = (
     <div className="flex flex-col gap-2">
       <LoanBox book={book} onLend={onLend} />
+      {canEdit && (
       <div className="flex gap-2">
         <button
           type="button"
@@ -264,6 +280,7 @@ export function BookDetails({
           <Ellipsis size={16} />
         </button>
       </div>
+      )}
     </div>
   );
 

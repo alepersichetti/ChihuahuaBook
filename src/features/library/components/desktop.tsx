@@ -5,6 +5,7 @@ import { plural, valueFilterLabel } from "../labels";
 import { loanState } from "../query";
 import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
+import { AccountMenu } from "./account-menu";
 import { IconRail } from "./icon-rail";
 import { useLibrary } from "./library-context";
 import { Sidebar } from "./sidebar";
@@ -112,7 +113,7 @@ function ClassicShell({ onLend }: ShellProps) {
 
 // B: copertine in primo piano, barra a icone e scheda a cassetto.
 function GalleryShell({ onLend }: ShellProps) {
-  const { state, selected, dispatch } = useLibrary();
+  const { state, selected, dispatch, canEdit } = useLibrary();
   return (
     <div className="flex min-h-0 flex-1">
       <IconRail />
@@ -124,15 +125,18 @@ function GalleryShell({ onLend }: ShellProps) {
           <SearchBox className="w-72 rounded-full" />
           <ViewSwitcher />
           <LayoutPicker />
-          <button
-            type="button"
-            disabled
-            title="In arrivo"
-            className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 font-semibold text-accent-ink disabled:opacity-70"
-          >
-            <ScanBarcode size={16} aria-hidden="true" />
-            Aggiungi libro
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              disabled
+              title="In arrivo"
+              className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 font-semibold text-accent-ink disabled:opacity-70"
+            >
+              <ScanBarcode size={16} aria-hidden="true" />
+              Aggiungi libro
+            </button>
+          )}
+          <AccountMenu />
         </div>
         <BooksView />
         <StatusBar />

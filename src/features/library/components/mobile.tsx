@@ -6,6 +6,7 @@ import { loanState } from "../query";
 import { BookDetails } from "./book-details";
 import { Cover, loanBanner } from "./cover";
 import { useLibrary } from "./library-context";
+import { AccountMenu } from "./account-menu";
 import { Logo } from "./logo";
 import { Rating } from "./rating";
 import { Sidebar } from "./sidebar";
@@ -125,7 +126,7 @@ function TabBar() {
 
 // D: una schermata alla volta, pensata per il telefono.
 export function MobileShell({ onLend }: { onLend: () => void }) {
-  const { state, collection, selected, dispatch } = useLibrary();
+  const { state, collection, selected, dispatch, canEdit } = useLibrary();
 
   if (state.mobileScreen === "book" && selected) {
     return (
@@ -165,6 +166,9 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
                 {collection?.name}
                 <ChevronDown size={20} className="text-muted" aria-hidden="true" />
               </button>
+              <div className="ml-auto">
+                <AccountMenu />
+              </div>
             </div>
             <SearchBox className="h-11 rounded-xl border-0 bg-chip" />
             <QuickFilters />
@@ -172,15 +176,17 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
           <main className="flex-1 pb-24">
             <BookRows />
           </main>
-          <button
-            type="button"
-            aria-label="Scansiona ISBN"
-            title="In arrivo"
-            disabled
-            className="fixed right-4 bottom-24 flex size-15 items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_rgba(47,91,211,0.35)] disabled:opacity-80"
-          >
-            <ScanBarcode size={26} />
-          </button>
+          {canEdit && (
+            <button
+              type="button"
+              aria-label="Scansiona ISBN"
+              title="In arrivo"
+              disabled
+              className="fixed right-4 bottom-24 flex size-15 items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_rgba(47,91,211,0.35)] disabled:opacity-80"
+            >
+              <ScanBarcode size={26} />
+            </button>
+          )}
         </>
       )}
       <div className="sticky bottom-0">

@@ -11,7 +11,7 @@ export type Json =
 
 type BookRow = {
   id: string;
-  owner_id: string;
+  created_by: string | null;
   title: string;
   subtitle: string | null;
   authors: string[];
@@ -61,7 +61,7 @@ type BookInsert = Partial<Omit<BookRow, "title" | "search">> & {
 
 type CollectionRow = {
   id: string;
-  owner_id: string;
+  created_by: string | null;
   name: string;
   description: string | null;
   position: number;
@@ -72,13 +72,12 @@ type CollectionRow = {
 type CollectionBookRow = {
   collection_id: string;
   book_id: string;
-  owner_id: string;
   added_at: string;
 };
 
 type LoanRow = {
   id: string;
-  owner_id: string;
+  created_by: string | null;
   book_id: string;
   borrower: string;
   loaned_on: string;
@@ -87,6 +86,34 @@ type LoanRow = {
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+type AppRole = "reader" | "librarian" | "admin";
+
+type MemberRow = {
+  user_id: string;
+  email: string;
+  display_name: string | null;
+  role: AppRole;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+type InvitationRow = {
+  email: string;
+  role: AppRole;
+  invited_by: string | null;
+  created_at: string;
+  expires_at: string;
+};
+
+type InstanceSettingsRow = {
+  id: boolean;
+  open_signup: boolean;
+  signup_role: AppRole;
+  updated_at: string;
+  updated_by: string | null;
 };
 
 export type Database = {
@@ -142,13 +169,40 @@ export type Database = {
           },
         ];
       };
+      members: {
+        Row: MemberRow;
+        Insert: Partial<MemberRow> & { user_id: string; email: string };
+        Update: Partial<Pick<MemberRow, "display_name" | "role" | "active">>;
+        Relationships: [];
+      };
+      invitations: {
+        Row: InvitationRow;
+        Insert: Partial<InvitationRow> & { email: string };
+        Update: Partial<InvitationRow>;
+        Relationships: [];
+      };
+      instance_settings: {
+        Row: InstanceSettingsRow;
+        Insert: Partial<InstanceSettingsRow>;
+        Update: Partial<
+          Pick<InstanceSettingsRow, "open_signup" | "signup_role" | "updated_by">
+        >;
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
       immutable_unaccent: { Args: { value: string }; Returns: string };
+      member_role: { Args: Record<string, never>; Returns: AppRole | null };
+      has_role: { Args: { required: AppRole }; Returns: boolean };
+      signup_mode: {
+        Args: Record<string, never>;
+        Returns: "first_admin" | "open" | "invite_only";
+      };
     };
     Enums: {
       read_status: "unread" | "reading" | "read" | "abandoned";
+      app_role: AppRole;
     };
     CompositeTypes: { [_ in never]: never };
   };

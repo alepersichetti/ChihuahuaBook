@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, use, useMemo, useReducer, useSyncExternalStore, type ReactNode } from "react";
+import { can, type SignedInViewer } from "@/features/auth/viewer";
 import type { Library } from "../model";
 import { booksInCollection, visibleBooks } from "../query";
 import {
@@ -9,7 +10,7 @@ import {
   currentSort,
   currentView,
   initialState,
-  libraryReducer,
+  reducerFor,
   selectedBook,
   type LibraryAction,
   type LibraryState,
@@ -21,8 +22,10 @@ const noSubscription = () => () => {};
 // La data di oggi esiste solo nel browser: sul server i prestiti restano "aperti".
 const useToday = () => useSyncExternalStore(noSubscription, todayIso, () => null);
 
-const useLibraryValue = (library: Library) => {
-  const [state, dispatch] = useReducer(libraryReducer, library, initialState);
+const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
+  const canEdit = can(viewer.role, "edit");
+  const isAdmin = can(viewer.role, "administer");
+  const [state, dispatch] = useReducer(reducerFor(canEdit), library, initialState);
   const today = useToday();
   const derived = useMemo(() => {
     const collection = currentCollection(state) ?? state.library.collections[0];
@@ -48,15 +51,23 @@ const useLibraryValue = (library: Library) => {
       selected: selectedBook(state),
     };
   }, [state]);
-  return { state, dispatch, today, ...derived };
+  return { state, dispatch, today, viewer, canEdit, isAdmin, ...derived };
 };
 
 type LibraryContextValue = ReturnType<typeof useLibraryValue>;
 
 const LibraryContext = createContext<LibraryContextValue | null>(null);
 
-export function LibraryProvider({ library, children }: { library: Library; children: ReactNode }) {
-  return <LibraryContext value={useLibraryValue(library)}>{children}</LibraryContext>;
+export function LibraryProvider({
+  library,
+  viewer,
+  children,
+}: {
+  library: Library;
+  viewer: SignedInViewer;
+  children: ReactNode;
+}) {
+  return <LibraryContext value={useLibraryValue(library, viewer)}>{children}</LibraryContext>;
 }
 
 export const useLibrary = () => {

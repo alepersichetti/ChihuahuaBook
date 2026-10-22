@@ -5,14 +5,18 @@ import { notFound, unexpected, type AppError } from "../../core/errors";
 import type { Supabase } from "./client";
 
 const columns =
-  "id, owner_id, title, subtitle, authors, editors, translators, illustrators, publisher, published_year, edition, isbn13, isbn10, pages, format, language, genres, series, series_number, summary, cover_path, cover_url, read_status, started_reading_on, finished_reading_on, rating, favorite, notes, tags, location, condition, signed, purchased_on, purchased_from, purchase_price, estimated_value, currency, source, source_id, created_at, updated_at";
+  "id, created_by, title, subtitle, authors, editors, translators, illustrators, publisher, published_year, edition, isbn13, isbn10, pages, format, language, genres, series, series_number, summary, cover_path, cover_url, read_status, started_reading_on, finished_reading_on, rating, favorite, notes, tags, location, condition, signed, purchased_on, purchased_from, purchase_price, estimated_value, currency, source, source_id, created_at, updated_at";
 
 type PostgrestError = { message: string; code?: string };
 
-const fromPostgrest = (error: PostgrestError): AppError =>
-  error.code === "23505"
+// 23505: vincolo unique. P0001: regola del database (es. ultimo admin).
+// 42501: la RLS o i privilegi hanno rifiutato l'operazione.
+export const fromPostgrest = (error: PostgrestError): AppError =>
+  error.code === "23505" || error.code === "P0001"
     ? { kind: "conflict", message: error.message }
-    : { kind: "unexpected", message: error.message };
+    : error.code === "42501"
+      ? { kind: "forbidden" }
+      : { kind: "unexpected", message: error.message };
 
 type Response<T> = { data: T | null; error: PostgrestError | null };
 

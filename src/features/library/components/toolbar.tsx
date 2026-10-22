@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { branding } from "@/config/branding";
 import { layoutLabel, searchFieldLabel } from "../labels";
 import { layouts, searchFields, type Layout, type SearchField, type ViewMode } from "../model";
+import { AccountMenu } from "./account-menu";
 import { useLibrary } from "./library-context";
 import { Logo } from "./logo";
 
@@ -117,7 +118,7 @@ export function SearchBox({ className = "" }: { className?: string }) {
 }
 
 export function Toolbar({ onLend }: { onLend: () => void }) {
-  const { state, dispatch, selected } = useLibrary();
+  const { state, dispatch, selected, canEdit } = useLibrary();
   const loaned = selected?.loan != null;
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-bg px-4 py-2.5">
@@ -125,6 +126,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
         <Logo size={40} />
         {branding.name}
       </div>
+      {canEdit && (
       <div className="flex flex-wrap items-center gap-1">
         <button
           type="button"
@@ -154,6 +156,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
           {loaned ? <Undo2 size={18} /> : <HandHelping size={18} />}
         </button>
       </div>
+      )}
       <ViewSwitcher />
       <button
         type="button"
@@ -169,6 +172,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
       <div className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3">
         <SearchBox className="max-w-90 min-w-52 flex-1" />
         <LayoutPicker />
+        <AccountMenu />
       </div>
     </header>
   );
