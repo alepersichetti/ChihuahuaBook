@@ -1,13 +1,9 @@
 import { z } from "zod";
-import type { Enums } from "@/lib/supabase/database.types";
 import { cleanIsbn, isValidIsbn10, isValidIsbn13 } from "./isbn";
 
-export const readStatuses = [
-  "unread",
-  "reading",
-  "read",
-  "abandoned",
-] as const satisfies readonly Enums<"read_status">[];
+export const readStatuses = ["unread", "reading", "read", "abandoned"] as const;
+
+export type ReadStatus = (typeof readStatuses)[number];
 
 // Stringa facoltativa: spazi rimossi, stringa vuota diventa null.
 const text = z
@@ -111,3 +107,25 @@ export const bookUpdateSchema = bookFields
 
 export type BookInput = z.input<typeof bookInputSchema>;
 export type BookUpdate = z.input<typeof bookUpdateSchema>;
+
+export const bookSorts = [
+  "created_at",
+  "title",
+  "published_year",
+  "rating",
+] as const;
+
+// Parametri di ricerca: arrivano come stringhe (es. da una query string).
+export const listBooksQuerySchema = z.object({
+  q: z.string().trim().optional(),
+  status: z.enum(readStatuses).optional(),
+  tag: z.string().trim().min(1).optional(),
+  favorite: z.stringbool().optional(),
+  collection: z.uuid().optional(),
+  sort: z.enum(bookSorts).default("created_at"),
+  order: z.enum(["asc", "desc"]).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
+export const bookIdSchema = z.uuid();
