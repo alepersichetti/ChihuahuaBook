@@ -14,6 +14,7 @@ import { adminRoutes, type AdminApiDeps } from "../http/admin-api";
 import { booksRoutes, type BooksApiDeps } from "../http/books-api";
 import { importRoutes, type ImportApiDeps } from "../http/import-api";
 import { sameOriginOnly } from "../http/csrf";
+import { requestOrigin } from "../http/origin";
 import { json } from "../http/responses";
 import { router } from "../http/router";
 
@@ -43,7 +44,7 @@ export const createApp = (
             googleBooksSource({
               apiKey: config.googleBooksApiKey,
               fetch: options.fetch,
-              referer: `${new URL(request.url).origin}/`,
+              referer: `${requestOrigin(request)}/`,
               baseUrl: config.googleBooksUrl,
             }),
             openLibrarySource({ fetch: options.fetch, baseUrl: config.openLibraryUrl }),
