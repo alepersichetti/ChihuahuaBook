@@ -17,6 +17,7 @@ import { useEffect, useRef } from "react";
 import { branding } from "@/config/branding";
 import { layoutLabel, searchFieldLabel } from "../labels";
 import { layouts, searchFields, type Layout, type SearchField, type ViewMode } from "../model";
+import { useSettings } from "../../settings/settings-context";
 import { useLibrary } from "./library-context";
 import { Logo } from "./logo";
 
@@ -52,13 +53,13 @@ export function ViewSwitcher() {
 }
 
 export function LayoutPicker() {
-  const { state, dispatch } = useLibrary();
+  const { preferences, setPreference } = useSettings();
   return (
     <label className="flex items-center gap-2 text-sm text-muted">
       <span className="sr-only lg:not-sr-only">Layout</span>
       <select
-        value={state.layout}
-        onChange={(event) => dispatch({ type: "setLayout", layout: event.target.value as Layout })}
+        value={preferences.layout}
+        onChange={(event) => setPreference("layout", event.target.value as Layout)}
         className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-ink"
       >
         {layouts.map((layout) => (

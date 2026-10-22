@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, use, useMemo, useReducer, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, use, useEffect, useMemo, useReducer, useSyncExternalStore, type ReactNode } from "react";
+import { useSettings } from "../../settings/settings-context";
 import type { Library } from "../model";
 import { booksInCollection, visibleBooks } from "../query";
 import {
@@ -24,6 +25,15 @@ const useToday = () => useSyncExternalStore(noSubscription, todayIso, () => null
 const useLibraryValue = (library: Library) => {
   const [state, dispatch] = useReducer(libraryReducer, library, initialState);
   const today = useToday();
+  const { preferences } = useSettings();
+
+  // Layout e dimensione delle copertine sono preferenze: le impostazioni le decidono, la libreria le segue.
+  useEffect(() => {
+    dispatch({ type: "setLayout", layout: preferences.layout });
+  }, [preferences.layout]);
+  useEffect(() => {
+    dispatch({ type: "setCoverSize", size: preferences.coverSize });
+  }, [preferences.coverSize]);
   const derived = useMemo(() => {
     const collection = currentCollection(state) ?? state.library.collections[0];
     const sort = currentSort(state);

@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { SettingsButton } from "../../settings/components/settings-panel";
+import type { Role } from "../../settings/model";
+import { SettingsProvider } from "../../settings/settings-context";
 import type { Library } from "../model";
 import { DesktopShell } from "./desktop";
 import { ImportDialog } from "./import-dialog";
@@ -22,14 +25,17 @@ function Screens() {
       </div>
       <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
       <ImportDialog />
+      <SettingsButton />
     </div>
   );
 }
 
-export function LibraryApp({ library }: { library: Library }) {
+export function LibraryApp({ library, role }: { library: Library; role?: Role }) {
   return (
-    <LibraryProvider library={library}>
-      <Screens />
-    </LibraryProvider>
+    <SettingsProvider role={role}>
+      <LibraryProvider library={library}>
+        <Screens />
+      </LibraryProvider>
+    </SettingsProvider>
   );
 }

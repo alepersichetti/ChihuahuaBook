@@ -3,6 +3,7 @@
 import { ScanBarcode, X } from "lucide-react";
 import { plural, valueFilterLabel } from "../labels";
 import { loanState } from "../query";
+import { useSettings } from "../../settings/settings-context";
 import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
 import { IconRail } from "./icon-rail";
@@ -54,7 +55,8 @@ function BooksView() {
 }
 
 function StatusBar() {
-  const { books, today, view, state, dispatch } = useLibrary();
+  const { books, today, view } = useLibrary();
+  const { preferences, setPreference } = useSettings();
   const loans = books.map((book) => loanState(book, today));
   const loaned = loans.filter((loan) => loan.kind !== "none").length;
   const late = loans.filter((loan) => loan.kind === "overdue").length;
@@ -70,8 +72,8 @@ function StatusBar() {
             type="range"
             min={coverSizes.min}
             max={coverSizes.max}
-            value={state.coverSize}
-            onChange={(event) => dispatch({ type: "setCoverSize", size: Number(event.target.value) })}
+            value={preferences.coverSize}
+            onChange={(event) => setPreference("coverSize", Number(event.target.value))}
             className="w-36 accent-(--accent)"
           />
         </label>
