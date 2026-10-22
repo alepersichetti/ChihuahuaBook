@@ -1,4 +1,4 @@
-import type { ImportItemResult, ImportReport } from "@/server/core/books/import";
+import type { ImportItemResult, ImportReport, PruneReport } from "@/server/core/books/import";
 import type { PediaBook } from "@/server/core/books/pedia";
 import type { BundleFile } from "./bundle";
 
@@ -11,8 +11,14 @@ const coverConcurrency = 4;
 const maxDirectCoverBytes = 4 * 1024 * 1024;
 const maxCoverSide = 1600;
 
+/**
+ * "delta": aggiunge i libri nuovi e aggiorna quelli cambiati nel file, il resto non si tocca.
+ * "replace": la biblioteca diventa uguale al file, i libri che non ci sono vengono eliminati.
+ */
+export type ImportMode = "delta" | "replace";
+
 export type SaveProgress = {
-  readonly phase: "books" | "covers";
+  readonly phase: "books" | "prune" | "covers";
   readonly done: number;
   readonly total: number;
 };
@@ -24,7 +30,11 @@ export type SaveOutcome =
       readonly kind: "saved";
       readonly created: number;
       readonly updated: number;
+      readonly unchanged: number;
       readonly skipped: number;
+      /** Libri eliminati sostituendo la biblioteca; null se non richiesto o non riuscito. */
+      readonly removed: number | null;
+      readonly removeProblem: string | null;
       readonly problems: readonly SaveProblem[];
       readonly coversUploaded: number;
       readonly coverProblems: readonly SaveProblem[];
@@ -38,7 +48,7 @@ export type SaveOutcome =
 export type SaveOptions = {
   readonly books: readonly PediaBook[];
   readonly covers: ReadonlyMap<string, BundleFile>;
-  readonly onExisting: "update" | "skip";
+  readonly mode: ImportMode;
   readonly onProgress: (progress: SaveProgress) => void;
   readonly fetch?: typeof fetch;
   readonly prepareCover?: (blob: Blob) => Promise<Blob>;
@@ -103,10 +113,40 @@ const failedBatch = (batch: readonly PediaBook[], index: number, message: string
     ? { kind: "stop", outcome: { kind: "unavailable", reason: "error", message } }
     : { kind: "saved", saved: { results: [], problems: batch.map((book) => ({ title: book.book.title, message })) } };
 
+type Fetcher = typeof fetch;
+
+const postPrune = (
+  fetcher: Fetcher,
+  baseUrl: string,
+  books: readonly PediaBook[],
+  dryRun: boolean,
+): Promise<PruneReport | string> =>
+  fetcher(`${baseUrl}/api/import/prune`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({
+      source: "bookpedia",
+      keep_source_ids: books.map((book) => book.sourceId),
+      dry_run: dryRun,
+    }),
+  })
+    .then(async (response) =>
+      response.ok ? ((await response.json()) as PruneReport) : `Errore del server (${response.status})`,
+    )
+    .catch((cause: unknown) => `Rete non raggiungibile: ${errorMessage(cause)}`);
+
+/** Quanti libri eliminerebbe la sostituzione: null se il server non risponde. */
+export const countReplaced = (
+  books: readonly PediaBook[],
+  { fetch: fetcher = fetch, baseUrl = "" }: { readonly fetch?: Fetcher; readonly baseUrl?: string } = {},
+): Promise<PruneReport | null> =>
+  postPrune(fetcher, baseUrl, books, true).then((report) => (typeof report === "string" ? null : report));
+
 export const saveImport = async ({
   books,
   covers,
-  onExisting,
+  mode,
   onProgress,
   fetch: fetcher = fetch,
   prepareCover = prepareCoverInBrowser,
@@ -121,7 +161,8 @@ export const saveImport = async ({
       credentials: "same-origin",
       body: JSON.stringify({
         source: "bookpedia",
-        on_existing: onExisting,
+        // Sostituendo, ogni libro diventa identico alla sua scheda; altrimenti si tocca solo ciò che è cambiato.
+        on_existing: mode === "replace" ? "update" : "changed",
         items: batch.map(({ sourceId, book, extra }) => ({ source_id: sourceId, book, extra })),
       }),
     }).catch((cause: unknown) => cause);
@@ -167,6 +208,10 @@ export const saveImport = async ({
   const { results, problems } = booksOutcome.saved;
   onProgress({ phase: "books", done: books.length, total: books.length });
 
+  // Solo dopo che tutte le schede sono sul server: i libri del file (anche se un lotto è fallito) restano.
+  if (mode === "replace") onProgress({ phase: "prune", done: 0, total: 1 });
+  const pruned = mode === "replace" ? await postPrune(fetcher, baseUrl, books, false) : null;
+
   // Copertine solo per i libri creati o aggiornati: quelli saltati restano com'erano.
   const coverJobs = results.flatMap((item) => {
     const file = item.status === "created" || item.status === "updated" ? covers.get(item.source_id) : undefined;
@@ -198,7 +243,10 @@ export const saveImport = async ({
     kind: "saved",
     created: results.filter((item) => item.status === "created").length,
     updated: results.filter((item) => item.status === "updated").length,
+    unchanged: results.filter((item) => item.status === "unchanged").length,
     skipped: results.filter((item) => item.status === "skipped").length,
+    removed: pruned !== null && typeof pruned !== "string" ? pruned.removed : null,
+    removeProblem: typeof pruned === "string" ? pruned : null,
     problems,
     coversUploaded: coverJobs.length - coverProblems.length,
     coverProblems,

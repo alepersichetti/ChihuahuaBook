@@ -1,6 +1,6 @@
 import { ResultAsync } from "neverthrow";
 import type { BookStore, CoverStore, ImportStore } from "../core/books/ports";
-import { importBooks, setBookCover } from "../core/books/import";
+import { importBooks, pruneLibrary, setBookCover } from "../core/books/import";
 import { unexpected, type AppError } from "../core/errors";
 import type { Session } from "../core/session";
 import { guarded, readJson } from "./guard";
@@ -28,6 +28,14 @@ export const importRoutes = [
     "/import/books",
     librarian(({ request, deps }) =>
       readJson(request).andThen(importBooks(deps.imports)),
+    ),
+  ),
+  // Sostituzione della biblioteca: elimina i libri che non sono nel file (o li conta soltanto).
+  route<ImportApiDeps>(
+    "POST",
+    "/import/prune",
+    librarian(({ request, deps }) =>
+      readJson(request).andThen(pruneLibrary(deps.imports, deps.covers)),
     ),
   ),
   // Il corpo è l'immagine stessa, con il suo Content-Type.

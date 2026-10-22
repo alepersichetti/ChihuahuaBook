@@ -3,9 +3,10 @@
 import { mapPediaRecords, type PediaBook, type PediaRecordError } from "@/server/core/books/pedia";
 import { AlertTriangle, CheckCircle2, FileArchive, FolderOpen, LoaderCircle, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
+import type { PruneReport } from "@/server/core/books/import";
 import { filesFromDrop, filesFromInput, readBundle, type Bundle, type BundleFile } from "../../import/bundle";
 import { matchCovers, type CoverMatch } from "../../import/covers";
-import { saveImport, type SaveOutcome, type SaveProgress } from "../../import/save";
+import { countReplaced, saveImport, type ImportMode, type SaveOutcome, type SaveProgress } from "../../import/save";
 import { toLibraryBook } from "../../import/to-library";
 import { parsePediaXml } from "../../import/xml";
 import { useT } from "../../i18n/i18n-context";
@@ -39,6 +40,9 @@ const buildPreview = async (files: readonly BundleFile[], t: Messages): Promise<
   const { books, errors } = mapPediaRecords(parsed.value.records);
   return { bundle, format: parsed.value.format, books, errors, covers: matchCovers(books, bundle.images) };
 };
+
+// Il bundle si chiama spesso "Libreria", come la collezione principale: il prefisso evita confusione.
+const collectionName = (preview: Preview) => `Bookpedia: ${preview.bundle.name}`;
 
 function Notice({ tone, children }: { tone: "ok" | "warn"; children: ReactNode }) {
   const Icon = tone === "ok" ? CheckCircle2 : AlertTriangle;
@@ -106,7 +110,9 @@ function ProgressBar({ progress }: { progress: SaveProgress | null }) {
     ? t.importer.preparing
     : progress.phase === "books"
       ? t.importer.savingBooks(progress.done, progress.total)
-      : t.importer.uploadingCovers(progress.done, progress.total);
+      : progress.phase === "prune"
+        ? t.importer.removingBooks
+        : t.importer.uploadingCovers(progress.done, progress.total);
   return (
     <div className="flex flex-col gap-2">
       <div className="text-sm text-ink-soft">{label}</div>
@@ -128,7 +134,7 @@ function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveO
   return (
     <div className="flex flex-col gap-2">
       <Notice tone="ok">
-        {t.importer.added(preview.books.length, preview.bundle.name)}
+        {t.importer.added(preview.books.length, collectionName(preview))}
       </Notice>
       {outcome.kind === "unavailable" ? (
         <Notice tone="warn">
@@ -143,8 +149,10 @@ function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveO
       ) : (
         <>
           <Notice tone="ok">
-            {t.importer.serverOutcome(outcome.created, outcome.updated, outcome.skipped, outcome.coversUploaded)}
+            {t.importer.serverOutcome(outcome.created, outcome.updated, outcome.unchanged, outcome.coversUploaded)}
           </Notice>
+          {outcome.removed !== null && <Notice tone="ok">{t.importer.removedOutcome(outcome.removed)}</Notice>}
+          {outcome.removeProblem && <Notice tone="warn">{t.importer.removeFailed(outcome.removeProblem)}</Notice>}
           <Problems summary={t.importer.booksNotSaved(outcome.problems.length)} items={outcome.problems} />
           <Problems
             summary={t.importer.coversNotUploaded(outcome.coverProblems.length)}
@@ -156,13 +164,76 @@ function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveO
   );
 }
 
+// Stato del conteggio dei libri che la sostituzione eliminerebbe.
+type ReplaceCount =
+  | { readonly kind: "loading" }
+  | { readonly kind: "ready"; readonly report: PruneReport }
+  | { readonly kind: "unknown" };
+
+function ModeChoice({
+  mode,
+  onMode,
+  count,
+  confirmed,
+  onConfirm,
+}: {
+  mode: ImportMode;
+  onMode: (mode: ImportMode) => void;
+  count: ReplaceCount | null;
+  confirmed: boolean;
+  onConfirm: (confirmed: boolean) => void;
+}) {
+  const t = useT();
+  const option = (value: ImportMode, label: string, hint: string) => (
+    <label
+      className={`flex items-start gap-2 rounded-lg border px-3 py-2 text-sm ${
+        mode === value ? "border-accent bg-selected" : "border-line-strong"
+      }`}
+    >
+      <input type="radio" name="import-mode" checked={mode === value} onChange={() => onMode(value)} className="mt-0.5" />
+      <span>
+        <span className="font-semibold">{label}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+    </label>
+  );
+  return (
+    <fieldset className="flex flex-col gap-2">
+      <legend className="mb-1 text-sm font-semibold">{t.importer.modeLegend}</legend>
+      {option("delta", t.importer.modeDelta, t.importer.modeDeltaHint)}
+      {option("replace", t.importer.modeReplace, t.importer.modeReplaceHint)}
+      {mode === "replace" && (
+        <div className="flex flex-col gap-2 rounded-lg border border-[#b42318]/40 bg-[#b42318]/5 px-3 py-2 text-sm">
+          {count?.kind === "loading" ? (
+            <p className="flex items-center gap-2 text-ink-soft">
+              <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
+              {t.importer.replaceCounting}
+            </p>
+          ) : count?.kind === "ready" ? (
+            <Notice tone="warn">{t.importer.replaceWillDelete(count.report.removed, count.report.kept)}</Notice>
+          ) : (
+            <Notice tone="warn">{t.importer.replaceUnknown}</Notice>
+          )}
+          <label className="flex items-start gap-2">
+            <input type="checkbox" checked={confirmed} onChange={(event) => onConfirm(event.target.checked)} className="mt-0.5" />
+            <span>{t.importer.replaceConfirm}</span>
+          </label>
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 export function ImportDialog() {
   const { state, dispatch } = useLibrary();
   const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>(pick);
-  const [updateExisting, setUpdateExisting] = useState(true);
+  const [mode, setMode] = useState<ImportMode>("delta");
+  const [confirmed, setConfirmed] = useState(false);
+  const [replaceCount, setReplaceCount] = useState<ReplaceCount | null>(null);
+  const previewing = stage.kind === "preview" ? stage.preview : null;
   const [dragging, setDragging] = useState(false);
   const busy = stage.kind === "reading" || stage.kind === "saving";
 
@@ -176,10 +247,33 @@ export function ImportDialog() {
     folderInput.current?.setAttribute("webkitdirectory", "");
   }, [stage.kind]);
 
+  // Ogni conteggio ha un numero: arriva tardi una risposta vecchia, la si ignora.
+  const countRequest = useRef(0);
+
+  const chooseMode = (next: ImportMode) => {
+    setMode(next);
+    setConfirmed(false);
+    if (next !== "replace" || !previewing) return;
+    // Scegliendo la sostituzione, il server conta subito quanti libri spariranno.
+    const request = ++countRequest.current;
+    setReplaceCount({ kind: "loading" });
+    countReplaced(previewing.books).then((report) => {
+      if (request === countRequest.current) setReplaceCount(report ? { kind: "ready", report } : { kind: "unknown" });
+    });
+  };
+
+  const backToPick = () => {
+    countRequest.current += 1;
+    setStage(pick);
+    setMode("delta");
+    setConfirmed(false);
+    setReplaceCount(null);
+  };
+
   const close = () => {
     if (busy) return;
     dispatch({ type: "setImportOpen", open: false });
-    setStage(pick);
+    backToPick();
   };
 
   const load = (files: Promise<readonly BundleFile[]>) => {
@@ -205,7 +299,8 @@ export function ImportDialog() {
     // Subito nella libreria, con le copertine lette dal disco.
     dispatch({
       type: "importBooks",
-      collectionName: preview.bundle.name,
+      collectionName: collectionName(preview),
+      replace: mode === "replace",
       books: preview.books.map((book) => {
         const cover = preview.covers.bySourceId.get(book.sourceId);
         return toLibraryBook(book, cover ? URL.createObjectURL(cover.blob) : null, addedAt);
@@ -215,7 +310,7 @@ export function ImportDialog() {
     saveImport({
       books: preview.books,
       covers: preview.covers.bySourceId,
-      onExisting: updateExisting ? "update" : "skip",
+      mode,
       onProgress: (progress) => setStage({ kind: "saving", preview, progress }),
     })
       .catch((cause: unknown): SaveOutcome => ({
@@ -310,18 +405,13 @@ export function ImportDialog() {
         {stage.kind === "preview" && (
           <>
             <PreviewSummary preview={stage.preview} />
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={updateExisting}
-                onChange={(event) => setUpdateExisting(event.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                {t.importer.updateExisting}
-                <span className="block text-xs text-muted">{t.importer.updateExistingHint}</span>
-              </span>
-            </label>
+            <ModeChoice
+              mode={mode}
+              onMode={chooseMode}
+              count={replaceCount}
+              confirmed={confirmed}
+              onConfirm={setConfirmed}
+            />
           </>
         )}
 
@@ -332,22 +422,33 @@ export function ImportDialog() {
         <div className="flex justify-end gap-2 pt-1">
           {stage.kind === "preview" && (
             <>
-              <button type="button" onClick={() => setStage(pick)} className={`${button} border border-line-strong`}>
+              <button type="button" onClick={backToPick} className={`${button} border border-line-strong`}>
                 {t.common.back}
               </button>
-              <button
-                type="button"
-                disabled={stage.preview.books.length === 0}
-                onClick={() => start(stage.preview)}
-                className={`${button} bg-accent font-semibold text-accent-ink disabled:opacity-50`}
-              >
-                {t.importer.importBooks(stage.preview.books.length)}
-              </button>
+              {mode === "replace" ? (
+                <button
+                  type="button"
+                  disabled={stage.preview.books.length === 0 || !confirmed || replaceCount?.kind !== "ready"}
+                  onClick={() => start(stage.preview)}
+                  className={`${button} bg-[#b42318] font-semibold text-white disabled:opacity-50`}
+                >
+                  {t.importer.replaceBooks(stage.preview.books.length)}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={stage.preview.books.length === 0}
+                  onClick={() => start(stage.preview)}
+                  className={`${button} bg-accent font-semibold text-accent-ink disabled:opacity-50`}
+                >
+                  {t.importer.importBooks(stage.preview.books.length)}
+                </button>
+              )}
             </>
           )}
           {stage.kind === "done" && (
             <>
-              <button type="button" onClick={() => setStage(pick)} className={`${button} border border-line-strong`}>
+              <button type="button" onClick={backToPick} className={`${button} border border-line-strong`}>
                 {t.importer.another}
               </button>
               <button type="button" onClick={close} className={`${button} bg-accent font-semibold text-accent-ink`}>

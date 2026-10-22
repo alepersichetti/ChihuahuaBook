@@ -180,10 +180,13 @@ export const en: Messages = {
     notSaved: (reason: string) => `Not saved on the server: ${reason} For now you only see them in this browser tab.`,
     needSignIn: "you need to sign in to save on the server.",
     misconfigured: "Supabase is not configured.",
-    serverOutcome: (created: number, updated: number, skipped: number, covers: number) =>
+    serverOutcome: (created: number, updated: number, unchanged: number, covers: number) =>
       `On the server: ${created} new, ${updated} updated` +
-      (skipped > 0 ? `, ${skipped} already there and left as they were` : "") +
+      (unchanged > 0 ? `, ${unchanged} unchanged and left as they were` : "") +
       `; ${count(covers, "cover", "covers")} uploaded.`,
+    removedOutcome: (n: number) => `${count(n, "book", "books")} deleted because they were not in the file.`,
+    removeFailed: (reason: string) => `Books missing from the file were not deleted: ${reason}`,
+    removingBooks: "Deleting books that are not in the file…",
     booksNotSaved: (n: number) => count(n, "book not saved", "books not saved"),
     coversNotUploaded: (n: number) => count(n, "cover not uploaded", "covers not uploaded"),
     dropBefore: "Drop the ",
@@ -194,8 +197,20 @@ export const en: Messages = {
     macHint:
       "On a Mac a .pedia is a package: if the picker won't open it, drag it here or compress it (right click, “Compress”) and choose the zip. The file is read in your browser.",
     reading: "Reading the file…",
-    updateExisting: "Update books imported before",
-    updateExistingHint: "If you untick this, books already there stay as they are. Duplicates are never created.",
+    modeLegend: "What to do with the library",
+    modeDelta: "Add only what's new",
+    modeDeltaHint:
+      "New books are added and books changed in Bookpedia are updated. The rest of the library is left alone and no duplicates are created.",
+    modeReplace: "Replace the whole library",
+    modeReplaceHint: "The library becomes identical to the file: books that are not in it are deleted.",
+    replaceCounting: "Counting the books that would be deleted…",
+    replaceWillDelete: (n: number, kept: number) =>
+      n === 0
+        ? "No book will be deleted: they are all in the file."
+        : `${count(n, "book", "books")} will be permanently deleted, with their loans and covers. ${count(kept, "book stays and is", "books stay and are")} updated from the file.`,
+    replaceUnknown: "I can't count the books to delete: the server is not responding.",
+    replaceConfirm: "I understand: books that are not in the file will be deleted and cannot be recovered.",
+    replaceBooks: (n: number) => `Replace with ${count(n, "book", "books")}`,
     importBooks: (n: number) => `Import ${count(n, "book", "books")}`,
     another: "Import another file",
   },

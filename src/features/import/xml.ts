@@ -94,9 +94,17 @@ const isDict = (value: PlistValue): value is PlistDict =>
   !(value instanceof Uint8Array) &&
   !ArrayBuffer.isView(value);
 
+const pad = (value: number) => String(value).padStart(2, "0");
+
+// Bookpedia salva le date a mezzanotte dell'ora locale (es. 2004-06-30T22:00:00Z
+// per il 1° luglio in Italia): si leggono nel fuso del browser, che è quello dell'utente.
+export const localDateTime = (date: Date) =>
+  `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+  `T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+
 const scalarText = (value: PlistValue): string[] =>
   value instanceof Date
-    ? [value.toISOString()]
+    ? [localDateTime(value)]
     : Array.isArray(value)
       ? value.flatMap(scalarText)
       : isDict(value)
@@ -112,23 +120,46 @@ const recordFromDict = (dict: PlistDict): PediaRecord =>
     Object.entries(dict).map(([key, value]) => [key, scalarText(value)]),
   );
 
-/** L'elenco di schede più lungo dentro il plist, ovunque si trovi. */
-const findDictList = (value: PlistValue): PlistDict[] => {
+/** Chiave del dizionario esterno, conservata nella scheda: può dare il nome alla copertina. */
+export const pediaKeyField = "pediaKey";
+
+type KeyedDict = { readonly key: string | null; readonly dict: PlistDict };
+
+/**
+ * L'elenco di schede più lungo dentro il plist, ovunque si trovi: un array di
+ * dizionari, oppure (come nei .pedia) un dizionario numero → scheda.
+ */
+const findDictList = (value: PlistValue): KeyedDict[] => {
+  const longest = (lists: KeyedDict[][]) =>
+    lists.reduce<KeyedDict[]>((a, b) => (b.length > a.length ? b : a), []);
   if (Array.isArray(value)) {
-    const dicts = value.filter(isDict);
-    const nested = value.map(findDictList);
-    return [dicts, ...nested].reduce((a, b) => (b.length > a.length ? b : a));
+    return longest([
+      value.filter(isDict).map((dict) => ({ key: null, dict })),
+      ...value.map(findDictList),
+    ]);
   }
   if (isDict(value)) {
-    const nested = Object.values(value).map(findDictList);
-    const longest = nested.reduce<PlistDict[]>(
-      (a, b) => (b.length > a.length ? b : a),
-      [],
+    const children = Object.entries(value).flatMap(([key, child]) =>
+      isDict(child) ? [{ key, dict: child }] : [],
     );
-    return longest.length > 0 ? longest : [value];
+    const nested = longest(Object.values(value).map(findDictList));
+    // Un dizionario di dizionari è un elenco di schede; uno solo è la scheda stessa.
+    return children.length > 1 && children.length >= nested.length
+      ? children
+      : nested.length > 0
+        ? nested
+        : [{ key: null, dict: value }];
   }
   return [];
 };
+
+const recordFromKeyed = ({ key, dict }: KeyedDict): PediaRecord =>
+  key === null
+    ? recordFromDict(dict)
+    : { [pediaKeyField]: [key], ...recordFromDict(dict) };
+
+// Caratteri di controllo che XML 1.0 vieta ma che a volte finiscono nei testi copiati.
+const invalidXmlChars = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
 
 const tryParse = Result.fromThrowable(
   (text: string) => {
@@ -148,20 +179,23 @@ const tryParsePlist = Result.fromThrowable(parsePlist, (cause) =>
 );
 
 /** Legge il testo XML del bundle. L'errore è un messaggio da mostrare all'utente. */
-export const parsePediaXml = (text: string): Result<ParsedXml, string> =>
-  tryParse(text.replace(/^﻿/, "")).andThen(({ document, issues }) => {
+export const parsePediaXml = (raw: string): Result<ParsedXml, string> => {
+  const text = raw.replace(/^\uFEFF/, "").replace(invalidXmlChars, "");
+  // Il plist si legge una volta sola: con file da decine di MB conta.
+  if (/^\s*(<\?xml[^>]*>\s*)?(<!DOCTYPE plist[^>]*>\s*)?<plist[\s>]/.test(text)) {
+    return tryParsePlist(text).map((value) => ({
+      format: "plist" as const,
+      records: findDictList(value).map(recordFromKeyed),
+    }));
+  }
+  return tryParse(text).andThen(({ document, issues }) => {
     const root = document.documentElement;
     if (!root || issues.length > 0) {
       return err(`XML non valido${issues[0] ? `: ${issues[0]}` : ""}`);
-    }
-    if (root.tagName === "plist") {
-      return tryParsePlist(text).map((value) => ({
-        format: "plist" as const,
-        records: findDictList(value).map(recordFromDict),
-      }));
     }
     return ok({
       format: "xml" as const,
       records: findRecordElements(root).map(recordFromElement),
     });
   });
+};

@@ -35,8 +35,9 @@ export const normalizeKey = (key: string): string =>
     .replace(/[^a-z0-9]/g, "");
 
 // Nomi con cui Bookpedia (e le sue versioni) chiama i campi, già normalizzati.
+// Se una scheda ne ha più d'uno per lo stesso campo, vale il primo dell'elenco.
 const aliases = {
-  sourceId: ["uid", "uuid", "collectionid", "pediaid", "entryid", "id"],
+  sourceId: ["uid", "uuid", "collectionid", "pediaid", "entryid", "id", "pediakey"],
   title: ["title", "booktitle", "name"],
   subtitle: ["subtitle"],
   authors: ["author", "authors", "creator", "creators", "by"],
@@ -59,7 +60,7 @@ const aliases = {
   isbn: ["isbn", "isbn13", "isbn10", "ean", "upc", "barcode"],
   pages: ["pages", "pagecount", "numberofpages", "length"],
   format: ["format", "binding", "media", "type"],
-  language: ["language", "languages"],
+  language: ["language", "languages", "localelanguage"],
   genres: ["genre", "genres", "category", "categories", "subject", "subjects"],
   series: ["series", "seriesname"],
   seriesNumber: ["volume", "seriesnumber", "seriesindex", "seriesvolume"],
@@ -79,8 +80,10 @@ const aliases = {
   purchasedFrom: ["purchasedfrom", "purchaseplace", "store", "vendor", "seller"],
   price: ["price", "purchaseprice", "pricepaid", "cost"],
   value: ["value", "estimatedvalue", "currentvalue", "marketvalue"],
-  rating: ["rating", "myrating", "personalrating", "userrating"],
-  read: ["read", "haveread", "readstatus", "status"],
+  // "My Rating" di Bookpedia va da 0 a 10 (mezze stelle).
+  ratingTenths: ["myrating"],
+  rating: ["personalrating", "userrating", "rating"],
+  read: ["read", "haveread", "readstatus"],
   startedOn: ["startedreading", "datestarted", "startdate", "readstart"],
   finishedOn: [
     "dateread",
@@ -96,40 +99,38 @@ const aliases = {
 
 type Field = keyof typeof aliases;
 
-const fieldOfKey: ReadonlyMap<string, Field> = new Map(
+const aliasOfKey: ReadonlyMap<string, { field: Field; rank: number }> = new Map(
   (Object.entries(aliases) as [Field, readonly string[]][]).flatMap(
-    ([field, keys]) => keys.map((key) => [key, field] as const),
+    ([field, keys]) => keys.map((key, rank) => [key, { field, rank }] as const),
   ),
 );
 
 /** Raccoglie i valori della scheda per campo del catalogo; il resto finisce in `extra`. */
-const groupFields = (record: PediaRecord) =>
-  Object.entries(record).reduce(
-    (acc, [key, values]) => {
-      const cleaned = values.map((value) => value.trim()).filter(Boolean);
-      if (cleaned.length === 0) return acc;
-      const field = fieldOfKey.get(normalizeKey(key));
-      return field
-        ? {
-            ...acc,
-            known: {
-              ...acc.known,
-              [field]: [...(acc.known[field] ?? []), ...cleaned],
-            },
-          }
-        : {
-            ...acc,
-            extra: {
-              ...acc.extra,
-              [key]: cleaned.length === 1 ? cleaned[0] : cleaned,
-            },
-          };
-    },
-    {
-      known: {} as Partial<Record<Field, readonly string[]>>,
-      extra: {} as Record<string, string | readonly string[]>,
-    },
+const groupFields = (record: PediaRecord) => {
+  const entries = Object.entries(record)
+    .map(([key, values]) => ({
+      key,
+      values: values.map((value) => value.trim()).filter(Boolean),
+      alias: aliasOfKey.get(normalizeKey(key)),
+    }))
+    .filter((entry) => entry.values.length > 0);
+  const known = entries
+    .flatMap(({ values, alias }) => (alias ? [{ values, ...alias }] : []))
+    .toSorted((a, b) => a.rank - b.rank)
+    .reduce<Partial<Record<Field, readonly string[]>>>(
+      (acc, { field, values }) => ({
+        ...acc,
+        [field]: [...(acc[field] ?? []), ...values],
+      }),
+      {},
+    );
+  const extra: Record<string, string | readonly string[]> = Object.fromEntries(
+    entries
+      .filter((entry) => !entry.alias)
+      .map(({ key, values }) => [key, values.length === 1 ? values[0] : values]),
   );
+  return { known, extra };
+};
 
 // Conversioni tolleranti: un valore che non si capisce diventa null, non un errore.
 
@@ -145,8 +146,8 @@ const splitList = (separators: RegExp) => (values: readonly string[] | undefined
     ),
   ];
 
-// Le persone non si dividono sulla virgola: "Calvino, Italo" è un nome solo.
-const people = splitList(/\r?\n|;/);
+// Bookpedia scrive "Cognome Nome" e separa le persone con la virgola.
+const people = splitList(/\r?\n|;|,/);
 const labels = splitList(/\r?\n|;|,/);
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -214,7 +215,7 @@ export const parseNumber = (raw: string | null): number | null => {
 };
 
 const currencySymbols: ReadonlyArray<readonly [RegExp, string]> = [
-  [/€|\bEUR\b/i, "EUR"],
+  [/€|\bEUR\b|\beuro?\b/i, "EUR"],
   [/£|\bGBP\b/i, "GBP"],
   [/\bCHF\b/i, "CHF"],
   [/\$|\bUSD\b/i, "USD"],
@@ -239,12 +240,13 @@ const positiveInt = (raw: string | null) => {
   return value !== null && value > 0 ? Math.round(value) : null;
 };
 
-/** Il voto può arrivare in stelle (0–5), mezze stelle o decimi (0–10). */
-const parseRating = (raw: string | null) => {
+/** Il voto può arrivare in stelle (0–5) o in decimi (0–10). */
+const parseRating = (raw: string | null, tenths: boolean) => {
   const value = parseNumber(raw);
   if (value === null || value < 0) return null;
-  const stars = value > 5 ? value / 2 : value;
-  return stars <= 5 ? Math.round(stars) : null;
+  const stars = tenths || value > 5 ? value / 2 : value;
+  // Bookpedia usa 0 per "nessun voto".
+  return stars > 0 && stars <= 5 ? Math.round(stars) : null;
 };
 
 const readStatusOf = (
@@ -318,7 +320,9 @@ export const mapPediaRecord = (
     read_status: readStatusOf(get("read"), finished),
     started_reading_on: started,
     finished_reading_on: inOrder ? finished : null,
-    rating: parseRating(get("rating")),
+    rating: get("ratingTenths")
+      ? parseRating(get("ratingTenths"), true)
+      : parseRating(get("rating"), false),
     favorite: parseBool(get("favorite")),
     tags: labels(known.tags),
     location: get("location"),

@@ -178,10 +178,13 @@ export const it = {
     notSaved: (reason: string) => `Non salvati sul server: ${reason} Per ora li vedi solo in questa scheda del browser.`,
     needSignIn: "serve l'accesso per salvare sul server.",
     misconfigured: "Supabase non è configurato.",
-    serverOutcome: (created: number, updated: number, skipped: number, covers: number) =>
+    serverOutcome: (created: number, updated: number, unchanged: number, covers: number) =>
       `Sul server: ${count(created, "nuovo", "nuovi")}, ${count(updated, "aggiornato", "aggiornati")}` +
-      (skipped > 0 ? `, ${count(skipped, "già presente lasciato", "già presenti lasciati")} com'era` : "") +
+      (unchanged > 0 ? `, ${count(unchanged, "invariato lasciato", "invariati lasciati")} com'era` : "") +
       `; ${count(covers, "copertina caricata", "copertine caricate")}.`,
+    removedOutcome: (n: number) => `${count(n, "libro eliminato", "libri eliminati")} perché non erano nel file.`,
+    removeFailed: (reason: string) => `Libri non presenti nel file non eliminati: ${reason}`,
+    removingBooks: "Elimino i libri che non sono nel file…",
     booksNotSaved: (n: number) => count(n, "libro non salvato", "libri non salvati"),
     coversNotUploaded: (n: number) => count(n, "copertina non caricata", "copertine non caricate"),
     dropBefore: "Trascina qui il file ",
@@ -192,8 +195,20 @@ export const it = {
     macHint:
       "Sul Mac un .pedia è un pacchetto: se il selettore non lo apre, trascinalo qui oppure comprimilo (tasto destro, «Comprimi») e scegli lo zip. Il file viene letto nel browser.",
     reading: "Leggo il file…",
-    updateExisting: "Aggiorna i libri già importati in passato",
-    updateExistingHint: "Se togli la spunta, quelli già presenti restano come sono. In nessun caso si creano doppioni.",
+    modeLegend: "Cosa fare con la libreria",
+    modeDelta: "Aggiungi solo le novità",
+    modeDeltaHint:
+      "I libri nuovi vengono aggiunti e quelli cambiati in Bookpedia aggiornati. Il resto della libreria non si tocca e non si creano doppioni.",
+    modeReplace: "Sostituisci tutta la libreria",
+    modeReplaceHint: "La libreria diventa uguale al file: i libri che non ci sono vengono eliminati.",
+    replaceCounting: "Conto i libri che verrebbero eliminati…",
+    replaceWillDelete: (n: number, kept: number) =>
+      n === 0
+        ? "Nessun libro verrà eliminato: sono tutti nel file."
+        : `${count(n, "libro verrà eliminato", "libri verranno eliminati")} definitivamente, con prestiti e copertine. ${count(kept, "libro resta", "libri restano")} e viene aggiornato dal file.`,
+    replaceUnknown: "Non riesco a contare i libri da eliminare: il server non risponde.",
+    replaceConfirm: "Ho capito: i libri che non sono nel file verranno eliminati e non si possono recuperare.",
+    replaceBooks: (n: number) => `Sostituisci con ${count(n, "libro", "libri")}`,
     importBooks: (n: number) => `Importa ${count(n, "libro", "libri")}`,
     another: "Importa un altro file",
   },

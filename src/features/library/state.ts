@@ -58,7 +58,13 @@ export type LibraryAction =
   | { readonly type: "setMobileScreen"; readonly screen: LibraryState["mobileScreen"] }
   | { readonly type: "openBook"; readonly bookId: string }
   | { readonly type: "setImportOpen"; readonly open: boolean }
-  | { readonly type: "importBooks"; readonly books: readonly Book[]; readonly collectionName: string }
+  | {
+      readonly type: "importBooks";
+      readonly books: readonly Book[];
+      readonly collectionName: string;
+      /** La biblioteca diventa uguale al file: i libri che non ci sono spariscono. */
+      readonly replace: boolean;
+    }
   | { readonly type: "setAddOpen"; readonly open: boolean }
   | { readonly type: "addBook"; readonly book: Book };
 
@@ -133,8 +139,10 @@ const updateBook = (state: LibraryState, bookId: string, update: (book: Book) =>
 // Ogni import finisce anche in una collezione col nome del file, come in Bookpedia.
 export const importCollectionId = (name: string) => `import:${name.trim().toLowerCase()}`;
 
-const addImported = (state: LibraryState, books: readonly Book[], name: string): LibraryState => {
+const addImported = (state: LibraryState, books: readonly Book[], name: string, replace: boolean): LibraryState => {
   const ids = new Set(books.map((book) => book.id));
+  const kept = replace ? [] : state.library.books.filter((book) => !ids.has(book.id));
+  const present = new Set([...kept, ...books].map((book) => book.id));
   const id = importCollectionId(name);
   const collection: Collection = {
     id,
@@ -148,8 +156,16 @@ const addImported = (state: LibraryState, books: readonly Book[], name: string):
     ...state,
     library: {
       // Reimportare sostituisce i libri con lo stesso id invece di duplicarli.
-      books: [...state.library.books.filter((book) => !ids.has(book.id)), ...books],
-      collections: [...state.library.collections.filter((item) => item.id !== id), collection],
+      books: [...kept, ...books],
+      collections: [
+        ...state.library.collections
+          .filter((item) => item.id !== id)
+          // Le collezioni restano, ma senza i libri eliminati dalla sostituzione.
+          .map((item) =>
+            item.kind === "regular" ? { ...item, bookIds: item.bookIds.filter((bookId) => present.has(bookId)) } : item,
+          ),
+        collection,
+      ],
     },
     collectionId: id,
     selectedBookId: null,
@@ -237,7 +253,7 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
     case "setImportOpen":
       return { ...state, importOpen: action.open };
     case "importBooks":
-      return addImported(state, action.books, action.collectionName);
+      return addImported(state, action.books, action.collectionName, action.replace);
     case "setAddOpen":
       return { ...state, addOpen: action.open };
     case "addBook":

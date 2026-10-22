@@ -11,7 +11,7 @@ describe("mapPediaRecord", () => {
     const result = mapPediaRecord(
       record({
         Title: "Il barone rampante",
-        Author: "Calvino, Italo",
+        Author: "Calvino Italo, Fruttero Carlo",
         Publisher: "Einaudi",
         "Release Date": "1957-06-01",
         ISBN: "88-06-17402-9",
@@ -30,7 +30,7 @@ describe("mapPediaRecord", () => {
     expect(result.sourceId).toBe("A1B2");
     expect(result.book).toMatchObject({
       title: "Il barone rampante",
-      authors: ["Calvino, Italo"],
+      authors: ["Calvino Italo", "Fruttero Carlo"],
       publisher: "Einaudi",
       published_year: 1957,
       isbn10: "8806174029",
@@ -99,5 +99,50 @@ describe("conversioni", () => {
     ["abc", null],
   ])("parseNumber(%s) = %s", (raw, expected) => {
     expect(parseNumber(raw)).toBe(expected);
+  });
+});
+
+describe("scheda reale di Bookpedia", () => {
+  // Campi come compaiono nell'Info.xml di un .pedia (valori già convertiti in testo).
+  const bookpedia = record({
+    pediaKey: "1",
+    author: "Fruttero Carlo, Lucentini Franco",
+    customCheckbox1: "0",
+    dateAdded: "2008-07-13T20:16:29",
+    edition: "1ª ed.",
+    format: "brossura",
+    genre: "Saggio, Scienze Matematiche, Informatica",
+    isbn: "9788804536451",
+    localeLanguage: "it",
+    myRating: "4",
+    price: "Euro 25,00",
+    purchasedOn: "2009-07-15T12:46:06",
+    rating: "set 1968",
+    releaseDate: "2004-07-01T00:00:00",
+    status: "0",
+    title: "Il culto del Mac",
+    uid: "11866",
+  });
+
+  it("usa uid come id, il voto in decimi e le persone separate da virgole", () => {
+    const result = mapPediaRecord(bookpedia, 0)._unsafeUnwrap();
+    expect(result.sourceId).toBe("11866");
+    expect(result.book).toMatchObject({
+      authors: ["Fruttero Carlo", "Lucentini Franco"],
+      rating: 2,
+      published_year: 2004,
+      purchased_on: "2009-07-15",
+      purchase_price: 25,
+      currency: "EUR",
+      language: "it",
+      read_status: "unread",
+    });
+    expect(result.extra).toMatchObject({ status: "0", ids: ["11866", "1"] });
+    expect(result.coverHints.slice(0, 2)).toEqual(["11866", "1"]);
+  });
+
+  it("un voto 0 significa nessun voto", () => {
+    const result = mapPediaRecord({ ...bookpedia, myRating: ["0"] }, 0)._unsafeUnwrap();
+    expect(result.book.rating).toBeNull();
   });
 });

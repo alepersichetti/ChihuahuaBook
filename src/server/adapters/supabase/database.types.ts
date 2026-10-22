@@ -50,6 +50,7 @@ type BookRow = {
   source: string | null;
   source_id: string | null;
   extra: Json;
+  import_hash: string | null;
   created_at: string;
   updated_at: string;
   search: unknown;
