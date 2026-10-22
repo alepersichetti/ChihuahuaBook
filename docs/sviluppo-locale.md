@@ -1,4 +1,4 @@
-# Far girare ChihuahaBook in locale
+# Far girare ChihuahuaBook in locale
 
 Questa guida porta da zero a un'app funzionante sul proprio computer: interfaccia Next.js su `http://localhost:3000` e, se serve, un Supabase completo (Postgres, Auth, Storage) in Docker con lo schema del catalogo già applicato.
 
@@ -25,8 +25,8 @@ Per Supabase locale conta di avere qualche GB libero su disco: la prima volta sc
 ## 1. Clonare e installare
 
 ```bash
-git clone https://github.com/alepersichetti/ChihuahaBook.git
-cd ChihuahaBook
+git clone https://github.com/alepersichetti/ChihuahuaBook.git
+cd ChihuahuaBook
 npm ci
 ```
 

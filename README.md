@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="logo/chihuahua.svg" alt="ChihuahaBook" width="200">
+  <img src="logo/chihuahua.svg" alt="ChihuahuaBook" width="200">
 </p>
 
-# ChihuahaBook
+# ChihuahuaBook
 
 Web app personale e open source per catalogare la propria libreria, pensata come sostituto di Bookpedia, con import diretto dei file `.pedia`.
 
@@ -23,7 +23,7 @@ Logo e favicon si configurano in `branding.json`, nella radice del progetto:
 
 ```json
 {
-  "name": "ChihuahaBook",
+  "name": "ChihuahuaBook",
   "logo": "/brand/chihuahua.svg",
   "favicon": {
     "svg": "/brand/chihuahua.svg",
