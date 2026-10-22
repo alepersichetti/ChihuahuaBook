@@ -119,7 +119,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
   const loaned = selected?.loan != null;
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-bg px-4 py-2.5">
-      <div className="text-base font-bold tracking-tight">pedia-next</div>
+      <div className="text-base font-bold tracking-tight">ChihuahaBook</div>
       <div className="flex flex-wrap items-center gap-1">
         <button
           type="button"
