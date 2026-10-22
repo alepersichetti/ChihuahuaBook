@@ -28,3 +28,36 @@ export type BookStore = {
 export type IsbnLookup = (
   isbn13: string,
 ) => ResultAsync<BookInput | null, AppError>;
+
+/** Un libro arrivato da un altro programma, con l'id che aveva là. */
+export type ImportedBook = NewBook & {
+  readonly source: string;
+  readonly source_id: string;
+  readonly extra: Readonly<Record<string, unknown>>;
+};
+
+export type ImportedRef = { readonly id: string; readonly source_id: string };
+
+/** Porta per gli import: ritrova i libri già importati dalla stessa fonte. */
+export type ImportStore = {
+  readonly findBySource: (
+    source: string,
+    sourceIds: readonly string[],
+  ) => ResultAsync<readonly ImportedRef[], AppError>;
+  readonly insertMany: (
+    books: readonly ImportedBook[],
+  ) => ResultAsync<readonly ImportedRef[], AppError>;
+  readonly replace: (
+    id: string,
+    book: ImportedBook,
+  ) => ResultAsync<void, AppError>;
+};
+
+/** Porta verso lo spazio file delle copertine. Restituisce il percorso salvato. */
+export type CoverStore = {
+  readonly put: (
+    path: string,
+    bytes: Uint8Array,
+    contentType: string,
+  ) => ResultAsync<string, AppError>;
+};

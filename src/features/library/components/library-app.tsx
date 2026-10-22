@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { Library } from "../model";
 import { DesktopShell } from "./desktop";
+import { ImportDialog } from "./import-dialog";
 import { LibraryProvider, useLibrary } from "./library-context";
 import { LoanDialog } from "./loan-dialog";
 import { MobileShell } from "./mobile";
@@ -20,6 +21,7 @@ function Screens() {
         <MobileShell onLend={lend} />
       </div>
       <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
+      <ImportDialog />
     </div>
   );
 }

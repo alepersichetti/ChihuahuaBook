@@ -67,7 +67,7 @@ function CollectionTree({ parentId, depth }: { parentId: string; depth: number }
 
 // Colonna delle collezioni dei layout classico e scaffale.
 export function Sidebar({ className = "w-58 border-r" }: { className?: string }) {
-  const { state } = useLibrary();
+  const { state, dispatch } = useLibrary();
   const roots = childrenOf(state.library.collections, null);
   const special = roots.filter((collection) => specialKinds.has(collection.kind));
   const own = roots.filter((collection) => !specialKinds.has(collection.kind));
@@ -90,7 +90,11 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
         ))}
       </ul>
       <div className="mt-auto flex flex-col gap-0.5 border-t border-line pt-3 text-ink-soft">
-        <button type="button" disabled title="In arrivo" className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60">
+        <button
+          type="button"
+          onClick={() => dispatch({ type: "setImportOpen", open: true })}
+          className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
+        >
           <Upload size={16} aria-hidden="true" />
           Importa .pedia
         </button>

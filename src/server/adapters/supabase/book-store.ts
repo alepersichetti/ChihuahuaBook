@@ -17,7 +17,7 @@ const fromPostgrest = (error: PostgrestError): AppError =>
 type Response<T> = { data: T | null; error: PostgrestError | null };
 
 // Trasforma la risposta di PostgREST (che non lancia mai) in un ResultAsync.
-const run = <T>(query: PromiseLike<Response<T>>): ResultAsync<T, AppError> =>
+export const run = <T>(query: PromiseLike<Response<T>>): ResultAsync<T, AppError> =>
   ResultAsync.fromPromise(Promise.resolve(query), unexpected).andThen(
     ({ data, error }) =>
       error
