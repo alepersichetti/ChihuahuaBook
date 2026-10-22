@@ -17,6 +17,7 @@ To run it on your computer (Node, local Supabase, migrations, tests) follow the 
 - [Local development](docs/local-development.md)
 - [Sign-in, roles and security](docs/authentication.md)
 - [Importing Bookpedia .pedia files](docs/import-pedia.md)
+- [Adding a book (manual, Google Books, Open Library)](docs/adding-books.md)
 - [Logo and favicon](logo/README.md)
 
 Every document exists in two languages: `name.md` in English and `name.it.md` in Italian. If you change one, update the other too.

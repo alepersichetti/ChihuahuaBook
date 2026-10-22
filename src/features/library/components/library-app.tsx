@@ -5,6 +5,7 @@ import type { SignedInViewer } from "@/features/auth/viewer";
 import { SettingsDialog } from "../../settings/components/settings-panel";
 import { SettingsProvider } from "../../settings/settings-context";
 import type { Library } from "../model";
+import { AddBookDialog } from "./add-book-dialog";
 import { DesktopShell } from "./desktop";
 import { ImportDialog } from "./import-dialog";
 import { LibraryProvider, useLibrary } from "./library-context";
@@ -27,6 +28,7 @@ function Screens() {
         <>
           <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />
           <ImportDialog />
+          <AddBookDialog />
         </>
       )}
       <SettingsDialog />

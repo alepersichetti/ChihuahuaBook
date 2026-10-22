@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, ScanBarcode, BookCopy, Settings } from "lucide-react";
+import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, Plus, BookCopy, Settings } from "lucide-react";
 import { useT } from "../../i18n/i18n-context";
 import { useSettings } from "../../settings/settings-context";
 import { collectionName } from "../labels";
@@ -189,12 +189,11 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
           {canEdit && (
             <button
               type="button"
-              aria-label={t.mobile.scanIsbn}
-              title={t.common.comingSoon}
-              disabled
+              aria-label={t.addBook.title}
+              onClick={() => dispatch({ type: "setAddOpen", open: true })}
               className="fixed right-4 bottom-24 flex size-15 items-center justify-center rounded-[20px] bg-accent text-accent-ink shadow-[0_10px_24px_rgba(47,91,211,0.35)] disabled:opacity-80"
             >
-              <ScanBarcode size={26} />
+              <Plus size={26} />
             </button>
           )}
         </>

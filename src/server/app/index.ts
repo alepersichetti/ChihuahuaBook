@@ -1,4 +1,6 @@
+import { googleBooksSource } from "../adapters/google-books/search";
 import { openLibraryLookup } from "../adapters/open-library/lookup";
+import { openLibrarySource } from "../adapters/open-library/search";
 import { supabaseBookStore } from "../adapters/supabase/book-store";
 import {
   supabaseCoverStore,
@@ -37,6 +39,13 @@ export const createApp = (
           covers: supabaseCoverStore(supabase),
           members: supabaseMemberStore(supabase),
           lookupIsbn: openLibraryLookup(options.fetch),
+          searchSources: [
+            googleBooksSource({
+              apiKey: config.googleBooksApiKey,
+              fetch: options.fetch,
+            }),
+            openLibrarySource({ fetch: options.fetch }),
+          ],
         };
       },
     ),

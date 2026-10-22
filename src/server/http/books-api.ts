@@ -1,4 +1,10 @@
-import type { BookStore, IsbnLookup } from "../core/books/ports";
+import { okAsync } from "neverthrow";
+import type {
+  BookStore,
+  IsbnLookup,
+  SearchSource,
+} from "../core/books/ports";
+import { listSources, searchBooks } from "../core/books/search";
 import {
   createBook,
   getBook,
@@ -15,6 +21,8 @@ export type BooksApiDeps = {
   readonly session: Session;
   readonly books: BookStore;
   readonly lookupIsbn: IsbnLookup;
+  /** Cataloghi esterni in cui cercare, nell'ordine in cui proporli. */
+  readonly searchSources: readonly SearchSource[];
 };
 
 const reader = guarded<BooksApiDeps>("read");
@@ -62,6 +70,22 @@ export const booksRoutes = [
     "/isbn/:isbn",
     reader(({ params, deps }) =>
       inspectIsbn(deps.lookupIsbn, deps.books)(params.isbn),
+    ),
+  ),
+  route<BooksApiDeps>(
+    "GET",
+    "/search/sources",
+    librarian(({ deps }) =>
+      okAsync(listSources(deps.searchSources)),
+    ),
+  ),
+  route<BooksApiDeps>(
+    "GET",
+    "/search",
+    librarian(({ request, deps }) =>
+      searchBooks(deps.searchSources)(
+        Object.fromEntries(new URL(request.url).searchParams),
+      ),
     ),
   ),
 ] as const;
