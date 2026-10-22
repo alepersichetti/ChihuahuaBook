@@ -7,6 +7,7 @@ import type {
   BookPatch,
   NewBook,
 } from "./book";
+import type { BookSearchQuery } from "./search";
 import type { BookInput } from "./schema";
 
 /** Porta verso il magazzino dei libri. Ogni operazione vale solo per l'utente corrente. */
@@ -60,4 +61,24 @@ export type CoverStore = {
     bytes: Uint8Array,
     contentType: string,
   ) => ResultAsync<string, AppError>;
+};
+
+/** Ricerca di libri in un catalogo esterno: un risultato è una bozza da rivedere. */
+export type SearchHit = {
+  readonly source: string;
+  readonly sourceId: string;
+  /** Pagina del libro sul sito della fonte, se c'è. */
+  readonly link: string | null;
+  readonly draft: BookInput;
+};
+
+export type BookSearch = (
+  query: BookSearchQuery,
+) => ResultAsync<readonly SearchHit[], AppError>;
+
+/** Una fonte di ricerca intercambiabile (Google Books oggi, altre domani). */
+export type SearchSource = {
+  readonly id: string;
+  readonly label: string;
+  readonly search: BookSearch;
 };

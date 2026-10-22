@@ -2,7 +2,7 @@ import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import { z } from "zod";
 import type { IsbnLookup } from "../../core/books/ports";
 import type { BookInput } from "../../core/books/schema";
-import type { AppError } from "../../core/errors";
+import { upstream, yearOf } from "../http";
 
 const named = z.array(z.object({ name: z.string() })).optional();
 
@@ -27,11 +27,6 @@ const responseSchema = z.record(z.string(), entrySchema);
 
 type Entry = z.infer<typeof entrySchema>;
 
-const yearOf = (date: string | undefined): number | null => {
-  const match = date?.match(/\b(\d{4})\b/);
-  return match ? Number(match[1]) : null;
-};
-
 export const toBookDraft = (entry: Entry): BookInput => ({
   title: entry.title,
   subtitle: entry.subtitle ?? null,
@@ -42,8 +37,6 @@ export const toBookDraft = (entry: Entry): BookInput => ({
   genres: entry.subjects?.slice(0, 5).map((subject) => subject.name) ?? [],
   cover_url: entry.cover?.large ?? entry.cover?.medium ?? null,
 });
-
-const upstream = (message: string): AppError => ({ kind: "upstream", message });
 
 /** Implementazione di IsbnLookup su Open Library, con `fetch` iniettabile. */
 export const openLibraryLookup =

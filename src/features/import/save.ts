@@ -60,17 +60,22 @@ const unavailable = (status: number, body: { error?: string; message?: string })
 const describeFailure = (item: ImportItemResult) =>
   item.status === "failed" ? item.issues.map((issue) => (issue.path ? `${issue.path}: ${issue.message}` : issue.message)).join("; ") : "";
 
-/** Esegue `work` su tutti gli elementi con al più `limit` operazioni in parallelo. */
-const pool = async <T, R>(items: readonly T[], limit: number, work: (item: T) => Promise<R>): Promise<R[]> => {
-  const results: R[] = new Array(items.length);
-  const lanes = Array.from({ length: Math.min(limit, items.length) }, async (_, lane) => {
-    for (let index = lane; index < items.length; index += limit) {
-      results[index] = await work(items[index]);
-    }
-  });
-  await Promise.all(lanes);
-  return results;
-};
+/**
+ * Esegue `work` su gruppi di al più `limit` elementi in parallelo, un gruppo dopo l'altro.
+ * `onGroup` riceve quanti elementi sono stati completati finora.
+ */
+const inGroups = <T, R>(
+  items: readonly T[],
+  limit: number,
+  work: (item: T) => Promise<R>,
+  onGroup: (done: number) => void,
+): Promise<readonly R[]> =>
+  batches(items, limit).reduce<Promise<readonly R[]>>(async (previous, group) => {
+    const done = await previous;
+    const results = [...done, ...(await Promise.all(group.map(work)))];
+    onGroup(results.length);
+    return results;
+  }, Promise.resolve([]));
 
 const directTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -90,6 +95,14 @@ export const prepareCoverInBrowser = async (blob: Blob): Promise<Blob> => {
 
 const errorMessage = (cause: unknown) => (cause instanceof Error ? cause.message : String(cause));
 
+type BooksSaved = { readonly results: readonly ImportItemResult[]; readonly problems: readonly SaveProblem[] };
+type BatchOutcome = { readonly kind: "stop"; readonly outcome: SaveOutcome } | { readonly kind: "saved"; readonly saved: BooksSaved };
+
+const failedBatch = (batch: readonly PediaBook[], index: number, message: string): BatchOutcome =>
+  index === 0
+    ? { kind: "stop", outcome: { kind: "unavailable", reason: "error", message } }
+    : { kind: "saved", saved: { results: [], problems: batch.map((book) => ({ title: book.book.title, message })) } };
+
 export const saveImport = async ({
   books,
   covers,
@@ -100,11 +113,8 @@ export const saveImport = async ({
   baseUrl = "",
 }: SaveOptions): Promise<SaveOutcome> => {
   const titleOf = new Map(books.map((book) => [book.sourceId, book.book.title]));
-  const results: ImportItemResult[] = [];
-  const problems: SaveProblem[] = [];
 
-  for (const [index, batch] of batches(books, bookBatchSize).entries()) {
-    onProgress({ phase: "books", done: index * bookBatchSize, total: books.length });
+  const saveBatch = async (batch: readonly PediaBook[], index: number): Promise<BatchOutcome> => {
     const response = await fetcher(`${baseUrl}/api/import/books`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -116,29 +126,45 @@ export const saveImport = async ({
       }),
     }).catch((cause: unknown) => cause);
 
-    if (!(response instanceof Response)) {
-      const message = `Rete non raggiungibile: ${errorMessage(response)}`;
-      if (index === 0) return { kind: "unavailable", reason: "error", message };
-      problems.push(...batch.map((book) => ({ title: book.book.title, message })));
-      continue;
-    }
+    if (!(response instanceof Response)) return failedBatch(batch, index, `Rete non raggiungibile: ${errorMessage(response)}`);
     const body = await response.json().catch(() => ({}));
     if (!response.ok) {
       const stop = unavailable(response.status, body);
-      if (stop) return stop;
-      const message = `Errore del server (${response.status})`;
-      if (index === 0) return { kind: "unavailable", reason: "error", message };
-      problems.push(...batch.map((book) => ({ title: book.book.title, message })));
-      continue;
+      return stop ? { kind: "stop", outcome: stop } : failedBatch(batch, index, `Errore del server (${response.status})`);
     }
     const report = body as ImportReport;
-    results.push(...report.items);
-    problems.push(
-      ...report.items
-        .filter((item) => item.status === "failed")
-        .map((item) => ({ title: titleOf.get(item.source_id) ?? item.source_id, message: describeFailure(item) })),
-    );
-  }
+    return {
+      kind: "saved",
+      saved: {
+        results: report.items,
+        problems: report.items
+          .filter((item) => item.status === "failed")
+          .map((item) => ({ title: titleOf.get(item.source_id) ?? item.source_id, message: describeFailure(item) })),
+      },
+    };
+  };
+
+  // I lotti partono uno dopo l'altro: il primo che fallisce del tutto interrompe il salvataggio.
+  const booksOutcome = await batches(books, bookBatchSize).reduce<Promise<BatchOutcome>>(
+    async (previous, batch, index) => {
+      const sofar = await previous;
+      if (sofar.kind === "stop") return sofar;
+      onProgress({ phase: "books", done: index * bookBatchSize, total: books.length });
+      const next = await saveBatch(batch, index);
+      return next.kind === "stop"
+        ? next
+        : {
+            kind: "saved",
+            saved: {
+              results: [...sofar.saved.results, ...next.saved.results],
+              problems: [...sofar.saved.problems, ...next.saved.problems],
+            },
+          };
+    },
+    Promise.resolve({ kind: "saved", saved: { results: [], problems: [] } }),
+  );
+  if (booksOutcome.kind === "stop") return booksOutcome.outcome;
+  const { results, problems } = booksOutcome.saved;
   onProgress({ phase: "books", done: books.length, total: books.length });
 
   // Copertine solo per i libri creati o aggiornati: quelli saltati restano com'erano.
@@ -146,25 +172,26 @@ export const saveImport = async ({
     const file = item.status === "created" || item.status === "updated" ? covers.get(item.source_id) : undefined;
     return file && item.status !== "failed" ? [{ id: item.id, sourceId: item.source_id, file }] : [];
   });
-  let coversDone = 0;
   onProgress({ phase: "covers", done: 0, total: coverJobs.length });
-  const coverResults = await pool(coverJobs, coverConcurrency, async (job): Promise<SaveProblem | null> => {
-    const title = titleOf.get(job.sourceId) ?? job.sourceId;
-    const outcome = await prepareCover(job.file.blob)
-      .then((image) =>
-        fetcher(`${baseUrl}/api/books/${job.id}/cover`, {
-          method: "PUT",
-          headers: { "content-type": image.type },
-          credentials: "same-origin",
-          body: image,
-        }),
-      )
-      .then((response) => (response.ok ? null : { title, message: `Copertina rifiutata (${response.status})` }))
-      .catch((cause: unknown) => ({ title, message: `Copertina non leggibile: ${errorMessage(cause)}` }));
-    coversDone += 1;
-    onProgress({ phase: "covers", done: coversDone, total: coverJobs.length });
-    return outcome;
-  });
+  const coverResults = await inGroups(
+    coverJobs,
+    coverConcurrency,
+    (job): Promise<SaveProblem | null> => {
+      const title = titleOf.get(job.sourceId) ?? job.sourceId;
+      return prepareCover(job.file.blob)
+        .then((image) =>
+          fetcher(`${baseUrl}/api/books/${job.id}/cover`, {
+            method: "PUT",
+            headers: { "content-type": image.type },
+            credentials: "same-origin",
+            body: image,
+          }),
+        )
+        .then((response) => (response.ok ? null : { title, message: `Copertina rifiutata (${response.status})` }))
+        .catch((cause: unknown) => ({ title, message: `Copertina non leggibile: ${errorMessage(cause)}` }));
+    },
+    (done) => onProgress({ phase: "covers", done, total: coverJobs.length }),
+  );
   const coverProblems = coverResults.filter((problem): problem is SaveProblem => problem !== null);
 
   return {

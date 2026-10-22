@@ -13,7 +13,7 @@ type Stored<T> = { readonly [K in keyof T]-?: Exclude<T[K], undefined> };
 /** Un libro come salvato nel catalogo. */
 export type Book = Stored<NewBook> & {
   readonly id: string;
-  readonly owner_id: string;
+  readonly created_by: string | null;
   readonly source: string | null;
   readonly source_id: string | null;
   readonly created_at: string;

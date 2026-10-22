@@ -1,4 +1,6 @@
-# Far girare ChihuahaBook in locale
+# Far girare ChihuahuaBook in locale
+
+[English](local-development.md) · **Italiano**
 
 Questa guida porta da zero a un'app funzionante sul proprio computer: interfaccia Next.js su `http://localhost:3000` e, se serve, un Supabase completo (Postgres, Auth, Storage) in Docker con lo schema del catalogo già applicato.
 
@@ -25,8 +27,8 @@ Per Supabase locale conta di avere qualche GB libero su disco: la prima volta sc
 ## 1. Clonare e installare
 
 ```bash
-git clone https://github.com/alepersichetti/ChihuahaBook.git
-cd ChihuahaBook
+git clone https://github.com/alepersichetti/ChihuahuaBook.git
+cd ChihuahuaBook
 npm ci
 ```
 
@@ -38,9 +40,9 @@ npm ci
 npm run dev
 ```
 
-Apri <http://localhost:3000>. La libreria mostra i dati di esempio di `src/features/library/sample-library.ts` e funziona anche senza alcuna variabile d'ambiente. Le modifiche ai file si vedono subito (hot reload).
+Apri <http://localhost:3000>. La libreria mostra i dati di esempio di `src/features/library/sample-library.ts` e funziona anche senza alcuna variabile d'ambiente, con un utente dimostrativo amministratore (`DEMO_ROLE=reader npm run dev` per provare un altro ruolo). Le modifiche ai file si vedono subito (hot reload).
 
-Senza configurazione Supabase la pagina funziona, mentre le API rispondono `500 misconfigured`: è normale, vedi il passo successivo.
+Senza configurazione Supabase la pagina funziona, mentre le API rispondono `500 misconfigured`: è normale, vedi il passo successivo. L'utente dimostrativo esiste solo in `npm run dev`.
 
 ## 3. Supabase in locale
 
@@ -95,9 +97,11 @@ Riavvia `npm run dev` dopo aver cambiato `.env.local`: Next legge le variabili s
 curl -i http://localhost:3000/api/books
 ```
 
-La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configurato e chiede un utente. L'interfaccia per il login non c'è ancora, quindi per provare le API con un utente vero:
+La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configurato e chiede un utente. Apri <http://localhost:3000>: arrivi alla pagina di accesso, e il primo account che crei diventa amministratore (l'email di conferma è in Mailpit, <http://127.0.0.1:54324>). Ruoli e inviti sono spiegati in [authentication.it.md](authentication.it.md).
 
-1. Crea un utente da Studio (<http://127.0.0.1:54323> → Authentication → Add user) oppure da terminale. In locale le email non vanno confermate.
+Per provare le API dal terminale con un utente vero:
+
+1. Crea un utente da Studio (<http://127.0.0.1:54323> → Authentication → Add user) oppure da terminale. Da Studio spunta *Auto Confirm User*; da terminale apri il link di conferma in Mailpit (<http://127.0.0.1:54324>). Il primo utente diventa amministratore; ogni altra email deve prima ricevere un invito.
 
    ```bash
    KEY=sb_publishable_...   # la stessa chiave di .env.local
@@ -131,7 +135,7 @@ La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configura
    curl -s http://localhost:3000/api/isbn/9788845292613 -H "Authorization: Bearer $TOKEN"
    ```
 
-L'elenco completo delle rotte è nel [README](../README.md#api). I libri creati si vedono anche in Studio, nella tabella `books`.
+L'elenco completo delle rotte è nel [README](../README.it.md#api). I libri creati si vedono anche in Studio, nella tabella `books`.
 
 ### Fermare e ripulire
 
@@ -159,7 +163,7 @@ npx supabase gen types typescript --local --schema public > src/server/adapters/
 
 (`npm run db:types` fa la stessa cosa ma dal progetto Supabase remoto indicato in `SUPABASE_PROJECT_ID`.)
 
-Per portare le migrazioni su un progetto Supabase nel cloud vedi la sezione "Backend (Supabase)" del [README](../README.md).
+Per portare le migrazioni su un progetto Supabase nel cloud vedi la sezione "Backend (Supabase)" del [README](../README.it.md#backend-supabase).
 
 ## 5. Test e controlli
 

@@ -241,11 +241,10 @@ export const maxCoverBytes = 5 * 1024 * 1024;
 const coverIssue = (message: string) =>
   errAsync(validationError([{ path: "cover", message }]));
 
-/** Salva la copertina di un libro in `<utente>/<libro>.<estensione>` e la collega al libro. */
+/** Salva la copertina di un libro in `<libro>.<estensione>` e la collega al libro. */
 export const setBookCover =
   (books: Pick<BookStore, "get" | "update">, covers: CoverStore) =>
   (
-    userId: string,
     id: unknown,
     contentType: string | null,
     bytes: Uint8Array,
@@ -260,7 +259,7 @@ export const setBookCover =
       .asyncAndThen(books.get)
       .andThen((book) =>
         covers
-          .put(`${userId}/${book.id}.${extension}`, bytes, type)
+          .put(`${book.id}.${extension}`, bytes, type)
           .andThen((path) => books.update(book.id, { cover_path: path })),
       );
   };

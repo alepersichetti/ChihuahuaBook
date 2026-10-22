@@ -1,46 +1,55 @@
-# Import dei file .pedia di Bookpedia
+# Importing Bookpedia .pedia files
 
-Un file `.pedia` è una cartella (il Finder la mostra come un file unico) con un XML delle schede e le immagini delle copertine. L'import si apre dal pulsante **Importa .pedia** in fondo alla colonna delle collezioni.
+**English** · [Italiano](import-pedia.it.md)
 
-## Cosa si può scegliere
+> The app interface is currently in Italian: button labels are quoted as they appear on screen.
 
-- **Trascinare** il `.pedia` nella finestra: il browser legge tutta la cartella.
-- **Uno zip** del `.pedia` (tasto destro nel Finder, «Comprimi»): è la strada più sicura, perché il selettore di file del Mac non sempre entra nei pacchetti.
-- **La cartella** con il pulsante «Scegli la cartella».
-- **Solo l'XML**, se le copertine non servono.
+A `.pedia` file is a folder (Finder shows it as a single file) containing an XML file with the records and the cover images. The import opens from the **Importa .pedia** button at the bottom of the collections column.
 
-Il file viene letto interamente nel browser; al server arrivano solo i dati dei libri e le immagini, una richiesta alla volta (nessuna supera i limiti di dimensione di Vercel).
+## What you can pick
 
-## Il formato
+- **Drag** the `.pedia` into the window: the browser reads the whole folder.
+- **A zip** of the `.pedia` (right click in Finder, «Compress»): this is the safest route, because the Mac file picker does not always enter packages.
+- **The folder**, with the «Scegli la cartella» (choose folder) button.
+- **Just the XML**, if you don't need the covers.
 
-Verificato su un export reale (ottobre 2026, 6334 libri):
+The file is read entirely in the browser; the server only receives the book data and the images, one request at a time (none exceeds Vercel's size limits).
 
-- `Info.xml` è un **plist di Apple**: un dizionario che associa un numero progressivo (`1`, `2`…) alla scheda del libro, più una voce `Version`;
-- ogni scheda ha `uid` (l'id interno di Bookpedia, stabile: diventa `source_id`), `title`, `author`, `editor`, `translator`, `illustrator`, `publisher`, `releaseDate`, `isbn`, `pages`, `format`, `edition`, `genre`, `series`, `summary`, `comments`, `myRating`, `price`, `purchasedOn`, `location`, `localeLanguage`, `dateAdded` e altri campi minori;
-- le persone sono scritte «Cognome Nome» e separate da virgole (`Fruttero Carlo, Lucentini Franco`), come i generi;
-- `myRating` va da 0 a 10 (0 = nessun voto) e diventa 0–5 stelle;
-- le date sono salvate a mezzanotte dell'ora locale (`2004-06-30T22:00:00Z` è il 1° luglio in Italia), quindi si leggono nel fuso del browser;
-- i prezzi sono testo libero (`Euro 25,00`, `9,30 EUR`): si prendono importo e valuta;
-- alcuni testi contengono caratteri di controllo che l'XML non ammette: vengono tolti prima della lettura;
-- la cartella `Cover` contiene le immagini con l'id del libro come nome. Si abbinano sia per `uid` sia per il numero della scheda (i due intervalli non si sovrappongono).
+## The format
 
-Quello che il catalogo non ha (dimensioni, luogo di pubblicazione, URL, caselle personalizzate…) finisce nella colonna `extra` del libro, così non si perde nulla. Gli ISBN non validi (per esempio i codici a 18 cifre delle riviste) restano in `extra.isbn`.
+Checked against a real export (October 2026, 6334 books):
 
-La lettura resta tollerante anche verso altri formati: un XML «a elementi» (`<collection><item><title>…`) o con i nomi dei campi negli attributi (`<field name="Title">`). I nomi dei campi vengono riconosciuti senza badare a maiuscole, spazi e punteggiatura; l'elenco è in `src/server/core/books/pedia.ts`. Le schede senza titolo vengono scartate e mostrate nell'anteprima.
+- `Info.xml` is an **Apple plist**: a dictionary mapping a running number (`1`, `2`…) to each book record, plus a `Version` entry;
+- each record has `uid` (Bookpedia's internal, stable id: it becomes `source_id`), `title`, `author`, `editor`, `translator`, `illustrator`, `publisher`, `releaseDate`, `isbn`, `pages`, `format`, `edition`, `genre`, `series`, `summary`, `comments`, `myRating`, `price`, `purchasedOn`, `location`, `localeLanguage`, `dateAdded` and a few minor fields;
+- people are written «Surname Name» and separated by commas (`Fruttero Carlo, Lucentini Franco`), like genres;
+- `myRating` goes from 0 to 10 (0 = not rated) and becomes 0–5 stars;
+- dates are stored as local midnight (`2004-06-30T22:00:00Z` is 1 July in Italy), so they are read in the browser's time zone;
+- prices are free text (`Euro 25,00`, `9,30 EUR`): amount and currency are extracted;
+- some texts contain control characters that XML does not allow: they are stripped before parsing;
+- the `Cover` folder holds the images named after the book id. They are matched both by `uid` and by record number (the two ranges don't overlap).
 
-Se nessun nome di file corrisponde ma le immagini sono numerate, si abbinano nell'ordine delle schede e l'anteprima lo segnala. Immagini TIFF, GIF o troppo grandi vengono convertite in JPEG nel browser, se il browser le sa leggere.
+Invalid ISBNs (for example the 18-digit codes of magazines) stay in `extra.isbn`. With the real file (43 MB of XML) parsing in the browser takes about fifteen seconds.
 
-Con il file reale (43 MB di XML) la lettura nel browser richiede una quindicina di secondi.
+## How the data is read
 
-## Reimportare
+Parsing is still lenient, so other layouts work too:
 
-Ogni libro importato ricorda la fonte (`source = 'bookpedia'`) e l'id della scheda d'origine (`source_id`); per le schede senza id si usa un'impronta di titolo, autori e ISBN. Reimportare lo stesso file quindi non crea doppioni: i libri già presenti vengono aggiornati, oppure lasciati come sono se si toglie la spunta «Aggiorna i libri già importati».
+- both an Apple plist and an "element-based" XML (`<collection><item><title>…`) work, including field names given in an attribute (`<field name="Title">`);
+- field names are matched ignoring case, spaces and punctuation (`Release Date`, `releaseDate`, `release_date`); the list is in `src/server/core/books/pedia.ts`;
+- fields the catalogue doesn't have go into the book's `extra` column, so nothing is lost;
+- records without a title are skipped and shown in the preview.
+
+Covers are matched by file name (record id, ISBN or title). If no name matches but the images are numbered (`1.jpg`, `2.jpg`…), they are matched in record order and the preview says so. TIFF, GIF or oversized images are converted to JPEG in the browser, if the browser can read them.
+
+## Re-importing
+
+Every imported book remembers its source (`source = 'bookpedia'`) and the id of the original record (`source_id`); for records without an id, a fingerprint of title, authors and ISBN is used. Re-importing the same file therefore creates no duplicates: books already present are updated, or left as they are if you untick «Aggiorna i libri già importati in passato» (update previously imported books).
 
 ## API
 
-| Metodo | Percorso | Corpo |
+| Method | Path | Body |
 | --- | --- | --- |
-| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "skip", items: [{ source_id, book, extra }] }`, al massimo 100 libri; risponde con l'esito di ognuno |
-| `PUT` | `/api/books/:id/cover` | l'immagine (JPEG, PNG o WebP, massimo 5 MB) con il suo `Content-Type`; la salva in `covers/<utente>/<libro>.<ext>` |
+| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "skip", items: [{ source_id, book, extra }] }`, at most 100 books; replies with the outcome of each one |
+| `PUT` | `/api/books/:id/cover` | the image (JPEG, PNG or WebP, at most 5 MB) with its `Content-Type`; saves it to `covers/<user>/<book>.<ext>` |
 
-Finché l'interfaccia non è collegata a Supabase con l'accesso utente, i libri importati compaiono comunque nella libreria della scheda aperta (in una collezione «Bookpedia: nome del file»), e la finestra dice che non sono stati salvati sul server.
+Until the interface is wired to Supabase with user sign-in, imported books still appear in the library of the open tab (in a collection named «Bookpedia: file name»), and the dialog says they were not saved on the server.

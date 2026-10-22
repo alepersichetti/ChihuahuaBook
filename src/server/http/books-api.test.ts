@@ -2,7 +2,7 @@ import { errAsync, okAsync } from "neverthrow";
 import { describe, expect, it } from "vitest";
 import type { Book } from "../core/books/book";
 import type { BookStore } from "../core/books/ports";
-import { unauthenticated } from "../core/errors";
+import { forbidden, unauthenticated } from "../core/errors";
 import { booksRoutes, type BooksApiDeps } from "./books-api";
 import { router } from "./router";
 
@@ -24,9 +24,10 @@ const store = (overrides: Partial<BookStore>): BookStore => ({
 
 const app = (deps: Partial<BooksApiDeps>) =>
   router<BooksApiDeps>("/api", booksRoutes, () => ({
-    session: { userId: () => okAsync("user") },
+    session: { viewer: () => okAsync({ userId: "user", role: "librarian" }) },
     books: store({}),
     lookupIsbn: unreachable,
+    searchSources: [],
     ...deps,
   }));
 
@@ -73,11 +74,38 @@ describe("books API", () => {
 
   it("risponde 401 senza sessione e non tocca il magazzino", async () => {
     const response = await call(
-      app({ session: { userId: () => errAsync(unauthenticated) } }),
+      app({ session: { viewer: () => errAsync(unauthenticated) } }),
       "GET",
       `/api/books/${id}`,
     );
     expect(response.status).toBe(401);
+  });
+
+  it("il lettore legge ma non modifica", async () => {
+    const asReader = (books: Partial<BookStore>) =>
+      app({
+        session: { viewer: () => okAsync({ userId: "user", role: "reader" }) },
+        books: store(books),
+      });
+    const read = await call(asReader({ get: () => okAsync({ id } as Book) }), "GET", `/api/books/${id}`);
+    expect(read.status).toBe(200);
+    for (const [method, path] of [
+      ["POST", "/api/books"],
+      ["PATCH", `/api/books/${id}`],
+      ["DELETE", `/api/books/${id}`],
+    ] as const) {
+      const response = await call(asReader({}), method, path, { title: "x" });
+      expect(response.status).toBe(403);
+    }
+  });
+
+  it("risponde 403 a chi non è un membro attivo", async () => {
+    const response = await call(
+      app({ session: { viewer: () => errAsync(forbidden) } }),
+      "GET",
+      "/api/books",
+    );
+    expect(response.status).toBe(403);
   });
 
   it("risponde 404 se il libro non esiste", async () => {
@@ -98,5 +126,34 @@ describe("books API", () => {
     expect((await call(app({}), "GET", "/api/nulla")).status).toBe(404);
     expect((await call(app({}), "PATCH", "/api/books")).status).toBe(405);
     expect((await call(app({}), "GET", "/altro/books")).status).toBe(404);
+  });
+
+  it("cerca nella fonte scelta e elenca le fonti", async () => {
+    const searchSources = [
+      {
+        id: "fake",
+        label: "Finta",
+        search: (query: { text: string }) =>
+          okAsync([
+            {
+              source: "fake",
+              sourceId: "1",
+              link: null,
+              draft: { title: query.text },
+            },
+          ]),
+      },
+    ];
+    const handler = app({ searchSources });
+
+    const sources = await call(handler, "GET", "/api/search/sources");
+    expect(await sources.json()).toEqual([{ id: "fake", label: "Finta" }]);
+
+    const hits = await call(handler, "GET", "/api/search?source=fake&q=Dune");
+    expect(hits.status).toBe(200);
+    expect(await hits.json()).toMatchObject([{ draft: { title: "Dune" } }]);
+
+    const missing = await call(handler, "GET", "/api/search?source=altro&q=x");
+    expect(missing.status).toBe(400);
   });
 });

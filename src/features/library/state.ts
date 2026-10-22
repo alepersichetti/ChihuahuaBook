@@ -33,6 +33,7 @@ export type LibraryState = {
   // Su telefono si vede una schermata alla volta.
   readonly mobileScreen: "list" | "book" | "collections";
   readonly importOpen: boolean;
+  readonly addOpen: boolean;
 };
 
 export type LibraryAction =
@@ -57,7 +58,9 @@ export type LibraryAction =
   | { readonly type: "setMobileScreen"; readonly screen: LibraryState["mobileScreen"] }
   | { readonly type: "openBook"; readonly bookId: string }
   | { readonly type: "setImportOpen"; readonly open: boolean }
-  | { readonly type: "importBooks"; readonly books: readonly Book[]; readonly collectionName: string };
+  | { readonly type: "importBooks"; readonly books: readonly Book[]; readonly collectionName: string }
+  | { readonly type: "setAddOpen"; readonly open: boolean }
+  | { readonly type: "addBook"; readonly book: Book };
 
 export const defaultColumns: readonly ColumnKey[] = [
   "title",
@@ -73,6 +76,7 @@ export const defaultSort: readonly SortKey[] = [{ column: "title", direction: "a
 export const preferredView: Record<Layout, ViewMode> = {
   classic: "list",
   gallery: "grid",
+  warm: "grid",
   shelf: "carousel",
 };
 
@@ -96,6 +100,7 @@ export const initialState = (library: Library): LibraryState => ({
   layout: "classic",
   mobileScreen: "list",
   importOpen: false,
+  addOpen: false,
 });
 
 // Selettori -------------------------------------------------------------------
@@ -233,5 +238,34 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return { ...state, importOpen: action.open };
     case "importBooks":
       return addImported(state, action.books, action.collectionName);
+    case "setAddOpen":
+      return { ...state, addOpen: action.open };
+    case "addBook":
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          books: [...state.library.books.filter((book) => book.id !== action.book.id), action.book],
+        },
+        selectedBookId: action.book.id,
+      };
   }
 };
+
+// Azioni che cambiano i dati del catalogo: al lettore non arrivano mai.
+export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
+  "setRating",
+  "setReadStatus",
+  "toggleFavorite",
+  "lend",
+  "returnBook",
+  "setImportOpen",
+  "importBooks",
+]);
+
+/** Il reducer giusto per chi usa l'app: in sola lettura ignora le modifiche. */
+export const reducerFor = (canEdit: boolean) =>
+  canEdit
+    ? libraryReducer
+    : (state: LibraryState, action: LibraryAction): LibraryState =>
+        editingActions.has(action.type) ? state : libraryReducer(state, action);

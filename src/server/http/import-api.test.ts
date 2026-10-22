@@ -16,7 +16,7 @@ const imports: ImportStore = {
 
 const app = (deps: Partial<ImportApiDeps> = {}) =>
   router<ImportApiDeps>("/api", importRoutes, () => ({
-    session: { userId: () => okAsync("user") },
+    session: { viewer: () => okAsync({ userId: "user", role: "librarian" }) },
     books: {
       get: () => okAsync({ id } as Book),
       update: (_id: string, patch: object) => okAsync({ id, ...patch } as Book),
@@ -48,14 +48,21 @@ describe("import API", () => {
       }),
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ cover_path: `user/${id}.png` });
+    expect(await response.json()).toMatchObject({ cover_path: `${id}.png` });
     expect(put.mock.calls[0][1]).toHaveLength(4);
   });
 
   it("risponde 401 senza sessione", async () => {
-    const response = await app({ session: { userId: () => errAsync(unauthenticated) } })(
+    const response = await app({ session: { viewer: () => errAsync(unauthenticated) } })(
       new Request("http://localhost/api/import/books", { method: "POST", body: "{}" }),
     );
     expect(response.status).toBe(401);
+  });
+
+  it("risponde 403 al lettore", async () => {
+    const response = await app({ session: { viewer: () => okAsync({ userId: "user", role: "reader" }) } })(
+      new Request("http://localhost/api/import/books", { method: "POST", body: "{}" }),
+    );
+    expect(response.status).toBe(403);
   });
 });
