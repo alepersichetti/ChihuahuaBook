@@ -14,9 +14,11 @@ import {
   Undo2,
 } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { branding } from "@/config/branding";
 import { layoutLabel, searchFieldLabel } from "../labels";
 import { layouts, searchFields, type Layout, type SearchField, type ViewMode } from "../model";
 import { useLibrary } from "./library-context";
+import { Logo } from "./logo";
 
 const viewButtons: readonly { view: ViewMode; label: string; Icon: LucideIcon }[] = [
   { view: "list", label: "Vista lista", Icon: List },
@@ -119,7 +121,10 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
   const loaned = selected?.loan != null;
   return (
     <header className="flex flex-wrap items-center gap-3 border-b border-line bg-bg px-4 py-2.5">
-      <div className="text-base font-bold tracking-tight">ChihuahaBook</div>
+      <div className="flex items-center gap-2 text-base font-bold tracking-tight">
+        <Logo size={40} />
+        {branding.name}
+      </div>
       <div className="flex flex-wrap items-center gap-1">
         <button
           type="button"

@@ -3,6 +3,7 @@
 import { Settings } from "lucide-react";
 import { collectionIcon } from "./icons";
 import { useLibrary } from "./library-context";
+import { Logo } from "./logo";
 
 // Barra laterale a sole icone del layout galleria.
 export function IconRail() {
@@ -10,9 +11,7 @@ export function IconRail() {
   const collections = state.library.collections.filter((collection) => collection.kind !== "folder");
   return (
     <nav aria-label="Collezioni" className="flex w-17 shrink-0 flex-col items-center gap-1.5 border-r border-line bg-panel py-3.5">
-      <div aria-hidden="true" className="mb-2.5 flex size-9 items-center justify-center rounded-[10px] bg-ink font-display text-lg font-semibold text-bg">
-        p
-      </div>
+      <Logo size={40} className="mb-2.5" />
       {collections.map((collection) => {
         const { Icon } = collectionIcon(collection);
         const active = collection.id === state.collectionId;
