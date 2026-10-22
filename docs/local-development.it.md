@@ -338,12 +338,79 @@ Senza configurazione Supabase una build di produzione risponde `503` a ogni pagi
 | `npm run dev:all` | database e server insieme (vedi l'[avvio rapido](#avvio-rapido-tutto-con-un-comando)) |
 | `npm test` | test unitari con Vitest (non servono né database né rete) |
 | `npm run test:watch` | come sopra, rieseguiti a ogni modifica |
+| `npm run test:e2e` | test end-to-end con Playwright sul Supabase locale (vedi il [punto 9](#9-test-end-to-end-playwright)) |
 | `npm run lint` | ESLint, compresi i confini tra `core`, `adapters`, `http` e Next |
 | `npm run typecheck` | controllo dei tipi con `tsc` |
 | `npm run build` | build di produzione |
 | `psql ... -f supabase/tests/roles.test.sql` | i test della RLS (vedi 3.4) |
 
 Per `typecheck` servono i tipi che genera Next (`LayoutProps` e simili): compaiono dopo `npm run dev` o `npm run build`. Su un clone appena fatto lancia prima `npx next typegen`, altrimenti `tsc` segnala `Cannot find name 'LayoutProps'`.
+
+## 9. Test end-to-end (Playwright)
+
+I test in `e2e/` usano l'app in un browser vero (Chromium), come farebbe una persona, contro il Supabase locale. Coprono:
+
+| File | Cosa prova |
+| --- | --- |
+| `auth.setup.ts` | il primo utente si registra, conferma l'email da Mailpit e diventa amministratore; bibliotecario e lettore entrano con la password; una password sbagliata non fa entrare |
+| `add-book.spec.ts` | aggiunta di un libro a mano, da Google Books e da Open Library (ricerca senza risultati compresa), con il controllo di cosa è stato salvato nel database |
+| `collections.spec.ts` | nuova collezione, libro trascinato su una collezione, collezione trascinata in una cartella e tolta dal menu, collezioni dalla scheda del libro |
+| `import.spec.ts` | import di un `.pedia` zippato con una copertina; il secondo import dello stesso file non crea doppioni |
+| `roles.spec.ts` | cosa vedono lettore, bibliotecario e amministratore (anche chiamando l'API), promozione a bibliotecario, conferma per amministratore, inviti, lingua |
+
+### 9.1 Lanciarli
+
+Con Docker acceso, la prima volta installa il browser di Playwright:
+
+```bash
+npx playwright install chromium     # su Linux: npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+`npm run test:e2e` (`scripts/e2e.mjs`):
+
+1. avvia il Supabase locale, se è spento (come `dev:all`);
+2. **azzera il database** (`npx supabase db reset`), perché il primo utente registrato diventa amministratore e i test partono da un'istanza nuova;
+3. lancia `playwright test`, che fa la build di produzione dell'app e la avvia su <http://127.0.0.1:3100>, insieme a un finto server per Google Books e Open Library (`e2e/mock-sources.mjs`) su `127.0.0.1:4010`: i test non usano mai i cataloghi veri né una chiave di Google;
+4. alla fine ferma Supabase, se l'aveva avviato lui.
+
+Le porte sono diverse da quelle di `npm run dev:all`, quindi i test girano anche con il server di sviluppo acceso.
+
+Se il database locale contiene già degli utenti, lo script si ferma invece di cancellarli. Per azzerarlo comunque:
+
+```bash
+npm run test:e2e -- --reset
+```
+
+Gli altri argomenti vanno a Playwright:
+
+```bash
+npm run test:e2e -- --ui                     # interfaccia di Playwright, test passo passo
+npm run test:e2e -- --headed                 # browser visibile
+npm run test:e2e -- e2e/import.spec.ts       # un solo file (il setup degli utenti gira sempre prima)
+E2E_DEV=1 npm run test:e2e                   # next dev al posto della build: più veloce mentre scrivi i test
+npx playwright show-report                   # il rapporto HTML dell'ultima esecuzione
+```
+
+Con Supabase già acceso e il database appena azzerato si può lanciare anche `npx playwright test` direttamente: indirizzi e chiavi li legge da `npx supabase status`.
+
+Quando un test fallisce, `test-results/` contiene screenshot e traccia (`npx playwright show-trace test-results/.../trace.zip`).
+
+### 9.2 Come sono fatti
+
+- Gli utenti di prova sono in `e2e/support/users.ts`. L'amministratore passa dalla registrazione vera; gli altri vengono creati con la chiave di servizio del Supabase locale (`e2e/support/supabase.ts`), così non servono altre email: il Supabase locale ne manda al massimo 2 all'ora.
+- Le sessioni salvate dal setup (`e2e/.auth/`, ignorata da Git) vengono riusate dagli altri test con `test.use({ storageState })`.
+- I test girano uno alla volta (`workers: 1`): condividono lo stesso database.
+- Per l'app, i finti cataloghi sono solo due variabili d'ambiente: `GOOGLE_BOOKS_API_URL` e `OPEN_LIBRARY_URL` (in produzione non si impostano).
+
+### 9.3 In CI
+
+`.github/workflows/ci.yml` gira a ogni push su `main` e su ogni pull request, con due job:
+
+- **Lint, tipi, test unitari e build**: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`;
+- **Test e2e (Playwright)**: installa Chromium e lancia `npm run test:e2e` sul runner, dove Supabase gira in Docker. Il rapporto di Playwright (con le tracce dei test falliti) resta tra gli artifact dell'esecuzione per 14 giorni.
+
+Per impedire il merge di una pull request con test rossi, su GitHub: Settings → Branches → regola per `main` → "Require status checks to pass" con i due job.
 
 ## Problemi comuni
 
@@ -357,4 +424,6 @@ Per `typecheck` servono i tipi che genera Next (`LayoutProps` e simili): compaio
 - **`500 misconfigured` dalle API**: in `.env.local` manca l'indirizzo o la chiave, oppure il server non è stato riavviato.
 - **Google Books non trova nulla o dà errore di quota**: imposta `GOOGLE_BOOKS_API_KEY` in `.env.local` e riavvia, oppure usa Open Library.
 - **Dopo un `git pull` qualcosa non compila**: riesegui `npm ci`; se sono arrivate migrazioni nuove, `npx supabase migration up` (o `db reset`).
+- **`npm run test:e2e` dice che il database contiene già dei dati**: i test lo azzerano e lo script non lo fa senza permesso. Lancia `npm run test:e2e -- --reset` (perdi utenti e libri locali).
+- **I test e2e falliscono con `Executable doesn't exist`**: manca il browser di Playwright, lancia `npx playwright install chromium`.
 - **Compare `AGENTS.md` dopo `npm run dev`**: lo genera Next 16 all'avvio. Non fa parte del repo: cancellalo o lascialo fuori dai commit.

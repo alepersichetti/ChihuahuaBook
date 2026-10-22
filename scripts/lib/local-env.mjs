@@ -15,6 +15,31 @@ export const supabaseEnv = (statusJson) => {
     : { ok: false, error: "supabase status non riporta API_URL e la chiave pubblica." };
 };
 
+// Indirizzi dei test e2e: porte diverse da quelle di `npm run dev:all`, così girano anche col server di sviluppo acceso.
+export const E2E_APP_URL = "http://127.0.0.1:3100";
+export const E2E_MOCK_URL = "http://127.0.0.1:4010";
+
+// `supabase status -o json` → le variabili dei test e2e: anche la chiave di servizio e Mailpit.
+/** @returns {{ ok: true, value: Record<string, string> } | { ok: false, error: string }} */
+export const e2eEnv = (statusJson) => {
+  const app = supabaseEnv(statusJson);
+  if (!app.ok) return app;
+  const status = safeParse(statusJson);
+  const secret = status.SERVICE_ROLE_KEY || status.SECRET_KEY;
+  const mailpit = status.MAILPIT_URL || status.INBUCKET_URL;
+  return secret && mailpit
+    ? {
+        ok: true,
+        value: {
+          E2E_SUPABASE_URL: app.value.NEXT_PUBLIC_SUPABASE_URL,
+          E2E_SUPABASE_KEY: app.value.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+          E2E_SUPABASE_SECRET_KEY: secret,
+          E2E_MAILPIT_URL: mailpit,
+        },
+      }
+    : { ok: false, error: "supabase status non riporta la chiave di servizio o l'indirizzo di Mailpit." };
+};
+
 // Il riepilogo stampato all'avvio.
 export const localUrls = (statusJson) => {
   const status = safeParse(statusJson) ?? {};
