@@ -17,8 +17,8 @@ Without a login or a configured Supabase the book is added only in the browser t
 
 | Catalogue | Key | Notes |
 |---|---|---|
-| Google Books | optional `GOOGLE_BOOKS_API_KEY` | Large catalogue with summaries and covers. Without a key Google applies a shared per-IP daily quota that runs out quickly: create a free key in the Google Cloud console (Books API) and set it on Vercel. |
-| Open Library | none | Free Internet Archive catalogue. It groups editions into works, so the ISBN is filled in only when you searched by ISBN. |
+| Google Books | optional `GOOGLE_BOOKS_API_KEY` | Google Books searches the full text of books and magazines that Google has scanned, converted to text using optical character recognition (OCR), and stored in its digital database. Without a key Google applies a shared per-IP daily quota that runs out quickly: create a free key in the Google Cloud console (Books API) and set it on Vercel. |
+| Open Library | none | Open Library is an open, editable library catalog, building towards a web page for every book ever published. Run by Internet Archive, it groups editions into works, so the ISBN is filled in only when you searched by ISBN. |
 
 Covers are stored as links to the catalogue's image, not copied.
 

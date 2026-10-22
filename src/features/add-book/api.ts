@@ -6,8 +6,10 @@ import type { SearchField, SourceInfo } from "@/server/core/books/search";
 
 /** Descrizioni delle fonti note; il server decide quali sono attive. */
 export const sourceDescriptions: Readonly<Record<string, string>> = {
-  google_books: "Catalogo molto ampio, con trame e copertine.",
-  open_library: "Catalogo libero di Internet Archive, senza chiavi.",
+  google_books:
+    "Cerca nel testo completo dei libri e delle riviste che Google ha scansionato, convertito in testo con il riconoscimento ottico dei caratteri (OCR) e archiviato nel suo database digitale.",
+  open_library:
+    "Catalogo aperto e modificabile da tutti, che punta ad avere una pagina web per ogni libro mai pubblicato.",
 };
 
 export const defaultSources: readonly SourceInfo[] = [
