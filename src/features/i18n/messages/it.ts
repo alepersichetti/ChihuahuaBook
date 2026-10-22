@@ -129,6 +129,7 @@ export const it = {
     removeFilter: "Togli filtro",
     noSelection: "Seleziona un libro per vederne i dettagli.",
     showDetails: "Mostra dettagli",
+    showCollections: "Mostra collezioni",
     hideDetails: "Nascondi dettagli",
     columns: "Colonne",
     visibleColumns: "Colonne visibili",

@@ -10,7 +10,25 @@ import { Cover } from "./cover";
 import { CollectionSearchButton } from "./collection-search";
 import { draggableBook } from "./drag";
 import { useLibrary } from "./library-context";
+import { useFinePointer, useWide } from "./media";
 import { Rating } from "./rating";
+import { useTouchDragSource } from "./touch-drag";
+
+// Un libro si trascina su una collezione: col mouse in modo nativo, col dito tenendolo premuto.
+// Sull'iPad in verticale le collezioni sono chiuse in un riquadro: si apre da solo.
+const useBookDrag = () => {
+  const { canEdit, dispatch } = useLibrary();
+  const fine = useFinePointer();
+  const wide = useWide();
+  const touch = useTouchDragSource();
+  const showCollections = () => {
+    if (!wide) dispatch({ type: "setSidebarOpen", open: true });
+  };
+  return (book: Book) =>
+    canEdit
+      ? { ...(fine ? draggableBook(book.id) : {}), ...touch({ kind: "book", id: book.id, label: book.title }, showCollections) }
+      : {};
+};
 
 // Selezione con le frecce, come nella lista di Bookpedia.
 const useArrowSelection = () => {
@@ -74,14 +92,14 @@ function ColumnPicker() {
   const t = useT();
   return (
     <details className="relative">
-      <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft">
+      <summary className="flex h-8 touch:h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft">
         <Columns3 size={15} aria-hidden="true" />
         {t.library.columns}
       </summary>
       <fieldset className="absolute right-0 z-20 mt-1 flex w-48 flex-col gap-1 rounded-lg border border-line bg-surface p-2 text-sm shadow-lg">
         <legend className="sr-only">{t.library.visibleColumns}</legend>
         {columnKeys.map((column) => (
-          <label key={column} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-chip">
+          <label key={column} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-chip touch:py-2">
             <input
               type="checkbox"
               checked={columns.includes(column)}
@@ -98,8 +116,9 @@ function ColumnPicker() {
 }
 
 export function BookTable() {
-  const { books, columns, sort, selected, dispatch, canEdit } = useLibrary();
+  const { books, columns, sort, selected, dispatch } = useLibrary();
   const { t, locale } = useI18n();
+  const bookDrag = useBookDrag();
   const onArrow = useArrowSelection();
   const primary = sort[0];
   return (
@@ -146,17 +165,17 @@ export function BookTable() {
               <tr
                 key={book.id}
                 aria-selected={book.id === selected?.id}
-                {...draggableBook(book.id, canEdit)}
+                {...bookDrag(book)}
                 onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
                 className={`cursor-default ${book.id === selected?.id ? "bg-selected" : "hover:bg-chip/60"}`}
               >
-                <td className="border-b border-line/70 px-2 py-2.5">
+                <td className="border-b border-line/70 px-2 py-2.5 touch:py-3.5">
                   <StatusCell book={book} />
                 </td>
                 {columns.map((column) => (
                   <td
                     key={column}
-                    className={`border-b border-line/70 px-2 py-2.5 ${
+                    className={`border-b border-line/70 px-2 py-2.5 touch:py-3.5 ${
                       column === "title" ? "font-medium" : "text-ink-soft"
                     } ${column === "publishedYear" || column === "pages" ? "tabular-nums" : ""}`}
                   >
@@ -173,7 +192,8 @@ export function BookTable() {
 }
 
 export function BookGrid() {
-  const { books, selected, state, today, dispatch, canEdit } = useLibrary();
+  const { books, selected, state, today, dispatch } = useLibrary();
+  const bookDrag = useBookDrag();
   return (
     <ul
       className="grid content-start gap-x-5 gap-y-7 overflow-auto px-6 pb-6"
@@ -184,7 +204,7 @@ export function BookGrid() {
           <button
             type="button"
             aria-pressed={book.id === selected?.id}
-            {...draggableBook(book.id, canEdit)}
+            {...bookDrag(book)}
             onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
             className="flex w-full flex-col gap-2 text-left"
           >
@@ -206,8 +226,9 @@ export function BookGrid() {
 }
 
 export function BookCarousel() {
-  const { books, selected, today, dispatch, canEdit } = useLibrary();
+  const { books, selected, today, dispatch } = useLibrary();
   const t = useT();
+  const bookDrag = useBookDrag();
   const onArrow = useArrowSelection();
   const track = useRef<HTMLUListElement>(null);
   const index = books.findIndex((book) => book.id === selected?.id);
@@ -234,7 +255,7 @@ export function BookCarousel() {
         type="button"
         aria-label={t.library.previousBook}
         onClick={() => move(-1)}
-        className="absolute left-4 z-10 flex size-10 items-center justify-center rounded-full bg-chip text-ink"
+        className="absolute left-4 z-10 flex size-10 touch:size-12 items-center justify-center rounded-full bg-chip text-ink"
       >
         <ChevronLeft size={18} />
       </button>
@@ -247,7 +268,7 @@ export function BookCarousel() {
                 type="button"
                 aria-pressed={active}
                 aria-label={book.title}
-                {...draggableBook(book.id, canEdit)}
+                {...bookDrag(book)}
                 onClick={() => dispatch({ type: "selectBook", bookId: book.id })}
                 className={`block transition-all duration-200 ${active ? "w-[180px]" : "w-[130px] opacity-60 hover:opacity-90"}`}
               >
@@ -266,7 +287,7 @@ export function BookCarousel() {
         type="button"
         aria-label={t.library.nextBook}
         onClick={() => move(1)}
-        className="absolute right-4 z-10 flex size-10 items-center justify-center rounded-full bg-chip text-ink"
+        className="absolute right-4 z-10 flex size-10 touch:size-12 items-center justify-center rounded-full bg-chip text-ink"
       >
         <ChevronRight size={18} />
       </button>

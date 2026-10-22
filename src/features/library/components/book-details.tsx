@@ -169,7 +169,8 @@ function Pager({ onClose }: { onClose?: () => void }) {
     const next = books[index + step];
     if (next) dispatch({ type: "selectBook", bookId: next.id });
   };
-  const button = "flex size-8 items-center justify-center rounded-lg border border-line-strong bg-surface disabled:opacity-40";
+  const button =
+    "flex size-8 items-center justify-center rounded-lg border border-line-strong bg-surface disabled:opacity-40 touch:size-10";
   return (
     <div className="flex items-center justify-between text-[13px] text-muted">
       <span>{index >= 0 ? t.details.position(index + 1, books.length) : t.details.outsideSearch}</span>
@@ -311,7 +312,7 @@ export function BookDetails({
         variant === "side"
           ? "w-[340px] shrink-0 border-l border-line"
           : variant === "drawer"
-            ? "w-[380px] shrink-0 border-l border-line bg-surface shadow-[-12px_0_32px_rgba(60,40,20,0.10)]"
+            ? "h-full w-[min(420px,100%)] shrink-0 border-l border-line bg-surface shadow-[-12px_0_32px_rgba(20,20,30,0.18)]"
             : ""
       }`}
     >

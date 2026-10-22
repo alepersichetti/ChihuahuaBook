@@ -19,9 +19,11 @@ import { useSettings } from "../../settings/settings-context";
 import { collectionName } from "../labels";
 import type { Collection } from "../model";
 import { canMoveInto, childrenOf, isSystemCollection, moveDestinations, siblingsOf, stepPosition } from "../query";
-import { bookMime, carries, collectionMime, placementAt, type DropPlacement } from "./drag";
+import { bookMime, carries, collectionMime, placementAt, placementIn, type DropPlacement } from "./drag";
 import { collectionIcon } from "./icons";
 import { useLibrary } from "./library-context";
+import { useFinePointer } from "./media";
+import { useDropTarget, useTouchDrag, useTouchDragSource, type DragPayload } from "./touch-drag";
 import { NewCollectionInput, newCollectionId } from "./new-collection-input";
 
 // I lettori non vedono le impostazioni.
@@ -33,7 +35,7 @@ function SettingsLink() {
     <button
       type="button"
       onClick={openPanel}
-      className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
+      className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip touch:py-2.5"
     >
       <Settings size={16} aria-hidden="true" />
       {t.settings.title}
@@ -80,8 +82,8 @@ const useMoveCollection = () => {
   };
 };
 
-// Su desktop compare passando sopra la riga o portandoci il fuoco; sul telefono resta visibile.
-const revealOnRow = "md:hidden md:group-focus-within/row:block md:group-hover/row:block";
+// Col mouse compare passando sopra la riga o portandoci il fuoco; al tocco resta visibile.
+const revealOnRow = "fine:hidden fine:group-focus-within/row:block fine:group-hover/row:block";
 
 // Menu "⋯" di ogni collezione: l'alternativa da tastiera (e da telefono) al trascinamento.
 function CollectionActions({ collection }: { collection: Collection }) {
@@ -103,7 +105,8 @@ function CollectionActions({ collection }: { collection: Collection }) {
     setOpen(false);
     move(collection.id, parentId, beforeId);
   };
-  const item = "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-chip disabled:opacity-40 disabled:hover:bg-transparent";
+  const item =
+    "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-chip disabled:opacity-40 disabled:hover:bg-transparent touch:py-2.5";
   return (
     <div
       className="relative"
@@ -124,7 +127,7 @@ function CollectionActions({ collection }: { collection: Collection }) {
         aria-expanded={open}
         title={t.collections.actions(name)}
         onClick={() => setOpen(!open)}
-        className={`mr-1 rounded p-1 text-muted hover:bg-line ${open ? "" : revealOnRow}`}
+        className={`mr-1 rounded p-1 text-muted hover:bg-line touch:p-2 ${open ? "" : revealOnRow}`}
       >
         <Ellipsis size={14} />
       </button>
@@ -174,6 +177,9 @@ function DropLine({ placement }: { placement: "before" | "after" }) {
 function CollectionLink({ collection, depth }: { collection: Collection; depth: number }) {
   const { state, dispatch, counts, canEdit } = useLibrary();
   const { dragged, setDragged, target, setTarget, announce, flash } = useSidebarDrag();
+  const { over } = useTouchDrag();
+  const touchSource = useTouchDragSource();
+  const fine = useFinePointer();
   const move = useMoveCollection();
   const t = useT();
   const name = collectionName(collection, t);
@@ -184,35 +190,51 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
   const collapsed = state.collapsedFolders.includes(collection.id);
   const Chevron = collapsed ? ChevronRight : ChevronDown;
   const { collections } = state.library;
-  const here = target?.id === collection.id ? target.placement : null;
 
   // Cosa succederebbe rilasciando qui: null se il rilascio non è permesso.
-  const dropAt = (event: DragEvent<HTMLDivElement>): DropPlacement | null => {
+  const accept = (kind: DragPayload["kind"], placement: DropPlacement, draggedId: string | null): DropPlacement | null => {
     if (!canEdit) return null;
-    if (carries(event, bookMime)) return collection.kind === "regular" ? "inside" : null;
-    if (!carries(event, collectionMime) || dragged === null || dragged === collection.id || isSystemCollection(collection)) return null;
-    const placement = placementAt(event, isFolder);
-    return canMoveInto(collections, dragged, placement === "inside" ? collection.id : collection.parentId) ? placement : null;
+    if (kind === "book") return collection.kind === "regular" ? "inside" : null;
+    if (draggedId === null || draggedId === collection.id || isSystemCollection(collection)) return null;
+    return canMoveInto(collections, draggedId, placement === "inside" ? collection.id : collection.parentId) ? placement : null;
+  };
+
+  const dropAt = (event: DragEvent<HTMLDivElement>): DropPlacement | null =>
+    carries(event, bookMime)
+      ? accept("book", "inside", null)
+      : carries(event, collectionMime)
+        ? accept("collection", placementAt(event, isFolder), dragged)
+        : null;
+
+  const dropBook = (bookId: string) => {
+    const book = state.library.books.find((item) => item.id === bookId);
+    if (!book || collection.kind !== "regular") return;
+    const already = collection.bookIds.includes(bookId);
+    dispatch({ type: "addToCollection", bookIds: [bookId], collectionId: collection.id });
+    announce((already ? t.collections.alreadyIn : t.collections.bookAdded)(book.title, name), collection.id);
+  };
+
+  const dropCollection = (id: string, placement: DropPlacement) => {
+    if (placement === "inside") return move(id, collection.id, null);
+    if (placement === "before") return move(id, collection.parentId, collection.id);
+    // "Dopo" vuol dire davanti alla sorella successiva, saltando quella che si sta spostando.
+    const siblings = siblingsOf(collections, collection.id).filter((item) => item.id !== id);
+    const next = siblings[siblings.findIndex((item) => item.id === collection.id) + 1];
+    move(id, collection.parentId, next?.id ?? null);
   };
 
   const drop = (event: DragEvent<HTMLDivElement>, placement: DropPlacement) => {
     const bookId = event.dataTransfer.getData(bookMime);
-    if (bookId && collection.kind === "regular") {
-      const book = state.library.books.find((item) => item.id === bookId);
-      if (!book) return;
-      const already = collection.bookIds.includes(bookId);
-      dispatch({ type: "addToCollection", bookIds: [bookId], collectionId: collection.id });
-      announce((already ? t.collections.alreadyIn : t.collections.bookAdded)(book.title, name), collection.id);
-      return;
-    }
-    if (dragged === null) return;
-    if (placement === "inside") return move(dragged, collection.id, null);
-    if (placement === "before") return move(dragged, collection.parentId, collection.id);
-    // "Dopo" vuol dire davanti alla sorella successiva, saltando quella che si sta spostando.
-    const siblings = siblingsOf(collections, collection.id).filter((item) => item.id !== dragged);
-    const next = siblings[siblings.findIndex((item) => item.id === collection.id) + 1];
-    move(dragged, collection.parentId, next?.id ?? null);
+    if (bookId) return dropBook(bookId);
+    if (dragged !== null) dropCollection(dragged, placement);
   };
+
+  // Lo stesso, quando il libro o la collezione arriva col dito.
+  const dropKey = useDropTarget({
+    accept: (payload, rect, clientY) => accept(payload.kind, placementIn(rect, clientY, isFolder), payload.id),
+    drop: (payload, placement) => (payload.kind === "book" ? dropBook(payload.id) : dropCollection(payload.id, placement)),
+  });
+  const here = over?.key === dropKey ? over.placement : target?.id === collection.id ? target.placement : null;
 
   return (
     <li>
@@ -225,6 +247,7 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
               : "hover:bg-chip"
         } ${dragged === collection.id ? "opacity-50" : ""} ${active ? "font-semibold" : ""}`}
         style={{ paddingLeft: depth * 16 }}
+        data-drop-target={dropKey}
         onDragOver={(event) => {
           const placement = dropAt(event);
           if (!placement) return;
@@ -250,7 +273,7 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
             aria-label={collapsed ? t.collections.expand(name) : t.collections.collapse(name)}
             aria-expanded={!collapsed}
             onClick={() => dispatch({ type: "toggleFolder", folderId: collection.id })}
-            className="ml-1 rounded p-1 text-muted"
+            className="ml-1 rounded p-1 text-muted touch:p-2"
           >
             <Chevron size={14} />
           </button>
@@ -260,7 +283,8 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
           data-collection={collection.id}
           aria-current={active ? "page" : undefined}
           title={movable ? t.collections.reorderHint : undefined}
-          draggable={movable}
+          draggable={movable && fine}
+          {...touchSource(movable ? { kind: "collection", id: collection.id, label: name } : null)}
           onDragStart={(event) => {
             event.dataTransfer.setData(collectionMime, collection.id);
             event.dataTransfer.effectAllowed = "move";
@@ -278,7 +302,7 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
             if (position) move(collection.id, position.parentId, position.beforeId);
           }}
           onClick={() => dispatch({ type: "selectCollection", collectionId: collection.id })}
-          className={`flex min-w-0 flex-1 items-center gap-2.5 py-1.5 text-left ${isFolder ? "pr-2.5" : "px-2.5"}`}
+          className={`flex min-w-0 flex-1 items-center gap-2.5 py-1.5 text-left touch:py-2.5 ${isFolder ? "pr-2.5" : "px-2.5"}`}
         >
           <Icon size={16} className={`shrink-0 ${tone}`} aria-hidden="true" />
           <span className="flex-1 truncate">{name}</span>
@@ -312,13 +336,20 @@ function CollectionTree({ parentId, depth }: { parentId: string; depth: number }
 function OutsideFoldersZone() {
   const { state } = useLibrary();
   const { dragged, setTarget } = useSidebarDrag();
+  const touch = useTouchDrag();
   const move = useMoveCollection();
   const t = useT();
   const [over, setOver] = useState(false);
   const item = state.library.collections.find((collection) => collection.id === dragged);
+  const dropKey = useDropTarget({
+    accept: (payload) => (payload.kind === "collection" && item?.parentId != null ? "inside" : null),
+    drop: (payload) => move(payload.id, null, null),
+  });
   if (!item || item.parentId === null) return null;
+  const highlighted = over || touch.over?.key === dropKey;
   return (
     <div
+      data-drop-target={dropKey}
       onDragOver={(event) => {
         if (!carries(event, collectionMime)) return;
         event.preventDefault();
@@ -332,8 +363,8 @@ function OutsideFoldersZone() {
         setOver(false);
         move(item.id, null, null);
       }}
-      className={`mt-1 flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 text-xs ${
-        over ? "border-accent bg-selected text-ink" : "border-line-strong text-muted"
+      className={`mt-1 flex items-center gap-2 rounded-lg border border-dashed px-2.5 py-2 text-xs touch:py-3 ${
+        highlighted ? "border-accent bg-selected text-ink" : "border-line-strong text-muted"
       }`}
     >
       <FolderOutput size={14} aria-hidden="true" />
@@ -346,6 +377,7 @@ const useSidebarDragValue = (): SidebarDrag & { readonly message: string } => {
   const [dragged, setDragged] = useState<string | null>(null);
   const [target, setTarget] = useState<DropTarget | null>(null);
   const [notice, setNotice] = useState<{ message: string; flash: string | null; at: number } | null>(null);
+  const { payload } = useTouchDrag();
   // Una collezione spostata in un'altra cartella viene ricreata e non riceve il suo dragend:
   // la fine del trascinamento si ascolta sulla finestra.
   useEffect(() => {
@@ -367,7 +399,8 @@ const useSidebarDragValue = (): SidebarDrag & { readonly message: string } => {
     return () => clearTimeout(timer);
   }, [notice]);
   return {
-    dragged,
+    // Anche una collezione portata col dito conta come trascinata.
+    dragged: dragged ?? (payload?.kind === "collection" ? payload.id : null),
     setDragged,
     target,
     setTarget,
@@ -388,7 +421,7 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
   const own = roots.filter((collection) => !isSystemCollection(collection));
   return (
     <SidebarDragContext value={drag}>
-      <nav aria-label={t.collections.title} className={`flex shrink-0 flex-col gap-1 border-line bg-panel px-2.5 py-3.5 text-sm ${className}`}>
+      <nav aria-label={t.collections.title} className={`flex shrink-0 flex-col gap-1 overflow-y-auto border-line bg-panel px-2.5 py-3.5 text-sm ${className}`}>
         <ul className="flex flex-col gap-0.5">
           {special.map((collection) => (
             <CollectionLink key={collection.id} collection={collection} depth={0} />
@@ -402,7 +435,7 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
               aria-label={t.collections.new}
               title={t.collections.new}
               onClick={() => setCreating(true)}
-              className="rounded p-1 hover:bg-chip"
+              className="rounded p-1 hover:bg-chip touch:p-2"
             >
               <Plus size={14} />
             </button>
@@ -433,13 +466,13 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
             <button
               type="button"
               onClick={() => dispatch({ type: "setImportOpen", open: true })}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip touch:py-2.5"
             >
               <Upload size={16} aria-hidden="true" />
               {t.importer.menu}
             </button>
           )}
-          <button type="button" disabled title={t.common.comingSoon} className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60">
+          <button type="button" disabled title={t.common.comingSoon} className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60 touch:py-2.5">
             <ChartColumn size={16} aria-hidden="true" />
             {t.library.statistics}
           </button>

@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Al tocco (iPad, tablet, telefono) pulsanti e righe crescono; i dettagli che compaiono
+   passando col mouse restano visibili. Da 720 px in su c'è l'interfaccia a colonne:
+   così anche l'iPad mini in verticale (744 px) non usa quella del telefono. */
+@custom-variant touch (@media (pointer: coarse));
+@custom-variant fine (@media (hover: hover) and (pointer: fine));
+
+@theme {
+  --breakpoint-md: 45rem;
+}
+
 /* Palette colori, indipendenti dal layout: chiara (predefinita), calda e scura. */
 :root,
 [data-palette="light"] {
