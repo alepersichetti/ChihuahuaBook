@@ -2,27 +2,30 @@
 
 **English** · [Italiano](local-development.it.md)
 
-This guide takes you from nothing to a working app on your own computer: the Next.js interface on `http://localhost:3000` and, if needed, a full Supabase (Postgres, Auth, Storage) in Docker with the catalogue schema already applied.
+A step-by-step guide to running ChihuahuaBook on your own computer: the database (Supabase in Docker), the Next.js server and a checklist to verify that everything works, from the first administrator to importing a `.pedia` file.
 
-There are two levels, and the first needs nothing but Node:
+There are two ways to run it:
 
-1. **Interface only**: the library with sample data. Node and npm are enough.
-2. **Interface + backend**: the `/api/...` APIs on a local Supabase. You also need Docker and the Supabase CLI.
+| | What you get | What you need | Time |
+| --- | --- | --- | --- |
+| **A. Demo mode** | the interface with sample data and a demo administrator, nothing is saved | Node | 5 minutes |
+| **B. Full stack** | real sign-in, roles, database, cover storage, import, online catalogues | Node + Docker | 15 minutes the first time |
 
-> The parts about Supabase, the API and migrations apply once the backend (PR #2) is in `main`.
+Do steps 1 and 2 for demo mode; 1 and 3–6 for the full stack.
 
-## Prerequisites
+## 0. Prerequisites
 
 | Tool | Version | Used for |
 | --- | --- | --- |
-| [Node.js](https://nodejs.org/) | 22 LTS (at least 20.9, required by Next 16) | dev server, build, tests |
+| [Node.js](https://nodejs.org/) | 22 LTS (at least 20.9, required by Next 16) | server, build, tests |
 | npm | the one bundled with Node | dependencies (the repo has `package-lock.json`) |
 | Git | any recent version | cloning the repo |
-| Docker | Docker Desktop, OrbStack, Colima or Podman | local Supabase only |
+| Docker | Docker Desktop, OrbStack, Colima or Podman | the local database only |
+| `psql` (optional) | any | running the database tests from the terminal |
 
-The Supabase CLI does not need a separate install: use it with `npx supabase ...`, which downloads it on first use. If you'd rather have it installed, on macOS `brew install supabase/tap/supabase` works too (then drop `npx` from the commands below).
+The Supabase CLI needs no separate install: use it as `npx supabase ...`, which downloads it on first use. If you'd rather have it installed, on macOS `brew install supabase/tap/supabase` works too (then drop `npx` from the commands below).
 
-For local Supabase, plan on a few GB of free disk space: the first run downloads about ten Docker images.
+Plan on a few GB of free disk space: the first database start downloads about ten Docker images.
 
 ## 1. Clone and install
 
@@ -34,19 +37,32 @@ npm ci
 
 `npm ci` installs exactly the versions in the lockfile. Use `npm install` only when adding or updating a dependency.
 
-## 2. Interface only
+> Don't run `npm audit fix --force`. `npm audit` reports a few vulnerabilities in the development tools (ESLint and its plugins, never shipped to the browser or the server: `npm audit --omit=dev` finds none). `--force` "fixes" them by downgrading `eslint-config-next` to version 14, which isn't compatible with Next 16 and breaks both `npm ci` and `npm run lint`.
+
+## 2. Demo mode (no database)
 
 ```bash
 npm run dev
 ```
 
-Open <http://localhost:3000>. The library shows the sample data from `src/features/library/sample-library.ts` and works without any environment variables, signed in as a demo administrator (`DEMO_ROLE=reader npm run dev` to try another role). File changes show up immediately (hot reload).
+Open <http://localhost:3000>. You're signed in as a demo administrator and the library shows the sample books from `src/features/library/sample-library.ts`. Nothing is saved: a reload brings everything back.
 
-Without Supabase configuration the page works, while the APIs answer `500 misconfigured`: that's expected, see the next step. The demo user exists only in `npm run dev`.
+To see the app as another role or in English:
 
-## 3. Local Supabase
+```bash
+DEMO_ROLE=reader npm run dev       # reader | librarian | admin
+DEMO_LANGUAGE=en npm run dev       # it | en
+```
 
-### Starting it
+In demo mode the APIs answer `500 misconfigured` because there's no database: that's expected. The demo user only exists in `npm run dev`; a production build without configuration answers `503` on every page.
+
+Stop the server with `Ctrl+C`.
+
+## 3. The database
+
+The database is a full Supabase (Postgres, Auth, Storage, REST API, Studio and a fake mail server) running in Docker, configured by `supabase/config.toml`.
+
+### 3.1 Start it
 
 With Docker running, from the project folder:
 
@@ -54,136 +70,255 @@ With Docker running, from the project folder:
 npx supabase start
 ```
 
-The first time it takes a few minutes to download the images; after that, a few seconds. The command:
-
-- starts Postgres, Auth, Storage, REST, Studio and a fake mail server, using the configuration in `supabase/config.toml`;
-- applies all the migrations in `supabase/migrations/` in order (tables `books`, `collections`, `collection_books`, `loans`, RLS and the `covers` bucket).
-
-At the end it prints the URLs and keys. To see them again at any time:
+The first time it takes a few minutes to download the images; after that, a few seconds. At the end it prints URLs and keys. To see them again:
 
 ```bash
 npx supabase status
 ```
 
-Useful URLs (default ports):
-
 | Service | URL |
 | --- | --- |
 | Supabase API | <http://127.0.0.1:54321> |
 | Studio (database web UI) | <http://127.0.0.1:54323> |
-| Mailpit (confirmation and reset emails) | <http://127.0.0.1:54324> |
+| Mailpit (every email the app sends) | <http://127.0.0.1:54324> |
 | Direct Postgres | `postgresql://postgres:postgres@127.0.0.1:54322/postgres` |
 
-### Environment variables
+### 3.2 What's inside
 
-Copy the example and fill it in with the values from `npx supabase status`:
+On startup the CLI applies the migrations in `supabase/migrations/`, in name order:
 
-```bash
-cp .env.example .env.local
-```
+| Migration | What it creates |
+| --- | --- |
+| `20261022140000_catalog.sql` | tables `books`, `collections`, `collection_books`, `loans`; full-text search; the private `covers` bucket (JPEG, PNG and WebP, at most 5 MB) |
+| `20261022160000_roles.sql` | `members` (role and active state of each user), `invitations`, `instance_settings` (language, sign-up mode); the sign-up trigger that makes the first user administrator; RLS policies by role on tables and covers |
+| `20261022180000_import_hash.sql` | the `import_hash` column, which lets a `.pedia` re-import know which books changed |
 
-```dotenv
-NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...   # "Publishable key" from supabase status
-```
-
-Instead of the publishable key, the older `NEXT_PUBLIC_SUPABASE_ANON_KEY` (the "anon key") works too: the backend accepts both, with or without the `NEXT_PUBLIC_` prefix. `.env.local` is ignored by Git, so the keys don't end up in the repo.
-
-Restart `npm run dev` after changing `.env.local`: Next reads the variables only at startup.
-
-### Checking that the backend responds
+To check they were all applied:
 
 ```bash
-curl -i http://localhost:3000/api/books
+npx supabase migration list --local
 ```
 
-The expected response is `401 {"error":"unauthenticated"}`: the backend is configured and wants a user. Open <http://localhost:3000>: you land on the sign-in page, and the first account you create becomes the administrator (the confirmation email is in Mailpit, <http://127.0.0.1:54324>). Roles and invitations are explained in [authentication.md](authentication.md).
+### 3.3 Look at it in Studio
 
-To try the APIs from the terminal with a real user:
+Open <http://127.0.0.1:54323>:
 
-1. Create a user from Studio (<http://127.0.0.1:54323> → Authentication → Add user) or from the terminal. From Studio tick *Auto Confirm User*; from the terminal open the confirmation link in Mailpit (<http://127.0.0.1:54324>). The first user becomes administrator; any other email needs an invitation first.
+- **Table Editor**: the `public` tables. On a fresh database they're empty, except `instance_settings`, which has one row (language `it`, sign-up by invitation).
+- **Authentication → Users**: the accounts. Empty until the first sign-up.
+- **Storage → covers**: the cover images, in `covers/<user id>/<book id>.<ext>`.
+- **SQL Editor**: queries on the database.
 
-   ```bash
-   KEY=sb_publishable_...   # the same key as in .env.local
+Studio connects as an administrator and **ignores RLS**: it shows every row whatever the role. To see what a user sees, use the queries in 3.4.
 
-   curl -s http://127.0.0.1:54321/auth/v1/signup \
-     -H "apikey: $KEY" -H "Content-Type: application/json" \
-     -d '{"email":"me@example.com","password":"password123"}'
-   ```
+### 3.4 Verify the security rules (RLS)
 
-2. Sign in and grab the token:
-
-   ```bash
-   TOKEN=$(curl -s "http://127.0.0.1:54321/auth/v1/token?grant_type=password" \
-     -H "apikey: $KEY" -H "Content-Type: application/json" \
-     -d '{"email":"me@example.com","password":"password123"}' \
-     | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
-   ```
-
-3. Call the APIs with the token:
-
-   ```bash
-   # create a book
-   curl -s http://localhost:3000/api/books \
-     -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-     -d '{"title":"The Name of the Rose","authors":["Umberto Eco"]}'
-
-   # list
-   curl -s http://localhost:3000/api/books -H "Authorization: Bearer $TOKEN"
-
-   # draft from Open Library from an ISBN
-   curl -s http://localhost:3000/api/isbn/9788845292613 -H "Authorization: Bearer $TOKEN"
-   ```
-
-The full list of routes is in the [README](../README.md#api). Books you create are also visible in Studio, in the `books` table.
-
-### Stopping and cleaning up
+The automatic tests in `supabase/tests/roles.test.sql` check 30 rules (first administrator, invitations, what each role can read and write, covers, the last administrator who can't be removed, anonymous visitors). They need an **empty** database and roll back everything at the end:
 
 ```bash
+npx supabase db reset
+psql "postgresql://postgres:postgres@127.0.0.1:54322/postgres" -v ON_ERROR_STOP=1 -f supabase/tests/roles.test.sql
+```
+
+Each check prints `NOTICE: ok: ...`; the first one that fails stops the script with `FALLITO: ...` ("failed").
+
+Without `psql` installed, open the file, copy it into Studio's SQL Editor and run it.
+
+To try a rule by hand once there are users (after step 5), from the SQL Editor:
+
+```sql
+begin;
+-- impersonate a user (set the id before switching role)
+select set_config('request.jwt.claim.sub',
+  (select user_id::text from public.members where email = 'reader@example.com'), true);
+set local role authenticated;
+
+select public.member_role();                       -- reader
+select count(*) from public.books;                 -- reading works
+insert into public.books (title) values ('Test');  -- error: violates row-level security policy
+rollback;
+```
+
+With a librarian's or administrator's email the same `insert` succeeds (and `rollback` undoes it).
+
+### 3.5 Reset, sample data, stop
+
+```bash
+npx supabase db reset           # wipes the database and reapplies every migration (and supabase/seed.sql, if present)
 npx supabase stop               # stops the containers, data is kept
-npx supabase stop --no-backup   # stops and deletes local data
-npx supabase db reset           # recreates the database from scratch and reapplies all migrations
+npx supabase stop --no-backup   # stops them and deletes the data
 ```
 
-## 4. Working on the schema
+There's no `supabase/seed.sql` in the repo: books are created by the app's users (step 5), and the first user must sign up through the app to become administrator. If you want test books after every reset, create `supabase/seed.sql` with `insert into public.books (title, authors) values (...)`. Git doesn't ignore it, so keep personal data out of it.
+
+After `db reset` the users are gone too: start again from 5.1.
+
+### 3.6 Change the schema
 
 ```bash
 npx supabase migration new change_name   # creates supabase/migrations/<timestamp>_change_name.sql
 # write the SQL in the file, then:
-npx supabase migration up                # applies new migrations to the local database
-# or, to start clean:
-npx supabase db reset
+npx supabase migration up                # applies the new migrations to the local database
 ```
 
-After a migration, regenerate the TypeScript types from the local database:
+Then regenerate the TypeScript types from the local database:
 
 ```bash
 npx supabase gen types typescript --local --schema public > src/server/adapters/supabase/database.types.ts
 ```
 
-(`npm run db:types` does the same, but from the remote Supabase project set in `SUPABASE_PROJECT_ID`.)
+(`npm run db:types` does the same from the remote project set in `SUPABASE_PROJECT_ID`.) To push migrations to a cloud project, see the "Backend (Supabase)" section of the [README](../README.md#backend-supabase).
 
-To push the migrations to a cloud Supabase project, see the "Backend (Supabase)" section of the [README](../README.md#backend-supabase).
+## 4. Configure and start the server
 
-## 5. Tests and checks
+### 4.1 Environment variables
+
+```bash
+cp .env.example .env.local
+```
+
+Fill in `.env.local` with the values from `npx supabase status`:
+
+```dotenv
+NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...   # "Publishable key"
+
+# Optional: your own Google Books API key (Google Cloud console → APIs → Books API).
+# Without it Google Books works on a shared daily quota that runs out quickly.
+GOOGLE_BOOKS_API_KEY=
+```
+
+Instead of the publishable key, the older "anon key" in `NEXT_PUBLIC_SUPABASE_ANON_KEY` works too. `SUPABASE_PROJECT_ID` is only needed for `npm run db:types`. `.env.local` is ignored by Git.
+
+### 4.2 Start
+
+```bash
+npm run dev
+```
+
+Open **<http://127.0.0.1:3000>** (not `localhost`): the links in the confirmation emails point to `127.0.0.1:3000`, as set in `supabase/config.toml`, and the browser keeps the session separately for the two names.
+
+Next reads `.env.local` only at startup: restart the server after changing it.
+
+### 4.3 Quick check
+
+```bash
+curl -i http://127.0.0.1:3000/api/books
+```
+
+`401 {"error":"unauthenticated"}` means the server reaches the database and wants a user. `500 misconfigured` means `.env.local` is missing or the server wasn't restarted.
+
+## 5. Verification checklist
+
+Go through it in order on a fresh database (`npx supabase db reset`). Every email ends up in Mailpit, <http://127.0.0.1:54324>. Passwords need at least 10 characters, with letters and digits.
+
+To keep several users signed in at once, use different browsers or private windows.
+
+### 5.1 First administrator
+
+- [ ] <http://127.0.0.1:3000> sends you to the sign-in page, which says the instance is new and the first account becomes administrator.
+- [ ] Sign up with an email (e.g. `admin@example.com`). The page asks you to confirm the email.
+- [ ] In Mailpit open the email and click the link: you land in the library, empty.
+- [ ] In Studio, `members` has your row with `role = admin`.
+- [ ] Back on the sign-in page (sign out from the account menu, top right), the hint now says sign-up is by invitation.
+
+### 5.2 Invitations and roles
+
+In **Settings** (bottom left) → **Users and access**:
+
+- [ ] Invite `lib@example.com` as **Librarian** and `reader@example.com` as **Reader**. They appear under Invitations, with their expiry date (14 days).
+- [ ] In another browser, sign up as `stranger@example.com`, who wasn't invited: sign-up is refused.
+- [ ] Sign up as `lib@example.com` and confirm from Mailpit: they get in as librarian. The invitation disappears from the list.
+- [ ] Do the same for `reader@example.com`.
+- [ ] As the reader: no **Add** button, no editing controls, Settings can't be opened.
+- [ ] As the librarian: Add and Import `.pedia` are there; in Settings only Appearance and About, no Language or Users and access.
+- [ ] As administrator, try demoting yourself: the interface doesn't allow it. Deactivate the reader: after a reload they see an empty library.
+- [ ] Reactivate the reader.
+
+### 5.3 Adding books
+
+As administrator or librarian, with the **Add** button:
+
+- [ ] **Manual entry**: fill in at least the title and save. The book appears in the list and in Studio, table `books`.
+- [ ] **Automatic fill → Google Books**: search for `eco nome della rosa`, press **Use** on a result: the form opens filled in, cover included. Save. Without `GOOGLE_BOOKS_API_KEY` the search may fail for quota reasons: that's Google, not the app.
+- [ ] **Automatic fill → Open Library**: search by ISBN, e.g. `9788845292613`. If that ISBN is already in the library, the dialog warns you.
+- [ ] The cover of the saved book is in Studio → Storage → `covers`.
+- [ ] As the reader, the new books are visible but can't be edited.
+
+### 5.4 Importing a `.pedia`
+
+Use a Bookpedia export (the `.pedia` folder, a zip of it, or just its `Info.xml`). Details are in [import-pedia.md](import-pedia.md).
+
+- [ ] **Import .pedia** (bottom left): drag in the file. The preview shows how many books it found and how many covers it matched.
+- [ ] Import with **Add only what's new**. At the end the books are in the library, with covers.
+- [ ] Import the same file again: nothing is duplicated (the books come out unchanged).
+- [ ] Edit a book by hand and import again with **Add only what's new**: your edit stays.
+- [ ] Import with **Replace the whole library**: the preview says how many books will be deleted (the ones added by hand in 5.3) and asks for confirmation. After the import only the books in the file are left.
+
+### 5.5 Interface
+
+- [ ] The three view buttons in the toolbar: **Table** (columns you can sort and choose), **Grid** (covers, size in Settings → Appearance), **Gallery** (scrolling covers).
+- [ ] Settings → Appearance → **Color palette**: Light, Warm, Dark. The choice is per browser.
+- [ ] As administrator, Settings → **Language** → English: the whole interface switches, for every user, sign-in page included. Switch back to Italian if you like.
+- [ ] Account menu → **Change password**, then sign out and sign in with the new password.
+- [ ] Sign-in page → **Forgot your password?**: the email arrives in Mailpit and the link lets you set a new password.
+
+## 6. The APIs from the terminal
+
+Every route needs an active user. To get a token for a user created in step 5:
+
+```bash
+KEY=sb_publishable_...   # the same key as in .env.local
+
+TOKEN=$(curl -s "http://127.0.0.1:54321/auth/v1/token?grant_type=password" \
+  -H "apikey: $KEY" -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"your-password"}' \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
+
+curl -s http://127.0.0.1:3000/api/me -H "Authorization: Bearer $TOKEN"            # user and role
+curl -s http://127.0.0.1:3000/api/books -H "Authorization: Bearer $TOKEN"         # list
+curl -s http://127.0.0.1:3000/api/books -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"The Name of the Rose","authors":["Umberto Eco"]}'                 # create
+curl -s "http://127.0.0.1:3000/api/search?source=open_library&q=9788845292613&field=isbn" \
+  -H "Authorization: Bearer $TOKEN"                                               # online catalogue
+```
+
+With the reader's token the `POST` answers `403`. The full list of routes is in the [README](../README.md#api).
+
+## 7. Production build
+
+To try the app as it runs on Vercel:
+
+```bash
+npm run build
+npm start          # http://127.0.0.1:3000, reads .env.local
+```
+
+Without Supabase configuration a production build answers `503` on every page: there's no demo mode.
+
+## 8. Automated checks
 
 | Command | What it does |
 | --- | --- |
-| `npm test` | unit tests with Vitest (no Supabase or network needed) |
-| `npm run test:watch` | same as above, rerun on every change |
+| `npm test` | unit tests with Vitest (no database or network needed) |
+| `npm run test:watch` | same, rerun on every change |
 | `npm run lint` | ESLint, including the boundaries between `core`, `adapters`, `http` and Next |
 | `npm run typecheck` | type checking with `tsc` |
-| `npm run build` | production build, as on Vercel |
-| `npm start` | serves the build on <http://localhost:3000> |
+| `npm run build` | production build |
+| `psql ... -f supabase/tests/roles.test.sql` | the RLS tests (see 3.4) |
 
-`typecheck` needs Next to have generated its types (`LayoutProps` and the like): this happens on its own after `npm run dev` or `npm run build`. On a fresh clone run `npx next typegen` first, otherwise `tsc` reports `Cannot find name 'LayoutProps'`.
+`typecheck` needs the types Next generates (`LayoutProps` and the like): they appear after `npm run dev` or `npm run build`. On a fresh clone run `npx next typegen` first, otherwise `tsc` reports `Cannot find name 'LayoutProps'`.
 
 ## Common problems
 
+- **`npm ci` fails with `ERESOLVE` on `eslint-config-next`**: someone ran `npm audit fix --force` (see step 1). Put back `"eslint-config-next": "16.4.2"` and `"eslint-plugin-boundaries": "^7.2.1"` in `package.json` and run `npm install`.
 - **`Cannot connect to the Docker daemon`**: Docker isn't running. Open Docker Desktop (or `colima start`) and try again.
-- **Port already in use** (3000 or 5432x): another process is using it. For Next use `npm run dev -- -p 3001`; for Supabase stop the other project with `npx supabase stop --project-id <name>` or change the ports in `supabase/config.toml`.
 - **`toomanyrequests` or `rate limit` during `supabase start`**: Docker Hub limits anonymous downloads. Run `docker login` with a free account and try again.
-- **`500 misconfigured` from the APIs**: `NEXT_PUBLIC_SUPABASE_URL` or the key is missing from `.env.local`, or you didn't restart `npm run dev` after adding them.
-- **`401 unauthenticated`**: all good, you're just missing the token (see above).
-- **Something doesn't compile after a `git pull`**: rerun `npm ci`; if new migrations arrived, `npx supabase migration up` (or `db reset`).
-- **`AGENTS.md` shows up as modified after `npm run dev`**: Next 16 rewrites a block of that file on startup. If that's the only change, you can commit it or discard it.
+- **Port already in use** (3000 or 5432x): for Next use `npm run dev -- -p 3001` (and add that address to `additional_redirect_urls` in `supabase/config.toml`); for Supabase stop the other project with `npx supabase stop --project-id <name>`.
+- **The confirmation link leads to an error or back to sign-in**: you opened the app on `localhost` instead of `127.0.0.1`, or the link has already been used. Sign up again from <http://127.0.0.1:3000>.
+- **"Sign-up is by invitation" on a fresh database**: there's already a user. Check Studio → Authentication → Users, or start over with `npx supabase db reset`.
+- **Locked out as administrator**: in Studio's SQL Editor, `update public.members set role = 'admin', active = true where email = 'you@example.com';`
+- **`500 misconfigured` from the APIs**: `.env.local` is missing the URL or the key, or the server wasn't restarted.
+- **Google Books returns no results or a quota error**: set `GOOGLE_BOOKS_API_KEY` in `.env.local` and restart, or use Open Library.
+- **Something doesn't compile after a `git pull`**: run `npm ci` again; if new migrations arrived, `npx supabase migration up` (or `db reset`).
+- **`AGENTS.md` appears after `npm run dev`**: Next 16 generates it on startup. It isn't part of the repo: delete it or leave it uncommitted.
