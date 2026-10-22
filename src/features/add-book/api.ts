@@ -70,3 +70,15 @@ export const saveBook = async (book: NewBook, { fetch: fetcher = fetch, baseUrl 
   if (result.ok) return { kind: "saved", id: result.value.id };
   return keepsLocally.has(result.error.kind) ? { kind: "local", error: result.error } : { kind: "failed", error: result.error };
 };
+
+/** Carica la copertina scelta dal disco per un libro già salvato sul server. */
+export const uploadCover = async (
+  bookId: string,
+  image: Blob,
+  { fetch: fetcher = fetch, baseUrl = "" }: Options = {},
+): Promise<Outcome<unknown>> =>
+  call<unknown>(
+    `${baseUrl}/api/books/${encodeURIComponent(bookId)}/cover`,
+    { method: "PUT", headers: { "content-type": image.type }, body: image },
+    fetcher,
+  );

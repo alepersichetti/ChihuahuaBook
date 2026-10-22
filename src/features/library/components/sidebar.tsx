@@ -1,6 +1,7 @@
 "use client";
 
 import { ChartColumn, ChevronDown, ChevronRight, Plus, Settings, Upload } from "lucide-react";
+import { useState } from "react";
 import { useT } from "../../i18n/i18n-context";
 import { useSettings } from "../../settings/settings-context";
 import { collectionName } from "../labels";
@@ -8,6 +9,7 @@ import type { Collection } from "../model";
 import { childrenOf } from "../query";
 import { collectionIcon } from "./icons";
 import { useLibrary } from "./library-context";
+import { NewCollectionInput, newCollectionId } from "./new-collection-input";
 
 // I lettori non vedono le impostazioni.
 function SettingsLink() {
@@ -91,6 +93,7 @@ function CollectionTree({ parentId, depth }: { parentId: string; depth: number }
 export function Sidebar({ className = "w-58 border-r" }: { className?: string }) {
   const { state, dispatch, canEdit } = useLibrary();
   const t = useT();
+  const [creating, setCreating] = useState(false);
   const roots = childrenOf(state.library.collections, null);
   const special = roots.filter((collection) => specialKinds.has(collection.kind));
   const own = roots.filter((collection) => !specialKinds.has(collection.kind));
@@ -104,11 +107,28 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
       <div className="flex items-center justify-between px-2.5 pt-4 pb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
         {t.collections.title}
         {canEdit && (
-          <button type="button" aria-label={t.collections.new} title={t.common.comingSoon} disabled className="rounded p-1 disabled:opacity-60">
+          <button
+            type="button"
+            aria-label={t.collections.new}
+            title={t.collections.new}
+            onClick={() => setCreating(true)}
+            className="rounded p-1 hover:bg-chip"
+          >
             <Plus size={14} />
           </button>
         )}
       </div>
+      {creating && (
+        <NewCollectionInput
+          withKind
+          className="px-1.5 pb-1"
+          onCancel={() => setCreating(false)}
+          onCreate={(collection) => {
+            dispatch({ type: "createCollection", id: newCollectionId(), ...collection, select: true });
+            setCreating(false);
+          }}
+        />
+      )}
       <ul className="flex flex-col gap-0.5">
         {own.map((collection) => (
           <CollectionLink key={collection.id} collection={collection} depth={0} />

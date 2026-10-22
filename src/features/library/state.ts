@@ -63,7 +63,15 @@ export type LibraryAction =
       readonly replace: boolean;
     }
   | { readonly type: "setAddOpen"; readonly open: boolean }
-  | { readonly type: "addBook"; readonly book: Book };
+  | { readonly type: "addBook"; readonly book: Book; readonly collectionId?: string | null }
+  | {
+      readonly type: "createCollection";
+      readonly id: string;
+      readonly name: string;
+      readonly kind?: "regular" | "folder";
+      readonly parentId?: string | null;
+      readonly select?: boolean;
+    };
 
 export const defaultColumns: readonly ColumnKey[] = [
   "title",
@@ -240,11 +248,27 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return {
         ...state,
         library: {
-          ...state.library,
           books: [...state.library.books.filter((book) => book.id !== action.book.id), action.book],
+          collections: state.library.collections.map((item) =>
+            item.kind === "regular" && item.id === action.collectionId && !item.bookIds.includes(action.book.id)
+              ? { ...item, bookIds: [...item.bookIds, action.book.id] }
+              : item,
+          ),
         },
         selectedBookId: action.book.id,
       };
+    case "createCollection": {
+      const base = { id: action.id, name: action.name.trim(), parentId: action.parentId ?? null };
+      const collection: Collection =
+        action.kind === "folder" ? { ...base, kind: "folder" } : { ...base, kind: "regular", bookIds: [], excluded: false };
+      return {
+        ...state,
+        library: { ...state.library, collections: [...state.library.collections, collection] },
+        // La cartella che la contiene si apre, così la nuova voce si vede.
+        collapsedFolders: state.collapsedFolders.filter((id) => id !== action.parentId),
+        ...(action.select ? { collectionId: action.id, selectedBookId: null, valueFilter: null } : {}),
+      };
+    }
   }
 };
 
@@ -257,6 +281,9 @@ export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
   "returnBook",
   "setImportOpen",
   "importBooks",
+  "setAddOpen",
+  "addBook",
+  "createCollection",
 ]);
 
 /** Il reducer giusto per chi usa l'app: in sola lettura ignora le modifiche. */

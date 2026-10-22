@@ -92,3 +92,39 @@ describe("importBooks", () => {
     ).toEqual(["bookpedia:1"]);
   });
 });
+
+describe("nuove collezioni e libri aggiunti", () => {
+  it("crea una collezione e ci mette il libro aggiunto", () => {
+    const book = { ...sampleLibrary.books[0], id: "local:1", title: "Dune" };
+    const state = run(
+      { type: "createCollection", id: "collection:fantascienza", name: " Fantascienza ", select: true },
+      { type: "addBook", book, collectionId: "collection:fantascienza" },
+    );
+    const created = state.library.collections.find((item) => item.id === "collection:fantascienza");
+    expect(created).toMatchObject({ name: "Fantascienza", kind: "regular", bookIds: ["local:1"] });
+    expect(state.collectionId).toBe("collection:fantascienza");
+    expect(state.selectedBookId).toBe("local:1");
+  });
+
+  it("senza collezione il libro va solo nella Libreria", () => {
+    const book = { ...sampleLibrary.books[0], id: "local:2" };
+    const before = initialState(sampleLibrary).library.collections;
+    expect(run({ type: "addBook", book }).library.collections).toEqual(before);
+  });
+});
+
+describe("cartelle", () => {
+  it("crea una cartella e una collezione al suo interno, aprendo la cartella", () => {
+    const state = run(
+      { type: "createCollection", id: "folder:generi", name: "Generi", kind: "folder" },
+      { type: "toggleFolder", folderId: "folder:generi" },
+      { type: "createCollection", id: "collection:gialli", name: "Gialli", parentId: "folder:generi" },
+    );
+    expect(state.library.collections.find((item) => item.id === "folder:generi")).toMatchObject({ kind: "folder", parentId: null });
+    expect(state.library.collections.find((item) => item.id === "collection:gialli")).toMatchObject({
+      kind: "regular",
+      parentId: "folder:generi",
+    });
+    expect(state.collapsedFolders).not.toContain("folder:generi");
+  });
+});

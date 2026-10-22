@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { Collection } from "./model";
 import {
   booksInCollection,
+  folderPath,
+  foldersWithPath,
   compareBooks,
   libraryBooks,
   loanState,
@@ -118,5 +120,19 @@ describe("prestiti", () => {
   it("senza data di oggi o scadenza il prestito è solo aperto", () => {
     expect(loanState({ loan }, null)).toEqual({ kind: "open", borrower: "Marta" });
     expect(loanState({ loan: null }, "2026-10-22")).toEqual({ kind: "none" });
+  });
+});
+
+describe("folderPath", () => {
+  const collections = [
+    { id: "a", kind: "folder", name: "Autori", parentId: null },
+    { id: "b", kind: "folder", name: "Italiani", parentId: "a" },
+    { id: "c", kind: "regular", name: "Calvino", parentId: "b", bookIds: [], excluded: false },
+  ] as const;
+
+  it("restituisce il percorso delle cartelle", () => {
+    expect(folderPath(collections, "b")).toEqual(["Autori", "Italiani"]);
+    expect(folderPath(collections, null)).toEqual([]);
+    expect(foldersWithPath(collections).map((folder) => folder.label)).toEqual(["Autori", "Autori / Italiani"]);
   });
 });
