@@ -1,6 +1,6 @@
 "use client";
 
-import { KeyRound, LogOut, UserRound, UsersRound } from "lucide-react";
+import { KeyRound, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { roleLabels } from "@/features/auth/viewer";
@@ -10,7 +10,7 @@ const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left te
 
 // Chi è collegato, con quale ruolo, e le azioni sull'account.
 export function AccountMenu() {
-  const { viewer, isAdmin } = useLibrary();
+  const { viewer } = useLibrary();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -52,12 +52,6 @@ export function AccountMenu() {
             <div className="text-xs text-muted">{roleLabels[viewer.role]}</div>
           </div>
           <div className="border-t border-line" />
-          {isAdmin && (
-            <Link role="menuitem" href="/admin" className={item}>
-              <UsersRound size={16} aria-hidden="true" />
-              Utenti e accessi
-            </Link>
-          )}
           <Link role="menuitem" href="/account/password" className={item}>
             <KeyRound size={16} aria-hidden="true" />
             Cambia password

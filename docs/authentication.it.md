@@ -12,13 +12,13 @@ I ruoli sono applicati in tre punti, così un errore in uno strato non apre i da
 
 1. **Database (RLS)**: `supabase/migrations/20261022160000_roles.sql`. La funzione `public.has_role()` legge il ruolo da `public.members` e ogni policy la usa. È la garanzia vera: vale anche per chi chiama Supabase direttamente con il proprio token.
 2. **API**: ogni rotta in `src/server/http` dichiara il ruolo minimo (`guarded("read" | "edit" | "administer")`) e risponde `401` senza sessione, `403` con un ruolo insufficiente.
-3. **Interfaccia**: il lettore non vede i comandi di modifica; solo l'amministratore vede **Utenti e accessi** nel menu dell'account.
+3. **Interfaccia**: il lettore non vede i comandi di modifica; il lettore non apre le Impostazioni; solo l'amministratore vi vede la sezione **Utenti e accessi**.
 
 ## Il primo amministratore
 
 Su un'istanza nuova **il primo account che si registra diventa amministratore**. La pagina di accesso lo dice ("questa istanza è nuova").
 
-Da lì in poi la registrazione è **su invito**: in *Utenti e accessi* l'amministratore inserisce un'email e un ruolo, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti, con ruolo iniziale Lettore o Bibliotecario.
+Da lì in poi la registrazione è **su invito**: in Impostazioni → *Utenti e accessi* l'amministratore inserisce un'email e un ruolo, e solo quell'email può creare l'account (l'invito vale 14 giorni). L'amministratore può anche aprire la registrazione a tutti, con ruolo iniziale Lettore o Bibliotecario.
 
 Tutto avviene in un trigger su `auth.users` (`public.handle_new_user`), quindi all'app non serve la chiave `service_role`. Una registrazione senza invito viene rifiutata dal database e la pagina spiega perché.
 

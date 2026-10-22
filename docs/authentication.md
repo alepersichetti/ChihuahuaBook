@@ -12,13 +12,13 @@ Roles are enforced in three places, so a bug in one layer doesn't open the data:
 
 1. **Database (RLS)**: `supabase/migrations/20261022160000_roles.sql`. The `public.has_role()` function reads the role from `public.members` and every policy uses it. This is the real guarantee: it also holds for anyone calling Supabase directly with their own token.
 2. **API**: every route in `src/server/http` declares the minimum role (`guarded("read" | "edit" | "administer")`) and answers `401` without a session, `403` with an insufficient role.
-3. **Interface**: readers don't see editing controls; only administrators see **Utenti e accessi** in the account menu.
+3. **Interface**: readers don't see editing controls; readers can't open Settings; only administrators see the **Utenti e accessi** section there.
 
 ## The first administrator
 
 On a fresh instance **the first account that signs up becomes administrator**. The sign-in page says so ("this instance is new").
 
-After that, sign-up is **by invitation**: in *Utenti e accessi* the administrator enters an email and a role, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone, with Reader or Librarian as the starting role.
+After that, sign-up is **by invitation**: in Settings → *Utenti e accessi* the administrator enters an email and a role, and only that email can create an account (the invitation lasts 14 days). The administrator can also open sign-up to everyone, with Reader or Librarian as the starting role.
 
 Everything happens in a trigger on `auth.users` (`public.handle_new_user`), so no `service_role` key is needed in the app. A sign-up without invitation is rejected by the database and the page explains why.
 

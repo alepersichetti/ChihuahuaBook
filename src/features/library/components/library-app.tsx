@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import type { SignedInViewer } from "@/features/auth/viewer";
+import { SettingsDialog } from "../../settings/components/settings-panel";
+import { SettingsProvider } from "../../settings/settings-context";
 import type { Library } from "../model";
 import { DesktopShell } from "./desktop";
 import { ImportDialog } from "./import-dialog";
@@ -27,14 +29,17 @@ function Screens() {
           <ImportDialog />
         </>
       )}
+      <SettingsDialog />
     </div>
   );
 }
 
 export function LibraryApp({ library, viewer }: { library: Library; viewer: SignedInViewer }) {
   return (
-    <LibraryProvider library={library} viewer={viewer}>
-      <Screens />
-    </LibraryProvider>
+    <SettingsProvider role={viewer.role} userId={viewer.userId}>
+      <LibraryProvider library={library} viewer={viewer}>
+        <Screens />
+      </LibraryProvider>
+    </SettingsProvider>
   );
 }

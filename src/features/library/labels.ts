@@ -44,6 +44,7 @@ export const valueFilterLabel: Record<ValueFilter["field"], string> = {
 export const layoutLabel: Record<Layout, string> = {
   classic: "Classica",
   gallery: "Galleria",
+  warm: "Calda",
   shelf: "Scaffale",
 };
 

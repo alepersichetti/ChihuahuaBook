@@ -11,7 +11,7 @@ describe("accesso alle pagine", () => {
 
   it("il catalogo e l'amministrazione richiedono la sessione", () => {
     expect(isPublicPath("/")).toBe(false);
-    expect(isPublicPath("/admin")).toBe(false);
+    expect(isPublicPath("/settings")).toBe(false);
     expect(isPublicPath("/loginx")).toBe(false);
     expect(isPublicPath("/account/password")).toBe(false);
   });

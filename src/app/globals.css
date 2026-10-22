@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
-/* Tre temi, uno per layout: A classica (predefinita), B galleria, C scaffale scuro. */
+/* Temi: chiaro per A classica (predefinita) e B galleria, caldo per la variante Calda, scuro per C scaffale. */
 :root,
-[data-layout="classic"] {
+[data-layout="classic"],
+[data-layout="gallery"] {
   --bg: #ffffff;
   --panel: #f6f7f9;
   --surface: #ffffff;
@@ -27,7 +28,7 @@
   --tone-smart: #15803d;
 }
 
-[data-layout="gallery"] {
+[data-layout="warm"] {
   --bg: #f5f1ea;
   --panel: #efe9de;
   --surface: #fffdf9;
