@@ -6,6 +6,7 @@ import {
   importCollectionId,
   initialState,
   libraryReducer,
+  reducerFor,
   selectedBook,
   type LibraryAction,
 } from "./state";
@@ -126,5 +127,79 @@ describe("cartelle", () => {
       parentId: "folder:generi",
     });
     expect(state.collapsedFolders).not.toContain("folder:generi");
+  });
+});
+
+describe("libri nelle collezioni", () => {
+  const bookIdsOf = (state: ReturnType<typeof run>, id: string) => {
+    const collection = state.library.collections.find((item) => item.id === id);
+    return collection?.kind === "regular" ? collection.bookIds : [];
+  };
+
+  it("aggiunge un libro una volta sola e ignora gli id sconosciuti", () => {
+    const state = run(
+      { type: "addToCollection", bookIds: ["gattopardo", "gattopardo", "nessuno"], collectionId: "calvino" },
+      { type: "addToCollection", bookIds: ["gattopardo"], collectionId: "calvino" },
+    );
+    expect(bookIdsOf(state, "calvino")).toEqual(["barone-rampante", "citta-invisibili", "gattopardo"]);
+  });
+
+  it("non tocca le collezioni che si calcolano da sole", () => {
+    const before = initialState(sampleLibrary).library.collections;
+    expect(run({ type: "addToCollection", bookIds: ["gattopardo"], collectionId: "top-rated" }).library.collections).toEqual(before);
+  });
+
+  it("toglie un libro dalla collezione, non dalla libreria", () => {
+    const state = run({ type: "removeFromCollection", bookId: "barone-rampante", collectionId: "calvino" });
+    expect(bookIdsOf(state, "calvino")).toEqual(["citta-invisibili"]);
+    expect(state.library.books.some((book) => book.id === "barone-rampante")).toBe(true);
+  });
+
+  it("il lettore non può aggiungere né spostare", () => {
+    const reader = reducerFor(false);
+    const start = initialState(sampleLibrary);
+    expect(reader(start, { type: "addToCollection", bookIds: ["gattopardo"], collectionId: "calvino" })).toBe(start);
+    expect(reader(start, { type: "moveCollection", collectionId: "calvino", parentId: null, beforeId: null })).toBe(start);
+  });
+});
+
+describe("spostare collezioni e cartelle", () => {
+  const order = (state: ReturnType<typeof run>, parentId: string | null) =>
+    state.library.collections.filter((item) => item.parentId === parentId).map((item) => item.id);
+
+  it("porta una collezione fuori dalla cartella, in fondo", () => {
+    const state = run({ type: "moveCollection", collectionId: "calvino", parentId: null, beforeId: null });
+    expect(order(state, "authors")).toEqual([]);
+    expect(order(state, null).at(-1)).toBe("calvino");
+  });
+
+  it("mette una collezione dentro una cartella, davanti a un'altra, e apre la cartella", () => {
+    const state = run(
+      { type: "toggleFolder", folderId: "authors" },
+      { type: "moveCollection", collectionId: "import", parentId: "authors", beforeId: "calvino" },
+    );
+    expect(order(state, "authors")).toEqual(["import", "calvino"]);
+    expect(state.collapsedFolders).not.toContain("authors");
+  });
+
+  it("riordina allo stesso livello", () => {
+    const state = run({ type: "moveCollection", collectionId: "import", parentId: null, beforeId: "authors" });
+    expect(order(state, null)).toEqual(["library", "loaned", "wishlist", "import", "authors", "top-rated"]);
+  });
+
+  it("annida una cartella in un'altra ma non dentro sé stessa o le sue figlie", () => {
+    const state = run(
+      { type: "createCollection", id: "generi", name: "Generi", kind: "folder" },
+      { type: "createCollection", id: "gialli", name: "Gialli", kind: "folder", parentId: "generi" },
+      { type: "moveCollection", collectionId: "authors", parentId: "generi", beforeId: null },
+    );
+    expect(order(state, "generi")).toEqual(["gialli", "authors"]);
+    expect(libraryReducer(state, { type: "moveCollection", collectionId: "generi", parentId: "authors", beforeId: null })).toBe(state);
+    expect(libraryReducer(state, { type: "moveCollection", collectionId: "generi", parentId: "generi", beforeId: null })).toBe(state);
+  });
+
+  it("le collezioni di sistema restano dove sono", () => {
+    const start = initialState(sampleLibrary);
+    expect(libraryReducer(start, { type: "moveCollection", collectionId: "library", parentId: "authors", beforeId: null })).toBe(start);
   });
 });

@@ -7,6 +7,7 @@ import { collectionName } from "../labels";
 import type { ReactNode } from "react";
 import { loanState } from "../query";
 import { BookDetails } from "./book-details";
+import { CollectionSearch, CollectionSearchButton } from "./collection-search";
 import { Cover, loanBanner } from "./cover";
 import { useLibrary } from "./library-context";
 import { AccountMenu } from "./account-menu";
@@ -182,6 +183,8 @@ export function MobileShell({ onLend }: { onLend: () => void }) {
             </div>
             <SearchBox className="h-11 rounded-xl border-0 bg-chip" />
             <QuickFilters />
+            <CollectionSearchButton className="self-start" />
+            <CollectionSearch />
           </header>
           <main className="flex-1 pb-24">
             <BookRows />
