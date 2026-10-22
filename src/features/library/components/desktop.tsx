@@ -96,7 +96,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// Collezioni, libri e dettagli affiancati.
+// Tabella e griglia: collezioni, libri e dettagli affiancati.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -116,6 +116,30 @@ function ClassicShell({ onLend }: ShellProps) {
   );
 }
 
+// Galleria: carosello in alto e scheda del libro nel riquadro sotto, senza pannello a destra.
+function GalleryShell({ onLend }: ShellProps) {
+  const { state, selected } = useLibrary();
+  return (
+    <>
+      <Toolbar onLend={onLend} />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main className="flex min-w-0 flex-1 flex-col">
+          <MainHeader />
+          <BooksView />
+          {state.detailsOpen && selected && (
+            <div className="min-h-0 flex-1 overflow-auto border-t border-line">
+              <BookDetails book={selected} variant="below" onLend={onLend} />
+            </div>
+          )}
+        </main>
+      </div>
+      <StatusBar />
+    </>
+  );
+}
+
 export function DesktopShell({ onLend }: ShellProps) {
-  return <ClassicShell onLend={onLend} />;
+  const { view } = useLibrary();
+  return view === "carousel" ? <GalleryShell onLend={onLend} /> : <ClassicShell onLend={onLend} />;
 }
