@@ -320,6 +320,17 @@ export const it = {
       network: "rete non raggiungibile.",
       invalid: "dati non validi.",
       server: (status: number) => `errore del server (${status}).`,
+      upstreamReasons: {
+        key_missing:
+          "Google Books non risponde senza una chiave API. L'amministratore deve impostare GOOGLE_BOOKS_API_KEY sul server (su Vercel: Settings → Environment Variables) e rifare il deploy. Intanto puoi usare Open Library.",
+        key_invalid:
+          "Google Books rifiuta la chiave API: controlla che GOOGLE_BOOKS_API_KEY sia copiata per intero, poi rifai il deploy.",
+        key_restricted:
+          "La chiave API di Google è limitata e blocca le richieste dell'app: nella console Google Cloud aggiungi l'indirizzo dell'app tra i siti web consentiti, oppure togli la limitazione per indirizzi IP.",
+        api_disabled:
+          "La Books API non è abilitata nel progetto Google Cloud della chiave: abilitala dalla console e riprova.",
+        quota: "Google Books ha esaurito la quota giornaliera della chiave: riprova domani o usa Open Library.",
+      },
     },
   },
   settings: {

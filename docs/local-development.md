@@ -274,7 +274,7 @@ In **Settings** (bottom left) → **Users and roles**:
 As administrator or librarian, with the **Add** button:
 
 - [ ] **Manual entry**: fill in at least the title and save. The book appears in the list and in Studio, table `books`.
-- [ ] **Automatic fill → Google Books**: search for `eco nome della rosa`, press **Use** on a result: the form opens filled in, cover included. Save. Without `GOOGLE_BOOKS_API_KEY` the search may fail for quota reasons: that's Google, not the app.
+- [ ] **Automatic fill → Google Books**: search for `eco nome della rosa`, press **Use** on a result: the form opens filled in, cover included. Save. Without `GOOGLE_BOOKS_API_KEY` Google refuses the search and the window says so.
 - [ ] **Automatic fill → Open Library**: search by ISBN, e.g. `9788845292613`. If that ISBN is already in the library, the dialog warns you.
 - [ ] The cover of the saved book is in Studio → Storage → `covers`.
 - [ ] As the reader, the new books are visible but can't be edited.

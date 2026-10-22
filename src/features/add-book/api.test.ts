@@ -15,6 +15,11 @@ describe("api aggiunta libro", () => {
     const search = (status: number, body: unknown) =>
       searchOnline({ source: "google_books", field: "title", text: "Dune" }, { fetch: reply(body, status) });
     expect(await search(502, { error: "upstream" })).toEqual({ ok: false, error: { kind: "upstream" } });
+    expect(await search(502, { error: "upstream", reason: "key_missing" })).toEqual({
+      ok: false,
+      error: { kind: "upstream", reason: "key_missing" },
+    });
+    expect(await search(502, { error: "upstream", reason: "boh" })).toEqual({ ok: false, error: { kind: "upstream" } });
     expect(await search(403, { error: "forbidden" })).toEqual({ ok: false, error: { kind: "forbidden" } });
     expect(await search(500, { error: "unexpected" })).toEqual({ ok: false, error: { kind: "server", status: 500 } });
   });

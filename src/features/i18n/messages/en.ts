@@ -322,6 +322,17 @@ export const en: Messages = {
       network: "network unreachable.",
       invalid: "invalid data.",
       server: (status: number) => `server error (${status}).`,
+      upstreamReasons: {
+        key_missing:
+          "Google Books doesn't answer without an API key. The admin needs to set GOOGLE_BOOKS_API_KEY on the server (on Vercel: Settings → Environment Variables) and redeploy. Meanwhile you can use Open Library.",
+        key_invalid:
+          "Google Books rejects the API key: check that GOOGLE_BOOKS_API_KEY was copied in full, then redeploy.",
+        key_restricted:
+          "The Google API key is restricted and blocks the app's requests: in the Google Cloud console add the app's address to the allowed websites, or remove the IP address restriction.",
+        api_disabled:
+          "The Books API isn't enabled in the key's Google Cloud project: enable it from the console and try again.",
+        quota: "Google Books has used up the key's daily quota: try again tomorrow or use Open Library.",
+      },
     },
   },
   settings: {

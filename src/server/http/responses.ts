@@ -18,7 +18,9 @@ export const errorResponse = (error: AppError): Response =>
   json(
     error.kind === "validation"
       ? { error: error.kind, issues: error.issues }
-      : { error: error.kind },
+      : error.kind === "upstream" && error.reason
+        ? { error: error.kind, reason: error.reason }
+        : { error: error.kind },
     statusOf[error.kind],
   );
 

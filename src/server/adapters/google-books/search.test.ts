@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { googleBooksSource, toGoogleQuery } from "./search";
+import { explainGoogleError, googleBooksSource, toGoogleQuery } from "./search";
 
 const fakeFetch = (body: unknown, status = 200) =>
   vi.fn(async () => new Response(JSON.stringify(body), { status }));
@@ -65,6 +65,25 @@ describe("googleBooksSource", () => {
 
   it("segnala errori HTTP come upstream", async () => {
     expect((await search(fakeFetch({}, 429)))._unsafeUnwrapErr().kind).toBe("upstream");
+  });
+
+  it("spiega perché Google rifiuta la ricerca", async () => {
+    const quota = { error: { code: 429, errors: [{ reason: "rateLimitExceeded" }], details: [{ reason: "RATE_LIMIT_EXCEEDED" }] } };
+    expect((await search(fakeFetch(quota, 429)))._unsafeUnwrapErr()).toMatchObject({ kind: "upstream", reason: "key_missing" });
+    expect((await search(fakeFetch(quota, 429), "chiave"))._unsafeUnwrapErr()).toMatchObject({ reason: "quota" });
+
+    const explain = explainGoogleError(true);
+    expect(explain(400, { error: { message: "API key not valid. Please pass a valid API key.", details: [{ reason: "API_KEY_INVALID" }] } })).toBe("key_invalid");
+    expect(explain(403, { error: { details: [{ reason: "API_KEY_HTTP_REFERRER_BLOCKED" }] } })).toBe("key_restricted");
+    expect(explain(403, { error: { errors: [{ reason: "accessNotConfigured" }] } })).toBe("api_disabled");
+    expect(explain(500, "non json")).toBeUndefined();
+  });
+
+  it("manda l'indirizzo dell'app come referrer, per le chiavi limitate ai siti web", async () => {
+    const fetchImpl = fakeFetch({ items: [] });
+    await googleBooksSource({ fetch: fetchImpl, apiKey: "chiave", referer: "https://libri.example/" }).search({ field: "any", text: "rosa", limit: 5 });
+    const init = (fetchImpl.mock.calls[0] as unknown[])[1] as RequestInit;
+    expect(new Headers(init.headers).get("referer")).toBe("https://libri.example/");
   });
 
   it("usa la sintassi di Google per i campi", () => {

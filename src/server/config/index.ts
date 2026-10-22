@@ -4,7 +4,7 @@ import { z } from "zod";
 export type Config = {
   readonly supabaseUrl: string;
   readonly supabaseKey: string;
-  /** Facoltativa: senza, Google Books usa una quota condivisa per IP. */
+  /** Di fatto necessaria: senza, Google Books risponde con una quota giornaliera pari a zero. */
   readonly googleBooksApiKey?: string;
 };
 
@@ -31,7 +31,8 @@ export const readConfig = (env: Env): Result<Config, string> => {
       "SUPABASE_ANON_KEY",
       "NEXT_PUBLIC_SUPABASE_ANON_KEY",
     ]),
-    googleBooksApiKey: first(env, ["GOOGLE_BOOKS_API_KEY"]),
+    // Incollata nel pannello di Vercel, la chiave si porta dietro spazi o a capo.
+    googleBooksApiKey: first(env, ["GOOGLE_BOOKS_API_KEY"])?.trim() || undefined,
   });
   return parsed.success
     ? ok(parsed.data)
