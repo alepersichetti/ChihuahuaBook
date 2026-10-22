@@ -1,14 +1,14 @@
 "use client";
 
-import { ScanBarcode, X } from "lucide-react";
+import { X } from "lucide-react";
 import { plural, valueFilterLabel } from "../labels";
 import { loanState } from "../query";
+import { useSettings } from "../../settings/settings-context";
 import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
-import { IconRail } from "./icon-rail";
 import { useLibrary } from "./library-context";
 import { Sidebar } from "./sidebar";
-import { LayoutPicker, SearchBox, Toolbar, ViewSwitcher } from "./toolbar";
+import { Toolbar } from "./toolbar";
 import { BookCarousel, BookGrid, BookTable, EmptyState } from "./views";
 
 function FilterChip() {
@@ -27,11 +27,11 @@ function FilterChip() {
   );
 }
 
-function MainHeader({ large = false }: { large?: boolean }) {
+function MainHeader() {
   const { collection, books } = useLibrary();
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-5 pt-4 pb-3">
-      <h1 className={`font-display font-bold ${large ? "text-[34px] tracking-tight" : "text-xl"}`}>
+      <h1 className="font-display text-xl font-bold">
         {collection?.name}
       </h1>
       <span className="text-muted">{plural(books.length, "libro", "libri")}</span>
@@ -54,7 +54,8 @@ function BooksView() {
 }
 
 function StatusBar() {
-  const { books, today, view, state, dispatch } = useLibrary();
+  const { books, today, view } = useLibrary();
+  const { preferences, setPreference } = useSettings();
   const loans = books.map((book) => loanState(book, today));
   const loaned = loans.filter((loan) => loan.kind !== "none").length;
   const late = loans.filter((loan) => loan.kind === "overdue").length;
@@ -70,8 +71,8 @@ function StatusBar() {
             type="range"
             min={coverSizes.min}
             max={coverSizes.max}
-            value={state.coverSize}
-            onChange={(event) => dispatch({ type: "setCoverSize", size: Number(event.target.value) })}
+            value={preferences.coverSize}
+            onChange={(event) => setPreference("coverSize", Number(event.target.value))}
             className="w-36 accent-(--accent)"
           />
         </label>
@@ -90,7 +91,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// A: collezioni, tabella e dettagli affiancati.
+// A, B e Calda: collezioni, libri e dettagli affiancati. B e Calda partono dalle copertine; Calda ha la palette calda.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -107,45 +108,6 @@ function ClassicShell({ onLend }: ShellProps) {
       </div>
       <StatusBar />
     </>
-  );
-}
-
-// B: copertine in primo piano, barra a icone e scheda a cassetto.
-function GalleryShell({ onLend }: ShellProps) {
-  const { state, selected, dispatch } = useLibrary();
-  return (
-    <div className="flex min-h-0 flex-1">
-      <IconRail />
-      <main className="flex min-w-0 flex-1 flex-col">
-        <div className="flex flex-wrap items-center gap-3 pt-2 pr-6 pb-4 pl-1">
-          <div className="mr-auto">
-            <MainHeader large />
-          </div>
-          <SearchBox className="w-72 rounded-full" />
-          <ViewSwitcher />
-          <LayoutPicker />
-          <button
-            type="button"
-            disabled
-            title="In arrivo"
-            className="flex h-10 items-center gap-2 rounded-full bg-accent px-4 font-semibold text-accent-ink disabled:opacity-70"
-          >
-            <ScanBarcode size={16} aria-hidden="true" />
-            Aggiungi libro
-          </button>
-        </div>
-        <BooksView />
-        <StatusBar />
-      </main>
-      {state.detailsOpen && selected && (
-        <BookDetails
-          book={selected}
-          variant="drawer"
-          onLend={onLend}
-          onClose={() => dispatch({ type: "selectBook", bookId: null })}
-        />
-      )}
-    </div>
   );
 }
 
@@ -178,9 +140,10 @@ export function DesktopShell({ onLend }: ShellProps) {
   const { state } = useLibrary();
   switch (state.layout) {
     case "classic":
-      return <ClassicShell onLend={onLend} />;
     case "gallery":
-      return <GalleryShell onLend={onLend} />;
+    case "warm":
+      return <ClassicShell onLend={onLend} />;
+
     case "shelf":
       return <ShelfShell onLend={onLend} />;
   }

@@ -73,6 +73,7 @@ export const defaultSort: readonly SortKey[] = [{ column: "title", direction: "a
 export const preferredView: Record<Layout, ViewMode> = {
   classic: "list",
   gallery: "grid",
+  warm: "grid",
   shelf: "carousel",
 };
 

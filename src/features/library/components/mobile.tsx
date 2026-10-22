@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, ScanBarcode, BookCopy } from "lucide-react";
+import { ArrowLeft, ChartColumn, ChevronDown, ChevronRight, HandHelping, Library, ScanBarcode, BookCopy, Settings } from "lucide-react";
+import { useSettings } from "../../settings/settings-context";
 import type { ReactNode } from "react";
 import { loanState } from "../query";
 import { BookDetails } from "./book-details";
@@ -95,6 +96,7 @@ function BookRows() {
 
 function TabBar() {
   const { state, dispatch } = useLibrary();
+  const { canOpen, openPanel } = useSettings();
   const tab = (label: string, icon: ReactNode, active: boolean, onClick?: () => void) => (
     <button
       type="button"
@@ -108,7 +110,7 @@ function TabBar() {
     </button>
   );
   return (
-    <nav aria-label="Sezioni" className="grid grid-cols-4 border-t border-line bg-bg px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))]">
+    <nav aria-label="Sezioni" className={`grid ${canOpen ? "grid-cols-5" : "grid-cols-4"} border-t border-line bg-bg px-2 pt-2 pb-[max(12px,env(safe-area-inset-bottom))]`}>
       {tab("Libreria", <Library size={22} aria-hidden="true" />, state.mobileScreen === "list" && state.collectionId === "library", () =>
         dispatch({ type: "selectCollection", collectionId: "library" }),
       )}
@@ -119,6 +121,7 @@ function TabBar() {
         dispatch({ type: "selectCollection", collectionId: "loaned" }),
       )}
       {tab("Statistiche", <ChartColumn size={22} aria-hidden="true" />, false)}
+      {canOpen && tab("Impostazioni", <Settings size={22} aria-hidden="true" />, false, openPanel)}
     </nav>
   );
 }
