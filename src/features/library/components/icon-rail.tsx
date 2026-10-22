@@ -1,0 +1,41 @@
+"use client";
+
+import { Settings } from "lucide-react";
+import { collectionIcon } from "./icons";
+import { useLibrary } from "./library-context";
+
+// Barra laterale a sole icone del layout galleria.
+export function IconRail() {
+  const { state, dispatch, counts } = useLibrary();
+  const collections = state.library.collections.filter((collection) => collection.kind !== "folder");
+  return (
+    <nav aria-label="Collezioni" className="flex w-17 shrink-0 flex-col items-center gap-1.5 border-r border-line bg-panel py-3.5">
+      <div aria-hidden="true" className="mb-2.5 flex size-9 items-center justify-center rounded-[10px] bg-ink font-display text-lg font-semibold text-bg">
+        p
+      </div>
+      {collections.map((collection) => {
+        const { Icon } = collectionIcon(collection);
+        const active = collection.id === state.collectionId;
+        const label = `${collection.name}, ${counts[collection.id]} libri`;
+        return (
+          <button
+            key={collection.id}
+            type="button"
+            aria-label={label}
+            title={label}
+            aria-current={active ? "page" : undefined}
+            onClick={() => dispatch({ type: "selectCollection", collectionId: collection.id })}
+            className={`flex size-11 items-center justify-center rounded-xl ${
+              active ? "bg-ink text-bg" : "text-ink-soft hover:bg-chip"
+            }`}
+          >
+            <Icon size={20} aria-hidden="true" />
+          </button>
+        );
+      })}
+      <button type="button" aria-label="Impostazioni" title="In arrivo" disabled className="mt-auto flex size-11 items-center justify-center rounded-xl text-ink-soft disabled:opacity-60">
+        <Settings size={20} />
+      </button>
+    </nav>
+  );
+}
