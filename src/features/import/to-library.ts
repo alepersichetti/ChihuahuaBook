@@ -4,9 +4,16 @@ import type { Book } from "../library/model";
 /** Id locale stabile: reimportare lo stesso libro sostituisce quello già in vista. */
 export const localBookId = (sourceId: string) => `bookpedia:${sourceId}`;
 
+// Bookpedia ricorda quando il libro è entrato in libreria: meglio della data dell'import.
+const addedOn = (extra: PediaBook["extra"], fallback: string) => {
+  const value = extra.dateAdded;
+  const date = typeof value === "string" ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date.toISOString() : fallback;
+};
+
 /** Libro importato nel modello di vista, per mostrarlo subito nella libreria. */
 export const toLibraryBook = (
-  { sourceId, book }: PediaBook,
+  { sourceId, book, extra }: PediaBook,
   coverUrl: string | null,
   addedAt: string,
 ): Book => ({
@@ -34,5 +41,5 @@ export const toLibraryBook = (
   favorite: book.favorite,
   wishlist: false,
   loan: null,
-  addedAt,
+  addedAt: addedOn(extra, addedAt),
 });

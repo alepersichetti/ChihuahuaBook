@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parsePediaXml } from "./xml";
+import { localDateTime, parsePediaXml } from "./xml";
 
 describe("parsePediaXml", () => {
   it("trova le schede in un XML a elementi, anche con liste annidate", () => {
@@ -38,7 +38,21 @@ describe("parsePediaXml", () => {
     const parsed = parsePediaXml(xml)._unsafeUnwrap();
     expect(parsed.format).toBe("plist");
     expect(parsed.records).toEqual([
-      { title: ["Dune"], pages: ["412"], read: ["true"], dateRead: ["2020-03-04T00:00:00.000Z"] },
+      { title: ["Dune"], pages: ["412"], read: ["true"], dateRead: [localDateTime(new Date("2020-03-04T00:00:00Z"))] },
+    ]);
+  });
+
+  it("legge il plist di Bookpedia: dizionario numero → scheda, con caratteri di controllo", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>1</key><dict><key>title</key><string>Il culto del Mac\u0007</string><key>uid</key><integer>11866</integer></dict>
+  <key>2</key><dict><key>title</key><string>Dune</string><key>uid</key><integer>11875</integer></dict>
+  <key>Version</key><string>New</string>
+</dict></plist>`;
+    expect(parsePediaXml(xml)._unsafeUnwrap().records).toEqual([
+      { pediaKey: ["1"], title: ["Il culto del Mac"], uid: ["11866"] },
+      { pediaKey: ["2"], title: ["Dune"], uid: ["11875"] },
     ]);
   });
 

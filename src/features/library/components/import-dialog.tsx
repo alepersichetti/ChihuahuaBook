@@ -40,6 +40,9 @@ const buildPreview = async (files: readonly BundleFile[]): Promise<Preview | str
   return { bundle, format: parsed.value.format, books, errors, covers: matchCovers(books, bundle.images) };
 };
 
+// Il bundle si chiama spesso "Libreria", come la collezione principale: il prefisso evita confusione.
+const collectionName = (preview: Preview) => `Bookpedia: ${preview.bundle.name}`;
+
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 function Notice({ tone, children }: { tone: "ok" | "warn"; children: ReactNode }) {
@@ -125,7 +128,7 @@ function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveO
   return (
     <div className="flex flex-col gap-2">
       <Notice tone="ok">
-        {plural(preview.books.length, "libro aggiunto", "libri aggiunti")} alla collezione «{preview.bundle.name}».
+        {plural(preview.books.length, "libro aggiunto", "libri aggiunti")} alla collezione «{collectionName(preview)}».
       </Notice>
       {outcome.kind === "unavailable" ? (
         <Notice tone="warn">
@@ -197,7 +200,7 @@ export function ImportDialog() {
     // Subito nella libreria, con le copertine lette dal disco.
     dispatch({
       type: "importBooks",
-      collectionName: preview.bundle.name,
+      collectionName: collectionName(preview),
       books: preview.books.map((book) => {
         const cover = preview.covers.bySourceId.get(book.sourceId);
         return toLibraryBook(book, cover ? URL.createObjectURL(cover.blob) : null, addedAt);
