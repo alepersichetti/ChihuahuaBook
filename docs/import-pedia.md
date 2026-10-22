@@ -1,36 +1,40 @@
-# Import dei file .pedia di Bookpedia
+# Importing Bookpedia .pedia files
 
-Un file `.pedia` è una cartella (il Finder la mostra come un file unico) con un XML delle schede e le immagini delle copertine. L'import si apre dal pulsante **Importa .pedia** in fondo alla colonna delle collezioni.
+**English** · [Italiano](import-pedia.it.md)
 
-## Cosa si può scegliere
+> The app interface is currently in Italian: button labels are quoted as they appear on screen.
 
-- **Trascinare** il `.pedia` nella finestra: il browser legge tutta la cartella.
-- **Uno zip** del `.pedia` (tasto destro nel Finder, «Comprimi»): è la strada più sicura, perché il selettore di file del Mac non sempre entra nei pacchetti.
-- **La cartella** con il pulsante «Scegli la cartella».
-- **Solo l'XML**, se le copertine non servono.
+A `.pedia` file is a folder (Finder shows it as a single file) containing an XML file with the records and the cover images. The import opens from the **Importa .pedia** button at the bottom of the collections column.
 
-Il file viene letto interamente nel browser; al server arrivano solo i dati dei libri e le immagini, una richiesta alla volta (nessuna supera i limiti di dimensione di Vercel).
+## What you can pick
 
-## Come vengono letti i dati
+- **Drag** the `.pedia` into the window: the browser reads the whole folder.
+- **A zip** of the `.pedia` (right click in Finder, «Compress»): this is the safest route, because the Mac file picker does not always enter packages.
+- **The folder**, with the «Scegli la cartella» (choose folder) button.
+- **Just the XML**, if you don't need the covers.
 
-Il formato esatto dell'XML di Bookpedia non è documentato, quindi la lettura è tollerante:
+The file is read entirely in the browser; the server only receives the book data and the images, one request at a time (none exceeds Vercel's size limits).
 
-- va bene sia un plist di Apple sia un XML «a elementi» (`<collection><item><title>…`), anche con i nomi dei campi in un attributo (`<field name="Title">`);
-- i nomi dei campi vengono riconosciuti senza badare a maiuscole, spazi e punteggiatura (`Release Date`, `releaseDate`, `release_date`); l'elenco è in `src/server/core/books/pedia.ts`;
-- i campi che il catalogo non ha finiscono nella colonna `extra` del libro, così non si perde nulla;
-- le schede senza titolo vengono scartate e mostrate nell'anteprima.
+## How the data is read
 
-Le copertine si abbinano per nome del file (id della scheda, ISBN o titolo). Se nessun nome corrisponde ma le immagini sono numerate (`1.jpg`, `2.jpg`…), si abbinano nell'ordine delle schede e l'anteprima lo segnala. Immagini TIFF, GIF o troppo grandi vengono convertite in JPEG nel browser, se il browser le sa leggere.
+Bookpedia's exact XML format is not documented, so parsing is lenient:
 
-## Reimportare
+- both an Apple plist and an "element-based" XML (`<collection><item><title>…`) work, including field names given in an attribute (`<field name="Title">`);
+- field names are matched ignoring case, spaces and punctuation (`Release Date`, `releaseDate`, `release_date`); the list is in `src/server/core/books/pedia.ts`;
+- fields the catalogue doesn't have go into the book's `extra` column, so nothing is lost;
+- records without a title are skipped and shown in the preview.
 
-Ogni libro importato ricorda la fonte (`source = 'bookpedia'`) e l'id della scheda d'origine (`source_id`); per le schede senza id si usa un'impronta di titolo, autori e ISBN. Reimportare lo stesso file quindi non crea doppioni: i libri già presenti vengono aggiornati, oppure lasciati come sono se si toglie la spunta «Aggiorna i libri già importati».
+Covers are matched by file name (record id, ISBN or title). If no name matches but the images are numbered (`1.jpg`, `2.jpg`…), they are matched in record order and the preview says so. TIFF, GIF or oversized images are converted to JPEG in the browser, if the browser can read them.
+
+## Re-importing
+
+Every imported book remembers its source (`source = 'bookpedia'`) and the id of the original record (`source_id`); for records without an id, a fingerprint of title, authors and ISBN is used. Re-importing the same file therefore creates no duplicates: books already present are updated, or left as they are if you untick «Aggiorna i libri già importati in passato» (update previously imported books).
 
 ## API
 
-| Metodo | Percorso | Corpo |
+| Method | Path | Body |
 | --- | --- | --- |
-| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "skip", items: [{ source_id, book, extra }] }`, al massimo 100 libri; risponde con l'esito di ognuno |
-| `PUT` | `/api/books/:id/cover` | l'immagine (JPEG, PNG o WebP, massimo 5 MB) con il suo `Content-Type`; la salva in `covers/<utente>/<libro>.<ext>` |
+| `POST` | `/api/import/books` | `{ source: "bookpedia", on_existing: "update" \| "skip", items: [{ source_id, book, extra }] }`, at most 100 books; replies with the outcome of each one |
+| `PUT` | `/api/books/:id/cover` | the image (JPEG, PNG or WebP, at most 5 MB) with its `Content-Type`; saves it to `covers/<user>/<book>.<ext>` |
 
-Finché l'interfaccia non è collegata a Supabase con l'accesso utente, i libri importati compaiono comunque nella libreria della scheda aperta (in una collezione con il nome del file), e la finestra dice che non sono stati salvati sul server.
+Until the interface is wired to Supabase with user sign-in, imported books still appear in the library of the open tab (in a collection named after the file), and the dialog says they were not saved on the server.

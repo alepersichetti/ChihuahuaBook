@@ -1,13 +1,15 @@
-# Logo ChihuahaBook
+# ChihuahuaBook logo
 
-Il logo in vettoriale e tutti i file per le favicon, pronti da scaricare o riusare.
+**English** · [Italiano](README.it.md)
 
-| File | Uso |
+The vector logo and all the favicon files, ready to download or reuse.
+
+| File | Use |
 | --- | --- |
-| `chihuahua.svg` | Logo vettoriale, anche come favicon SVG |
-| `favicon.ico` | Favicon classica (16, 32 e 48 px) |
-| `favicon-32.png` | Favicon PNG 32×32 |
-| `apple-touch-icon.png` | Icona per iPhone e iPad (180×180, sfondo pieno) |
-| `icon-192.png`, `icon-512.png` | Icone Android per la schermata home |
+| `chihuahua.svg` | Vector logo, also used as the SVG favicon |
+| `favicon.ico` | Classic favicon (16, 32 and 48 px) |
+| `favicon-32.png` | 32×32 PNG favicon |
+| `apple-touch-icon.png` | iPhone and iPad icon (180×180, solid background) |
+| `icon-192.png`, `icon-512.png` | Android home screen icons |
 
-L'app usa le copie in `public/brand/`, scelte in `branding.json` (vedi il README principale).
+The app uses the copies in `public/brand/`, selected in `branding.json` (see the [main README](../README.md#logo-and-favicon)).
