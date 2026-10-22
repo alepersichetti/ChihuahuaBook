@@ -1,4 +1,4 @@
-# Logo ChihuahaBook
+# Logo ChihuahuaBook
 
 Il logo in vettoriale e tutti i file per le favicon, pronti da scaricare o riusare.
 
