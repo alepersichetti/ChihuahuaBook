@@ -1,5 +1,7 @@
 # Far girare ChihuahuaBook in locale
 
+[English](local-development.md) · **Italiano**
+
 Questa guida porta da zero a un'app funzionante sul proprio computer: interfaccia Next.js su `http://localhost:3000` e, se serve, un Supabase completo (Postgres, Auth, Storage) in Docker con lo schema del catalogo già applicato.
 
 Ci sono due livelli, e il primo non richiede nulla oltre a Node:
@@ -131,7 +133,7 @@ La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configura
    curl -s http://localhost:3000/api/isbn/9788845292613 -H "Authorization: Bearer $TOKEN"
    ```
 
-L'elenco completo delle rotte è nel [README](../README.md#api). I libri creati si vedono anche in Studio, nella tabella `books`.
+L'elenco completo delle rotte è nel [README](../README.it.md#api). I libri creati si vedono anche in Studio, nella tabella `books`.
 
 ### Fermare e ripulire
 
@@ -159,7 +161,7 @@ npx supabase gen types typescript --local --schema public > src/server/adapters/
 
 (`npm run db:types` fa la stessa cosa ma dal progetto Supabase remoto indicato in `SUPABASE_PROJECT_ID`.)
 
-Per portare le migrazioni su un progetto Supabase nel cloud vedi la sezione "Backend (Supabase)" del [README](../README.md).
+Per portare le migrazioni su un progetto Supabase nel cloud vedi la sezione "Backend (Supabase)" del [README](../README.it.md#backend-supabase).
 
 ## 5. Test e controlli
 

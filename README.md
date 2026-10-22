@@ -2,24 +2,34 @@
   <img src="logo/chihuahua.svg" alt="ChihuahuaBook" width="200">
 </p>
 
+<p align="center"><b>English</b> · <a href="README.it.md">Italiano</a></p>
+
 # ChihuahuaBook
 
-Web app personale e open source per catalogare la propria libreria, pensata come sostituto di Bookpedia, con import diretto dei file `.pedia`.
+A personal, open source web app for cataloguing your own library, designed as a replacement for Bookpedia, with direct import of `.pedia` files.
 
-Stack previsto: Next.js (App Router), Supabase, Vercel. Requisiti e architettura in definizione.
+Planned stack: Next.js (App Router), Supabase, Vercel. Requirements and architecture are still being defined.
 
-Per farla girare sul tuo computer (Node, Supabase locale, migrazioni, test) segui la guida [docs/sviluppo-locale.md](docs/sviluppo-locale.md).
+To run it on your computer (Node, local Supabase, migrations, tests) follow the [docs/local-development.md](docs/local-development.md) guide.
 
-## Sviluppo
+## Documentation
+
+- [Local development](docs/local-development.md)
+- [Importing Bookpedia .pedia files](docs/import-pedia.md)
+- [Logo and favicon](logo/README.md)
+
+Every document exists in two languages: `name.md` in English and `name.it.md` in Italian. If you change one, update the other too.
+
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-## Logo e favicon
+## Logo and favicon
 
-Logo e favicon si configurano in `branding.json`, nella radice del progetto:
+The logo and favicon are configured in `branding.json`, at the project root:
 
 ```json
 {
@@ -38,17 +48,17 @@ Logo e favicon si configurano in `branding.json`, nella radice del progetto:
 }
 ```
 
-- `logo` è l'immagine in alto a sinistra nell'app; `name` il titolo della pagina e il testo accanto al logo.
-- `android` finisce nel web manifest, per l'icona sulla schermata home.
-- Le voci di `favicon` sono tutte facoltative: si mettono solo quelle che servono.
-- I percorsi partono da `public/` (il file `public/brand/favicon.ico` si scrive `/brand/favicon.ico`); vanno bene anche URL completi.
-- Per cambiare favicon basta copiare il nuovo file in `public/` e aggiornare il percorso. La configurazione è letta in fase di build: in sviluppo il cambio è immediato, in produzione serve un nuovo deploy. Se il JSON non è valido la build si ferma con un errore.
+- `logo` is the image at the top left of the app; `name` is the page title and the text next to the logo.
+- `android` goes into the web manifest, for the home screen icon.
+- All `favicon` entries are optional: include only the ones you need.
+- Paths start from `public/` (the file `public/brand/favicon.ico` is written `/brand/favicon.ico`); full URLs work too.
+- To change the favicon, copy the new file into `public/` and update the path. The configuration is read at build time: in development the change is immediate, in production it needs a new deploy. If the JSON is invalid the build stops with an error.
 
 ## Backend (Supabase)
 
-Lo schema del database è in `supabase/migrations/`: libri, collezioni, prestiti e il bucket `covers` per le copertine. Ogni tabella ha la Row Level Security attiva e ogni utente vede solo i propri dati.
+The database schema lives in `supabase/migrations/`: books, collections, loans and the `covers` bucket for cover images. Every table has Row Level Security enabled and each user sees only their own data.
 
-Per applicarlo a un progetto Supabase:
+To apply it to a Supabase project:
 
 ```bash
 npx supabase login
@@ -56,40 +66,40 @@ npx supabase link --project-ref <project-ref>
 npx supabase db push
 ```
 
-Variabili d'ambiente (vedi `.env.example`): `SUPABASE_URL` e `SUPABASE_PUBLISHABLE_KEY`, anche con prefisso `NEXT_PUBLIC_`. È accettata anche `NEXT_PUBLIC_SUPABASE_ANON_KEY`, che è quella impostata dall'integrazione Supabase di Vercel.
+Environment variables (see `.env.example`): `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY`, also with the `NEXT_PUBLIC_` prefix. `NEXT_PUBLIC_SUPABASE_ANON_KEY` is accepted as well, since that is the one set by Vercel's Supabase integration.
 
-Dopo una nuova migrazione, rigenera i tipi con `npm run db:types`.
+After a new migration, regenerate the types with `npm run db:types`.
 
-### Architettura
+### Architecture
 
-Il backend vive in `src/server` ed è scritto in stile funzionale: niente classi né eccezioni, errori come valori (`Result` di `neverthrow`), dipendenze passate come funzioni. Non dipende da Vercel né da Next: gira su qualsiasi runtime con le Web API standard (`Request`/`Response`).
+The backend lives in `src/server` and is written in a functional style: no classes or exceptions, errors as values (`neverthrow`'s `Result`), dependencies passed in as functions. It depends on neither Vercel nor Next: it runs on any runtime with the standard Web APIs (`Request`/`Response`).
 
 ```
 src/server/
-  core/        dominio puro: tipi, validazione (zod), casi d'uso, porte. Solo zod e neverthrow.
-  adapters/    implementazioni delle porte: Supabase (libri, sessione) e Open Library.
-  http/        router e rotte su Request/Response standard.
-  config/      lettura delle variabili d'ambiente.
-  app/         composizione: collega adattatori, casi d'uso e rotte → (Request) => Promise<Response>.
-  platform/    unico codice legato a Next: refresh della sessione nel proxy.
+  core/        pure domain: types, validation (zod), use cases, ports. Only zod and neverthrow.
+  adapters/    port implementations: Supabase (books, session) and Open Library.
+  http/        router and routes on standard Request/Response.
+  config/      reading environment variables.
+  app/         composition: wires adapters, use cases and routes → (Request) => Promise<Response>.
+  platform/    the only Next-specific code: session refresh in the proxy.
 ```
 
-I confini sono controllati da ESLint (`eslint-plugin-boundaries`): il nucleo non può importare adattatori, HTTP o Next, e Next compare solo in `platform/` e `src/app/`.
+Boundaries are enforced by ESLint (`eslint-plugin-boundaries`): the core cannot import adapters, HTTP or Next, and Next only appears in `platform/` and `src/app/`.
 
-In Next tutta l'API passa da `src/app/api/[...path]/route.ts`, che inoltra la richiesta a `appFromEnv(process.env)`. Per usare il backend su un altro runtime basta passare lo stesso handler al server (es. `Deno.serve(appFromEnv(Deno.env.toObject()))` o `export default { fetch: app }` su Workers).
+In Next the whole API goes through `src/app/api/[...path]/route.ts`, which forwards the request to `appFromEnv(process.env)`. To use the backend on another runtime, pass the same handler to its server (e.g. `Deno.serve(appFromEnv(Deno.env.toObject()))` or `export default { fetch: app }` on Workers).
 
 ### API
 
-Tutte le rotte richiedono un utente autenticato (cookie di sessione o `Authorization: Bearer <jwt>`).
+Every route requires an authenticated user (session cookie or `Authorization: Bearer <jwt>`).
 
-| Metodo | Percorso | |
+| Method | Path | |
 | --- | --- | --- |
-| GET | `/api/books?q=&status=&tag=&favorite=&collection=&sort=&order=&limit=&offset=` | elenco con ricerca e filtri |
-| POST | `/api/books` | crea un libro |
-| GET / PATCH / DELETE | `/api/books/:id` | legge, modifica, elimina |
-| GET | `/api/isbn/:isbn` | bozza da Open Library e copie già in catalogo |
+| GET | `/api/books?q=&status=&tag=&favorite=&collection=&sort=&order=&limit=&offset=` | list with search and filters |
+| POST | `/api/books` | create a book |
+| GET / PATCH / DELETE | `/api/books/:id` | read, update, delete |
+| GET | `/api/isbn/:isbn` | draft from Open Library and copies already in the catalogue |
 
-### Test
+### Tests
 
 ```bash
 npm test
