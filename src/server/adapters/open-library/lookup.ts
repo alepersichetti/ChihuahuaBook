@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { IsbnLookup } from "../../core/books/ports";
 import type { BookInput } from "../../core/books/schema";
 import { upstream, yearOf } from "../http";
+import { openLibraryUrl } from "./search";
 
 const named = z.array(z.object({ name: z.string() })).optional();
 
@@ -40,9 +41,9 @@ export const toBookDraft = (entry: Entry): BookInput => ({
 
 /** Implementazione di IsbnLookup su Open Library, con `fetch` iniettabile. */
 export const openLibraryLookup =
-  (fetchImpl: typeof fetch = fetch): IsbnLookup =>
+  (fetchImpl: typeof fetch = fetch, baseUrl = openLibraryUrl): IsbnLookup =>
   (isbn13) => {
-    const url = new URL("https://openlibrary.org/api/books");
+    const url = new URL("api/books", baseUrl);
     url.searchParams.set("bibkeys", `ISBN:${isbn13}`);
     url.searchParams.set("format", "json");
     url.searchParams.set("jscmd", "data");

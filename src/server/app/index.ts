@@ -38,14 +38,15 @@ export const createApp = (
           imports: supabaseImportStore(supabase),
           covers: supabaseCoverStore(supabase),
           members: supabaseMemberStore(supabase),
-          lookupIsbn: openLibraryLookup(options.fetch),
+          lookupIsbn: openLibraryLookup(options.fetch, config.openLibraryUrl),
           searchSources: [
             googleBooksSource({
               apiKey: config.googleBooksApiKey,
               fetch: options.fetch,
               referer: `${new URL(request.url).origin}/`,
+              baseUrl: config.googleBooksUrl,
             }),
-            openLibrarySource({ fetch: options.fetch }),
+            openLibrarySource({ fetch: options.fetch, baseUrl: config.openLibraryUrl }),
           ],
         };
       },

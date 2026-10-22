@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { envFile, localUrls, nextDevArgs, supabaseEnv } from "./local-env.mjs";
+import { e2eEnv, envFile, localUrls, nextDevArgs, supabaseEnv } from "./local-env.mjs";
 
 const status = JSON.stringify({
   API_URL: "http://127.0.0.1:54321",
@@ -29,6 +29,26 @@ describe("supabaseEnv", () => {
   it("restituisce un errore se l'output non è utilizzabile", () => {
     expect(supabaseEnv("not json").ok).toBe(false);
     expect(supabaseEnv("{}").ok).toBe(false);
+  });
+});
+
+describe("e2eEnv", () => {
+  it("aggiunge la chiave di servizio e Mailpit", () => {
+    const full = JSON.stringify({ ...JSON.parse(status), SERVICE_ROLE_KEY: "eyJ.service", SECRET_KEY: "sb_secret_x" });
+    expect(e2eEnv(full)).toEqual({
+      ok: true,
+      value: {
+        E2E_SUPABASE_URL: "http://127.0.0.1:54321",
+        E2E_SUPABASE_KEY: "sb_publishable_x",
+        E2E_SUPABASE_SECRET_KEY: "eyJ.service",
+        E2E_MAILPIT_URL: "http://127.0.0.1:54324",
+      },
+    });
+  });
+
+  it("restituisce un errore senza chiave di servizio", () => {
+    expect(e2eEnv(status).ok).toBe(false);
+    expect(e2eEnv("not json").ok).toBe(false);
   });
 });
 

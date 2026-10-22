@@ -114,5 +114,8 @@ Reading routes need a reader, the ones that change books a librarian.
 ### Tests
 
 ```bash
-npm test
+npm test            # unit tests (Vitest)
+npm run test:e2e    # end-to-end tests (Playwright) against the local Supabase, also run in CI on every push and PR
 ```
+
+See [docs/local-development.md](docs/local-development.md#9-end-to-end-tests-playwright) for the end-to-end tests.

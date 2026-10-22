@@ -129,12 +129,14 @@ export const googleBooksSource = (
     readonly fetch?: typeof fetch;
     /** Indirizzo dell'app: serve se la chiave è limitata ai siti web (referrer HTTP). */
     readonly referer?: string;
+    /** Radice dell'API, di default quella pubblica di Google. */
+    readonly baseUrl?: string;
   } = {},
 ): SearchSource => ({
   id: "google_books",
   label: "Google Books",
   search: (query) => {
-    const url = new URL("https://www.googleapis.com/books/v1/volumes");
+    const url = new URL("books/v1/volumes", options.baseUrl ?? "https://www.googleapis.com/");
     url.searchParams.set("q", toGoogleQuery(query));
     url.searchParams.set("maxResults", String(query.limit));
     url.searchParams.set("printType", "books");

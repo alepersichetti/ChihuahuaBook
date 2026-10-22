@@ -50,6 +50,13 @@ describe("openLibrarySource", () => {
     expect(url.searchParams.get("limit")).toBe("5");
   });
 
+  it("usa la radice indicata, per esempio un finto server nei test e2e", async () => {
+    const fetchImpl = fakeFetch({ docs: [] });
+    await openLibrarySource({ fetch: fetchImpl, baseUrl: "http://127.0.0.1:4010/openlibrary/" }).search({ field: "any", text: "rosa", limit: 5 });
+    const url = new URL(String((fetchImpl.mock.calls[0] as unknown[])[0]));
+    expect(`${url.origin}${url.pathname}`).toBe("http://127.0.0.1:4010/openlibrary/search.json");
+  });
+
   it("non indovina l'ISBN quando si cerca per titolo", async () => {
     const result = await openLibrarySource({ fetch: fakeFetch({ docs: [doc] }) }).search({
       field: "title",
