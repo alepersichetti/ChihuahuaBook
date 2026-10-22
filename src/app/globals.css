@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
-/* Tre temi, uno per layout: A classica (predefinita), B galleria, C scaffale scuro. */
+/* Due temi: chiaro per A classica (predefinita) e B galleria, scuro per C scaffale. */
 :root,
-[data-layout="classic"] {
+[data-layout="classic"],
+[data-layout="gallery"] {
   --bg: #ffffff;
   --panel: #f6f7f9;
   --surface: #ffffff;
@@ -25,31 +26,6 @@
   --tone-loan: #c2410c;
   --tone-collection: #2f5bd3;
   --tone-smart: #15803d;
-}
-
-[data-layout="gallery"] {
-  --bg: #f5f1ea;
-  --panel: #efe9de;
-  --surface: #fffdf9;
-  --line: #e3dccf;
-  --line-strong: #ddd4c5;
-  --ink: #221d17;
-  --ink-soft: #4a4239;
-  --muted: #6b6157;
-  --accent: #b4532a;
-  --accent-ink: #ffffff;
-  --selected: #f3e2d6;
-  --chip: #e9e2d5;
-  --star: #a8691a;
-  --danger: #b42318;
-  --danger-soft: #fbe7e3;
-  --ok: #1d7a45;
-  --ok-soft: #e3f1e7;
-  --cover-shadow: rgba(60, 40, 20, 0.2);
-  --display-face: var(--font-fraunces);
-  --tone-loan: #b4532a;
-  --tone-collection: #3e4a7a;
-  --tone-smart: #4b6a2a;
 }
 
 [data-layout="shelf"] {

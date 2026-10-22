@@ -26,7 +26,7 @@ export type SettingsSection = {
 
 const layoutHint: Record<Layout, string> = {
   classic: "Tre colonne: collezioni, elenco e scheda del libro",
-  gallery: "Copertine in primo piano, toni caldi",
+  gallery: "Come la classica, con le copertine in griglia",
   shelf: "Tema scuro con carosello e scheda sotto",
 };
 
