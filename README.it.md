@@ -114,5 +114,8 @@ Le rotte di lettura chiedono un lettore, quelle che modificano i libri un biblio
 ### Test
 
 ```bash
-npm test
+npm test            # test unitari (Vitest)
+npm run test:e2e    # test end-to-end (Playwright) sul Supabase locale, eseguiti anche in CI a ogni push e PR
 ```
+
+Per i test end-to-end vedi [docs/local-development.it.md](docs/local-development.it.md#9-test-end-to-end-playwright).

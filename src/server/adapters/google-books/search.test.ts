@@ -86,6 +86,13 @@ describe("googleBooksSource", () => {
     expect(new Headers(init.headers).get("referer")).toBe("https://libri.example/");
   });
 
+  it("usa la radice dell'API indicata, per esempio un finto server nei test e2e", async () => {
+    const fetchImpl = fakeFetch({ items: [] });
+    await googleBooksSource({ fetch: fetchImpl, baseUrl: "http://127.0.0.1:4010/google/" }).search({ field: "any", text: "rosa", limit: 5 });
+    const url = new URL(String((fetchImpl.mock.calls[0] as unknown[])[0]));
+    expect(`${url.origin}${url.pathname}`).toBe("http://127.0.0.1:4010/google/books/v1/volumes");
+  });
+
   it("usa la sintassi di Google per i campi", () => {
     expect(toGoogleQuery({ field: "title", text: "Dune", limit: 1 })).toBe("intitle:Dune");
     expect(toGoogleQuery({ field: "author", text: "Eco", limit: 1 })).toBe("inauthor:Eco");

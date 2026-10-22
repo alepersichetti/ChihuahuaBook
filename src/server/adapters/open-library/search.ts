@@ -23,6 +23,8 @@ const responseSchema = z.object({ docs: z.array(z.unknown()) });
 
 type Doc = z.infer<typeof docSchema>;
 
+export const openLibraryUrl = "https://openlibrary.org/";
+
 const fields = Object.keys(docSchema.shape).join(",");
 
 const applyQuery = (url: URL, { field, text }: BookSearchQuery) => {
@@ -70,12 +72,12 @@ export const toSearchHit =
 
 /** Ricerca su Open Library (search.json): gratuita e senza chiave. */
 export const openLibrarySource = (
-  options: { readonly fetch?: typeof fetch } = {},
+  options: { readonly fetch?: typeof fetch; readonly baseUrl?: string } = {},
 ): SearchSource => ({
   id: "open_library",
   label: "Open Library",
   search: (query) => {
-    const url = new URL("https://openlibrary.org/search.json");
+    const url = new URL("search.json", options.baseUrl ?? openLibraryUrl);
     applyQuery(url, query);
     url.searchParams.set("limit", String(query.limit));
     url.searchParams.set("fields", fields);

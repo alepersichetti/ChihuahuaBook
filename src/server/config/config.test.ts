@@ -12,6 +12,20 @@ describe("readConfig", () => {
     ).toEqual({ supabaseUrl: "https://a.supabase.co", supabaseKey: "anon" });
   });
 
+  it("legge gli indirizzi alternativi dei cataloghi, sempre con la barra finale", () => {
+    expect(
+      readConfig({
+        SUPABASE_URL: "https://a.supabase.co",
+        SUPABASE_PUBLISHABLE_KEY: "key",
+        GOOGLE_BOOKS_API_URL: "http://127.0.0.1:4010/google",
+        OPEN_LIBRARY_URL: "http://127.0.0.1:4010/openlibrary/",
+      })._unsafeUnwrap(),
+    ).toMatchObject({
+      googleBooksUrl: "http://127.0.0.1:4010/google/",
+      openLibraryUrl: "http://127.0.0.1:4010/openlibrary/",
+    });
+  });
+
   it("segnala la configurazione mancante", () => {
     expect(readConfig({}).isErr()).toBe(true);
   });

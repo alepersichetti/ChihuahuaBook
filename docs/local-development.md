@@ -338,12 +338,79 @@ Without Supabase configuration a production build answers `503` on every page: t
 | `npm run dev:all` | database and server together (see the [quick start](#quick-start-everything-with-one-command)) |
 | `npm test` | unit tests with Vitest (no database or network needed) |
 | `npm run test:watch` | same, rerun on every change |
+| `npm run test:e2e` | end-to-end tests with Playwright against the local Supabase (see [step 9](#9-end-to-end-tests-playwright)) |
 | `npm run lint` | ESLint, including the boundaries between `core`, `adapters`, `http` and Next |
 | `npm run typecheck` | type checking with `tsc` |
 | `npm run build` | production build |
 | `psql ... -f supabase/tests/roles.test.sql` | the RLS tests (see 3.4) |
 
 `typecheck` needs the types Next generates (`LayoutProps` and the like): they appear after `npm run dev` or `npm run build`. On a fresh clone run `npx next typegen` first, otherwise `tsc` reports `Cannot find name 'LayoutProps'`.
+
+## 9. End-to-end tests (Playwright)
+
+The tests in `e2e/` drive the app in a real browser (Chromium), the way a person would, against the local Supabase. They cover:
+
+| File | What it tests |
+| --- | --- |
+| `auth.setup.ts` | the first user signs up, confirms the email from Mailpit and becomes administrator; librarian and reader sign in with their password; a wrong password doesn't get in |
+| `add-book.spec.ts` | adding a book by hand, from Google Books and from Open Library (including a search with no results), checking what was saved in the database |
+| `collections.spec.ts` | new collection, a book dragged onto a collection, a collection dragged into a folder and moved out from the menu, collections from the book details |
+| `import.spec.ts` | importing a zipped `.pedia` with a cover; importing the same file again creates no duplicates |
+| `roles.spec.ts` | what reader, librarian and administrator see (also when calling the API), promotion to librarian, confirmation for administrator, invitations, language |
+
+### 9.1 Running them
+
+With Docker running, the first time install Playwright's browser:
+
+```bash
+npx playwright install chromium     # on Linux: npx playwright install --with-deps chromium
+npm run test:e2e
+```
+
+`npm run test:e2e` (`scripts/e2e.mjs`):
+
+1. starts the local Supabase if it's stopped (like `dev:all`);
+2. **resets the database** (`npx supabase db reset`), because the first registered user becomes administrator and the tests start from a fresh instance;
+3. runs `playwright test`, which builds the app for production and serves it on <http://127.0.0.1:3100>, together with a fake server for Google Books and Open Library (`e2e/mock-sources.mjs`) on `127.0.0.1:4010`: the tests never use the real catalogues or a Google key;
+4. at the end stops Supabase, if it started it.
+
+The ports differ from `npm run dev:all`, so the tests run even with the development server up.
+
+If the local database already has users, the script stops instead of deleting them. To reset it anyway:
+
+```bash
+npm run test:e2e -- --reset
+```
+
+Other arguments go to Playwright:
+
+```bash
+npm run test:e2e -- --ui                     # Playwright's UI, step by step
+npm run test:e2e -- --headed                 # visible browser
+npm run test:e2e -- e2e/import.spec.ts       # a single file (the user setup always runs first)
+E2E_DEV=1 npm run test:e2e                   # next dev instead of the build: faster while writing tests
+npx playwright show-report                   # HTML report of the last run
+```
+
+With Supabase already running and a freshly reset database you can also run `npx playwright test` directly: it reads URLs and keys from `npx supabase status`.
+
+When a test fails, `test-results/` holds a screenshot and a trace (`npx playwright show-trace test-results/.../trace.zip`).
+
+### 9.2 How they work
+
+- The test users are in `e2e/support/users.ts`. The administrator goes through the real sign-up; the others are created with the local Supabase service key (`e2e/support/supabase.ts`), so no more emails are needed: the local Supabase sends at most 2 per hour.
+- The sessions saved by the setup (`e2e/.auth/`, ignored by Git) are reused by the other tests with `test.use({ storageState })`.
+- Tests run one at a time (`workers: 1`): they share the same database.
+- For the app, the fake catalogues are just two environment variables: `GOOGLE_BOOKS_API_URL` and `OPEN_LIBRARY_URL` (never set in production).
+
+### 9.3 In CI
+
+`.github/workflows/ci.yml` runs on every push to `main` and on every pull request, with two jobs:
+
+- **Lint, types, unit tests and build** (`Lint, tipi, test unitari e build`): `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`;
+- **E2E tests** (`Test e2e (Playwright)`): installs Chromium and runs `npm run test:e2e` on the runner, where Supabase runs in Docker. The Playwright report (with traces of failed tests) stays among the run's artifacts for 14 days.
+
+To block merging a pull request with failing tests, on GitHub: Settings → Branches → rule for `main` → "Require status checks to pass" with both jobs.
 
 ## Common problems
 
@@ -357,4 +424,6 @@ Without Supabase configuration a production build answers `503` on every page: t
 - **`500 misconfigured` from the APIs**: `.env.local` is missing the URL or the key, or the server wasn't restarted.
 - **Google Books returns no results or a quota error**: set `GOOGLE_BOOKS_API_KEY` in `.env.local` and restart, or use Open Library.
 - **Something doesn't compile after a `git pull`**: run `npm ci` again; if new migrations arrived, `npx supabase migration up` (or `db reset`).
+- **`npm run test:e2e` says the database already has data**: the tests reset it and the script won't do that without permission. Run `npm run test:e2e -- --reset` (you lose local users and books).
+- **E2E tests fail with `Executable doesn't exist`**: Playwright's browser is missing, run `npx playwright install chromium`.
 - **`AGENTS.md` appears after `npm run dev`**: Next 16 generates it on startup. It isn't part of the repo: delete it or leave it uncommitted.
