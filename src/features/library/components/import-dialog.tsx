@@ -8,6 +8,8 @@ import { matchCovers, type CoverMatch } from "../../import/covers";
 import { saveImport, type SaveOutcome, type SaveProgress } from "../../import/save";
 import { toLibraryBook } from "../../import/to-library";
 import { parsePediaXml } from "../../import/xml";
+import { useT } from "../../i18n/i18n-context";
+import type { Messages } from "../../i18n/messages";
 import { useLibrary } from "./library-context";
 
 type Preview = {
@@ -28,19 +30,15 @@ type Stage =
 const pick: Stage = { kind: "pick", problem: null };
 
 /** Dal bundle all'anteprima: niente viene ancora salvato. */
-const buildPreview = async (files: readonly BundleFile[]): Promise<Preview | string> => {
+const buildPreview = async (files: readonly BundleFile[], t: Messages): Promise<Preview | string> => {
   const bundle = await readBundle(files);
-  if (!bundle.xml) {
-    return "Nel file non c'è nessun XML: scegli la cartella .pedia completa o il suo zip.";
-  }
+  if (!bundle.xml) return t.importer.noXml;
   const parsed = parsePediaXml(await bundle.xml.blob.text());
-  if (parsed.isErr()) return `Non riesco a leggere ${bundle.xml.path}: ${parsed.error}`;
-  if (parsed.value.records.length === 0) return `In ${bundle.xml.path} non ho trovato schede di libri.`;
+  if (parsed.isErr()) return t.importer.unreadable(bundle.xml.path, parsed.error);
+  if (parsed.value.records.length === 0) return t.importer.noRecords(bundle.xml.path);
   const { books, errors } = mapPediaRecords(parsed.value.records);
   return { bundle, format: parsed.value.format, books, errors, covers: matchCovers(books, bundle.images) };
 };
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 function Notice({ tone, children }: { tone: "ok" | "warn"; children: ReactNode }) {
   const Icon = tone === "ok" ? CheckCircle2 : AlertTriangle;
@@ -53,6 +51,7 @@ function Notice({ tone, children }: { tone: "ok" | "warn"; children: ReactNode }
 }
 
 function Problems({ summary, items }: { summary: string; items: readonly { title: string | null; message: string }[] }) {
+  const t = useT();
   if (items.length === 0) return null;
   return (
     <details className="rounded-lg border border-line bg-panel px-3 py-2 text-sm">
@@ -60,7 +59,7 @@ function Problems({ summary, items }: { summary: string; items: readonly { title
       <ul className="mt-2 flex max-h-40 flex-col gap-1 overflow-auto text-xs text-muted">
         {items.map((item, index) => (
           <li key={index}>
-            <span className="font-semibold text-ink">{item.title ?? "Senza titolo"}</span>: {item.message}
+            <span className="font-semibold text-ink">{item.title ?? t.importer.untitled}</span>: {item.message}
           </li>
         ))}
       </ul>
@@ -70,28 +69,30 @@ function Problems({ summary, items }: { summary: string; items: readonly { title
 
 function PreviewSummary({ preview }: { preview: Preview }) {
   const { books, errors, covers, bundle } = preview;
+  const t = useT();
   return (
     <div className="flex flex-col gap-2">
       <Notice tone="ok">
-        {plural(books.length, "libro pronto", "libri pronti")} da importare da «{bundle.name}».
+        {t.importer.ready(books.length, bundle.name)}
       </Notice>
       {covers.method === "none" ? (
         bundle.images.length > 0 && (
           <Notice tone="warn">
-            Ho trovato {plural(bundle.images.length, "immagine", "immagini")} ma non riesco ad abbinarle ai libri.
+            {t.importer.unmatchedImages(bundle.images.length)}
           </Notice>
         )
       ) : (
         <Notice tone={covers.method === "name" ? "ok" : "warn"}>
-          {plural(covers.bySourceId.size, "copertina abbinata", "copertine abbinate")}
-          {covers.method === "position" && " in base alla numerazione dei file: controlla qualche libro dopo l'import"}.
+          {covers.method === "position"
+            ? t.importer.coversByPosition(covers.bySourceId.size)
+            : t.importer.coversMatched(covers.bySourceId.size)}
         </Notice>
       )}
       <Problems
-        summary={`${plural(errors.length, "scheda scartata", "schede scartate")}`}
+        summary={t.importer.discarded(errors.length)}
         items={errors.map((error) => ({
-          title: error.title ?? `Scheda ${error.index + 1}`,
-          message: error.issues.map((issue) => `${issue.path || "scheda"}: ${issue.message}`).join("; "),
+          title: error.title ?? t.importer.record(error.index + 1),
+          message: error.issues.map((issue) => `${issue.path || t.importer.recordField}: ${issue.message}`).join("; "),
         }))}
       />
     </div>
@@ -99,12 +100,13 @@ function PreviewSummary({ preview }: { preview: Preview }) {
 }
 
 function ProgressBar({ progress }: { progress: SaveProgress | null }) {
+  const t = useT();
   const ratio = progress && progress.total > 0 ? progress.done / progress.total : 0;
   const label = !progress
-    ? "Preparazione…"
+    ? t.importer.preparing
     : progress.phase === "books"
-      ? `Salvo i libri: ${progress.done} di ${progress.total}`
-      : `Carico le copertine: ${progress.done} di ${progress.total}`;
+      ? t.importer.savingBooks(progress.done, progress.total)
+      : t.importer.uploadingCovers(progress.done, progress.total);
   return (
     <div className="flex flex-col gap-2">
       <div className="text-sm text-ink-soft">{label}</div>
@@ -122,25 +124,30 @@ function ProgressBar({ progress }: { progress: SaveProgress | null }) {
 }
 
 function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveOutcome }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-2">
       <Notice tone="ok">
-        {plural(preview.books.length, "libro aggiunto", "libri aggiunti")} alla collezione «{preview.bundle.name}».
+        {t.importer.added(preview.books.length, preview.bundle.name)}
       </Notice>
       {outcome.kind === "unavailable" ? (
         <Notice tone="warn">
-          Non salvati sul server: {outcome.message} Per ora li vedi solo in questa scheda del browser.
+          {t.importer.notSaved(
+            outcome.reason === "unauthenticated"
+              ? t.importer.needSignIn
+              : outcome.reason === "misconfigured"
+                ? t.importer.misconfigured
+                : outcome.message,
+          )}
         </Notice>
       ) : (
         <>
           <Notice tone="ok">
-            Sul server: {plural(outcome.created, "nuovo", "nuovi")}, {plural(outcome.updated, "aggiornato", "aggiornati")}
-            {outcome.skipped > 0 && `, ${plural(outcome.skipped, "già presente lasciato", "già presenti lasciati")} com'era`}
-            ; {plural(outcome.coversUploaded, "copertina caricata", "copertine caricate")}.
+            {t.importer.serverOutcome(outcome.created, outcome.updated, outcome.skipped, outcome.coversUploaded)}
           </Notice>
-          <Problems summary={plural(outcome.problems.length, "libro non salvato", "libri non salvati")} items={outcome.problems} />
+          <Problems summary={t.importer.booksNotSaved(outcome.problems.length)} items={outcome.problems} />
           <Problems
-            summary={plural(outcome.coverProblems.length, "copertina non caricata", "copertine non caricate")}
+            summary={t.importer.coversNotUploaded(outcome.coverProblems.length)}
             items={outcome.coverProblems}
           />
         </>
@@ -151,6 +158,7 @@ function OutcomeSummary({ preview, outcome }: { preview: Preview; outcome: SaveO
 
 export function ImportDialog() {
   const { state, dispatch } = useLibrary();
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const folderInput = useRef<HTMLInputElement>(null);
   const [stage, setStage] = useState<Stage>(pick);
@@ -177,12 +185,12 @@ export function ImportDialog() {
   const load = (files: Promise<readonly BundleFile[]>) => {
     setStage({ kind: "reading" });
     files
-      .then(buildPreview)
+      .then((list) => buildPreview(list, t))
       .then((result) =>
         setStage(typeof result === "string" ? { kind: "pick", problem: result } : { kind: "preview", preview: result }),
       )
       .catch((cause: unknown) =>
-        setStage({ kind: "pick", problem: `Lettura non riuscita: ${cause instanceof Error ? cause.message : String(cause)}` }),
+        setStage({ kind: "pick", problem: t.importer.readFailed(cause instanceof Error ? cause.message : String(cause)) }),
       );
   };
 
@@ -234,9 +242,9 @@ export function ImportDialog() {
         <div className="flex items-center justify-between">
           <h2 id="import-title" className="flex items-center gap-2 text-lg font-semibold">
             <Upload size={20} className="text-accent" aria-hidden="true" />
-            Importa da Bookpedia
+            {t.importer.title}
           </h2>
-          <button type="button" aria-label="Chiudi" onClick={close} disabled={busy} className="rounded-lg p-1.5 text-muted hover:bg-chip disabled:opacity-40">
+          <button type="button" aria-label={t.common.close} onClick={close} disabled={busy} className="rounded-lg p-1.5 text-muted hover:bg-chip disabled:opacity-40">
             <X size={18} />
           </button>
         </div>
@@ -255,14 +263,16 @@ export function ImportDialog() {
               }`}
             >
               <p className="text-ink-soft">
-                Trascina qui il file <strong>.pedia</strong> esportato da Bookpedia,
+                {t.importer.dropBefore}
+                <strong>.pedia</strong>
+                {t.importer.dropAfter}
                 <br />
-                oppure lo zip che lo contiene.
+                {t.importer.dropZip}
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 <label className={`${button} cursor-pointer border border-line-strong bg-surface hover:bg-chip`}>
                   <FolderOpen size={16} aria-hidden="true" />
-                  Scegli la cartella
+                  {t.importer.chooseFolder}
                   <input
                     ref={folderInput}
                     type="file"
@@ -273,7 +283,7 @@ export function ImportDialog() {
                 </label>
                 <label className={`${button} cursor-pointer border border-line-strong bg-surface hover:bg-chip`}>
                   <FileArchive size={16} aria-hidden="true" />
-                  Scegli zip o XML
+                  {t.importer.chooseFile}
                   <input
                     type="file"
                     accept=".zip,.xml,.plist,application/zip,text/xml"
@@ -284,8 +294,7 @@ export function ImportDialog() {
               </div>
             </div>
             <p className="text-xs text-muted">
-              Sul Mac un .pedia è un pacchetto: se il selettore non lo apre, trascinalo qui oppure comprimilo
-              (tasto destro, «Comprimi») e scegli lo zip. Il file viene letto nel browser.
+              {t.importer.macHint}
             </p>
             {stage.problem && <Notice tone="warn">{stage.problem}</Notice>}
           </>
@@ -294,7 +303,7 @@ export function ImportDialog() {
         {stage.kind === "reading" && (
           <p className="flex items-center gap-2 text-sm text-ink-soft">
             <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-            Leggo il file…
+            {t.importer.reading}
           </p>
         )}
 
@@ -309,10 +318,8 @@ export function ImportDialog() {
                 className="mt-0.5"
               />
               <span>
-                Aggiorna i libri già importati in passato
-                <span className="block text-xs text-muted">
-                  Se togli la spunta, quelli già presenti restano come sono. In nessun caso si creano doppioni.
-                </span>
+                {t.importer.updateExisting}
+                <span className="block text-xs text-muted">{t.importer.updateExistingHint}</span>
               </span>
             </label>
           </>
@@ -326,7 +333,7 @@ export function ImportDialog() {
           {stage.kind === "preview" && (
             <>
               <button type="button" onClick={() => setStage(pick)} className={`${button} border border-line-strong`}>
-                Indietro
+                {t.common.back}
               </button>
               <button
                 type="button"
@@ -334,17 +341,17 @@ export function ImportDialog() {
                 onClick={() => start(stage.preview)}
                 className={`${button} bg-accent font-semibold text-accent-ink disabled:opacity-50`}
               >
-                Importa {plural(stage.preview.books.length, "libro", "libri")}
+                {t.importer.importBooks(stage.preview.books.length)}
               </button>
             </>
           )}
           {stage.kind === "done" && (
             <>
               <button type="button" onClick={() => setStage(pick)} className={`${button} border border-line-strong`}>
-                Importa un altro file
+                {t.importer.another}
               </button>
               <button type="button" onClick={close} className={`${button} bg-accent font-semibold text-accent-ink`}>
-                Fatto
+                {t.common.done}
               </button>
             </>
           )}

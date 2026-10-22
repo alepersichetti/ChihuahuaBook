@@ -16,8 +16,10 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { loadSources, saveBook, searchOnline, sourceDescriptions, type SaveResult } from "../../add-book/api";
+import { loadSources, saveBook, searchOnline, type ApiError, type SaveResult } from "../../add-book/api";
 import { emptyForm, formFromDraft, toLibraryBook, validateForm, type BookForm, type FormIssues } from "../../add-book/form";
+import { useT } from "../../i18n/i18n-context";
+import type { Messages } from "../../i18n/messages";
 import { useLibrary } from "./library-context";
 import { SourceIcon } from "./source-icons";
 
@@ -35,23 +37,14 @@ type SearchState =
   | { readonly kind: "idle" }
   | { readonly kind: "loading" }
   | { readonly kind: "results"; readonly hits: readonly SearchHit[] }
-  | { readonly kind: "error"; readonly message: string };
+  | { readonly kind: "error"; readonly error: ApiError };
 
 const choose: Stage = { kind: "choose" };
 
-const fieldLabels: Readonly<Record<SearchField, string>> = {
-  any: "Tutto",
-  isbn: "ISBN",
-  title: "Titolo",
-  author: "Autore",
-};
+const searchFields: readonly SearchField[] = ["any", "isbn", "title", "author"];
 
-const placeholders: Readonly<Record<SearchField, string>> = {
-  any: "Titolo, autore o ISBN",
-  isbn: "Es. 978-88-452-9261-3",
-  title: "Es. Il nome della rosa",
-  author: "Es. Umberto Eco",
-};
+const errorText = (t: Messages, error: ApiError) =>
+  error.kind === "server" ? t.addBook.errors.server(error.status) : t.addBook.errors[error.kind];
 
 const button = "flex h-10 items-center justify-center gap-2 rounded-lg px-4";
 const input =
@@ -108,13 +101,14 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
   const [field, setField] = useState<SearchField>("any");
   const [text, setText] = useState("");
   const [search, setSearch] = useState<SearchState>({ kind: "idle" });
+  const t = useT();
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     if (!text.trim()) return;
     setSearch({ kind: "loading" });
     searchOnline({ source: source.id, field, text }).then((result) =>
-      setSearch(result.ok ? { kind: "results", hits: result.value } : { kind: "error", message: result.message }),
+      setSearch(result.ok ? { kind: "results", hits: result.value } : { kind: "error", error: result.error }),
     );
   };
 
@@ -122,22 +116,22 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
     <div className="flex flex-col gap-3">
       <form onSubmit={submit} className="flex flex-col gap-2 sm:flex-row">
         <select
-          aria-label="Cerca in"
+          aria-label={t.addBook.searchIn}
           value={field}
           onChange={(event) => setField(event.target.value as SearchField)}
           className={`${input} sm:w-28`}
         >
-          {Object.entries(fieldLabels).map(([value, label]) => (
+          {searchFields.map((value) => (
             <option key={value} value={value}>
-              {label}
+              {t.addBook.fields[value]}
             </option>
           ))}
         </select>
         <input
           type="search"
           autoFocus
-          aria-label="Testo da cercare"
-          placeholder={placeholders[field]}
+          aria-label={t.addBook.searchText}
+          placeholder={t.addBook.placeholders[field]}
           value={text}
           onChange={(event) => setText(event.target.value)}
           className={input}
@@ -148,19 +142,19 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
           className={`${button} shrink-0 bg-accent font-semibold text-accent-ink disabled:opacity-50`}
         >
           <Search size={16} aria-hidden="true" />
-          Cerca
+          {t.addBook.search}
         </button>
       </form>
 
       {search.kind === "loading" && (
         <p className="flex items-center gap-2 text-sm text-ink-soft">
           <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-          Cerco su {source.label}…
+          {t.addBook.searching(source.label)}
         </p>
       )}
-      {search.kind === "error" && <Notice tone="warn">{search.message}</Notice>}
+      {search.kind === "error" && <Notice tone="warn">{errorText(t, search.error)}</Notice>}
       {search.kind === "results" && search.hits.length === 0 && (
-        <Notice tone="warn">Nessun risultato su {source.label}. Prova con meno parole o un altro campo.</Notice>
+        <Notice tone="warn">{t.addBook.noResults(source.label)}</Notice>
       )}
       {search.kind === "results" && search.hits.length > 0 && (
         <ul className="flex max-h-[min(420px,50dvh)] flex-col divide-y divide-line overflow-auto rounded-xl border border-line">
@@ -184,7 +178,7 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
                     href={hit.link}
                     target="_blank"
                     rel="noreferrer"
-                    aria-label={`Apri su ${source.label}`}
+                    aria-label={t.addBook.openOn(source.label)}
                     className="rounded-lg p-2 text-muted hover:bg-chip"
                   >
                     <ExternalLink size={16} />
@@ -195,7 +189,7 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
                   onClick={() => onPick(hit)}
                   className="h-9 rounded-lg border border-line-strong bg-surface px-3 text-sm font-medium hover:bg-chip"
                 >
-                  Usa
+                  {t.addBook.use}
                 </button>
               </div>
             </li>
@@ -204,7 +198,7 @@ function SearchPanel({ source, onPick }: { source: SourceInfo; onPick: (hit: Sea
       )}
       {search.kind === "idle" && (
         <p className="text-xs text-muted">
-          Scegli un risultato: potrai controllare e correggere i dati prima di salvare.
+          {t.addBook.pickHint}
         </p>
       )}
     </div>
@@ -244,8 +238,11 @@ function BookFormPanel({
   duplicate: string | null;
   onChange: (form: BookForm) => void;
 }) {
-  const text = (key: keyof BookForm, label: string, options: { wide?: boolean; inputMode?: "numeric" } = {}) => (
-    <Field label={label} issue={issues[key]} wide={options.wide}>
+  const t = useT();
+  const issueOf = (key: keyof BookForm) =>
+    issues.includes(key) ? (key === "title" ? t.addBook.titleRequired : t.addBook.invalidValue) : undefined;
+  const text = (key: Exclude<keyof BookForm, "summary">, options: { wide?: boolean; inputMode?: "numeric" } = {}) => (
+    <Field label={t.addBook.form[key]} issue={issueOf(key)} wide={options.wide}>
       <input
         value={form[key]}
         inputMode={options.inputMode}
@@ -259,27 +256,27 @@ function BookFormPanel({
       {origin && (
         <p className="flex items-center gap-2 text-xs text-muted">
           <Sparkles size={14} className="text-accent" aria-hidden="true" />
-          Dati compilati da {origin.source.label}: controlla e correggi se serve.
+          {t.addBook.filledBy(origin.source.label)}
         </p>
       )}
-      {duplicate && <Notice tone="warn">Nella libreria c&apos;è già «{duplicate}» con questo ISBN.</Notice>}
+      {duplicate && <Notice tone="warn">{t.addBook.duplicate(duplicate)}</Notice>}
       <div className="flex gap-4">
         <Thumb url={form.coverUrl || null} />
         <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
-          {text("title", "Titolo *", { wide: true })}
-          {text("subtitle", "Sottotitolo", { wide: true })}
+          {text("title", { wide: true })}
+          {text("subtitle", { wide: true })}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {text("authors", "Autori (separati da virgola)", { wide: true })}
-        {text("publisher", "Editore")}
-        {text("year", "Anno", { inputMode: "numeric" })}
-        {text("isbn", "ISBN")}
-        {text("pages", "Pagine", { inputMode: "numeric" })}
-        {text("language", "Lingua")}
-        {text("genres", "Generi (separati da virgola)")}
-        {text("coverUrl", "Indirizzo della copertina", { wide: true })}
-        <Field label="Trama" issue={issues.summary} wide>
+        {text("authors", { wide: true })}
+        {text("publisher")}
+        {text("year", { inputMode: "numeric" })}
+        {text("isbn")}
+        {text("pages", { inputMode: "numeric" })}
+        {text("language")}
+        {text("genres")}
+        {text("coverUrl", { wide: true })}
+        <Field label={t.addBook.form.summary} issue={issueOf("summary")} wide>
           <textarea
             rows={4}
             value={form.summary}
@@ -292,20 +289,28 @@ function BookFormPanel({
   );
 }
 
-const titles: Readonly<Record<Stage["kind"], string>> = {
-  choose: "Aggiungi un libro",
-  source: "Compilazione automatica",
-  search: "Cerca il libro",
-  form: "Dati del libro",
-  saving: "Dati del libro",
-  done: "Libro aggiunto",
+const titleOf = (t: Messages, kind: Stage["kind"]) => {
+  switch (kind) {
+    case "choose":
+      return t.addBook.title;
+    case "source":
+      return t.addBook.automatic;
+    case "search":
+      return t.addBook.searchTitle;
+    case "form":
+    case "saving":
+      return t.addBook.formTitle;
+    case "done":
+      return t.addBook.doneTitle;
+  }
 };
 
 export function AddBookDialog() {
   const { state, dispatch } = useLibrary();
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const [stage, setStage] = useState<Stage>(choose);
-  const [issues, setIssues] = useState<FormIssues>({});
+  const [issues, setIssues] = useState<FormIssues>([]);
   const [problem, setProblem] = useState<string | null>(null);
 
   useEffect(() => {
@@ -314,7 +319,7 @@ export function AddBookDialog() {
   }, [state.addOpen]);
 
   const go = (next: Stage) => {
-    setIssues({});
+    setIssues([]);
     setProblem(null);
     setStage(next);
   };
@@ -366,7 +371,7 @@ export function AddBookDialog() {
         go({ kind: "done", title: checked.book.title, result });
       } else {
         setStage({ kind: "form", form, origin, back: backTo });
-        setProblem(`Salvataggio non riuscito: ${result.message}`);
+        setProblem(t.addBook.saveFailed(errorText(t, result.error)));
       }
     });
   };
@@ -389,13 +394,13 @@ export function AddBookDialog() {
       <div className="flex flex-col gap-4 p-6">
         <div className="flex items-center gap-2">
           {previous && (
-            <button type="button" aria-label="Indietro" onClick={goBack} className="rounded-lg p-1.5 text-muted hover:bg-chip">
+            <button type="button" aria-label={t.common.back} onClick={goBack} className="rounded-lg p-1.5 text-muted hover:bg-chip">
               <ArrowLeft size={18} />
             </button>
           )}
           <h2 id="add-book-title" className="mr-auto flex items-center gap-2 text-lg font-semibold">
             <BookPlus size={20} className="text-accent" aria-hidden="true" />
-            {titles[stage.kind]}
+            {titleOf(t, stage.kind)}
             {stage.kind === "search" && (
               <span className="flex items-center gap-1.5 font-normal text-muted">
                 · <SourceIcon id={stage.source.id} size={16} /> {stage.source.label}
@@ -404,7 +409,7 @@ export function AddBookDialog() {
           </h2>
           <button
             type="button"
-            aria-label="Chiudi"
+            aria-label={t.common.close}
             onClick={close}
             disabled={stage.kind === "saving"}
             className="rounded-lg p-1.5 text-muted hover:bg-chip disabled:opacity-40"
@@ -415,17 +420,17 @@ export function AddBookDialog() {
 
         {stage.kind === "choose" && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-ink-soft">Come vuoi inserire il libro?</p>
+            <p className="text-sm text-ink-soft">{t.addBook.how}</p>
             <ChoiceCard
               icon={<PenLine size={20} />}
-              title="Inserimento manuale"
-              text="Compili tu i campi, partendo da un modulo vuoto."
+              title={t.addBook.manual}
+              text={t.addBook.manualHint}
               onClick={() => go({ kind: "form", form: emptyForm, origin: null, back: choose })}
             />
             <ChoiceCard
               icon={<Sparkles size={20} />}
-              title="Compilazione automatica"
-              text="Cerchi il libro per titolo, autore o ISBN in un catalogo online e ne importi dati e copertina."
+              title={t.addBook.automatic}
+              text={t.addBook.automaticHint}
               onClick={openSources}
             />
           </div>
@@ -433,11 +438,11 @@ export function AddBookDialog() {
 
         {stage.kind === "source" && (
           <div className="flex flex-col gap-3">
-            <p className="text-sm text-ink-soft">Da quale catalogo prendo i dati?</p>
+            <p className="text-sm text-ink-soft">{t.addBook.whichSource}</p>
             {stage.sources === null ? (
               <p className="flex items-center gap-2 text-sm text-ink-soft">
                 <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                Carico le fonti…
+                {t.addBook.loadingSources}
               </p>
             ) : (
               stage.sources.map((source) => (
@@ -445,7 +450,7 @@ export function AddBookDialog() {
                   key={source.id}
                   icon={<SourceIcon id={source.id} />}
                   title={source.label}
-                  text={sourceDescriptions[source.id] ?? "Catalogo online."}
+                  text={t.addBook.sources[source.id] ?? t.addBook.otherSource}
                   onClick={() => go({ kind: "search", source })}
                 />
               ))
@@ -477,11 +482,9 @@ export function AddBookDialog() {
 
         {stage.kind === "done" && (
           <div className="flex flex-col gap-2">
-            <Notice tone="ok">«{stage.title}» è nella libreria.</Notice>
+            <Notice tone="ok">{t.addBook.added(stage.title)}</Notice>
             {stage.result.kind === "local" && (
-              <Notice tone="warn">
-                Non salvato sul server: {stage.result.message} Per ora lo vedi solo in questa scheda del browser.
-              </Notice>
+              <Notice tone="warn">{t.addBook.notSaved(errorText(t, stage.result.error))}</Notice>
             )}
           </div>
         )}
@@ -495,16 +498,16 @@ export function AddBookDialog() {
               className={`${button} bg-accent font-semibold text-accent-ink disabled:opacity-60`}
             >
               {stage.kind === "saving" && <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />}
-              Salva nella libreria
+              {t.addBook.saveToLibrary}
             </button>
           )}
           {stage.kind === "done" && (
             <>
               <button type="button" onClick={() => go(choose)} className={`${button} border border-line-strong`}>
-                Aggiungi un altro
+                {t.addBook.another}
               </button>
               <button type="button" onClick={close} className={`${button} bg-accent font-semibold text-accent-ink`}>
-                Fatto
+                {t.common.done}
               </button>
             </>
           )}

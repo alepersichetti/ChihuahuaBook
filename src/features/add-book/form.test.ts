@@ -31,13 +31,9 @@ describe("modulo libro", () => {
     });
   });
 
-  it("segnala i campi sbagliati con i messaggi dello schema", () => {
-    expect(validateForm(emptyForm)).toEqual({ ok: false, issues: { title: "Il titolo è obbligatorio" } });
-    expect(validateForm({ ...emptyForm, title: "X", isbn: "123" })).toEqual({
-      ok: false,
-      issues: { isbn: "ISBN non valido" },
-    });
-    const pages = validateForm({ ...emptyForm, title: "X", pages: "abc" });
-    expect(pages.ok ? null : Object.keys(pages.issues)).toEqual(["pages"]);
+  it("segnala i campi da correggere", () => {
+    expect(validateForm(emptyForm)).toEqual({ ok: false, issues: ["title"] });
+    expect(validateForm({ ...emptyForm, title: "X", isbn: "123" })).toEqual({ ok: false, issues: ["isbn"] });
+    expect(validateForm({ ...emptyForm, title: "X", pages: "abc" })).toEqual({ ok: false, issues: ["pages"] });
   });
 });

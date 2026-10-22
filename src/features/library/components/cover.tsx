@@ -1,4 +1,6 @@
 import Image from "next/image";
+import type { Messages } from "../../i18n/messages";
+import { useT } from "../../i18n/i18n-context";
 import type { Book } from "../model";
 import type { LoanState } from "../query";
 
@@ -24,17 +26,17 @@ const hash = (value: string) =>
 
 export const coverColor = (book: Pick<Book, "id">) => coverColors[hash(book.id) % coverColors.length];
 
-export const loanBanner = (state: LoanState) => {
+export const loanBanner = (state: LoanState, t: Messages) => {
   switch (state.kind) {
     case "due":
       return {
         tone: "ok" as const,
-        text: state.daysLeft === 0 ? "Rientra oggi" : `Rientra tra ${state.daysLeft} gg`,
+        text: state.daysLeft === 0 ? t.loans.dueToday : t.loans.dueInShort(state.daysLeft),
       };
     case "overdue":
-      return { tone: "danger" as const, text: `In ritardo di ${state.daysLate} gg` };
+      return { tone: "danger" as const, text: t.loans.lateShort(state.daysLate) };
     case "open":
-      return { tone: "ok" as const, text: `Prestato a ${state.borrower}` };
+      return { tone: "ok" as const, text: t.loans.lentTo(state.borrower) };
     case "none":
       return null;
   }
@@ -55,7 +57,8 @@ const textSize = {
 } as const;
 
 export function Cover({ book, loan, size = "md", className = "" }: CoverProps) {
-  const banner = loan ? loanBanner(loan) : null;
+  const t = useT();
+  const banner = loan ? loanBanner(loan, t) : null;
   const text = textSize[size];
   return (
     <div

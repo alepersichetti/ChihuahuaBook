@@ -2,7 +2,8 @@
 
 import { ArrowDown, ArrowUp, BookMarked, ChevronLeft, ChevronRight, Columns3, HandHelping } from "lucide-react";
 import { useEffect, useRef, type KeyboardEvent } from "react";
-import { columnLabel, readStatusLabel } from "../labels";
+import type { Messages } from "../../i18n/messages";
+import { useI18n, useT } from "../../i18n/i18n-context";
 import { columnKeys, type Book, type ColumnKey } from "../model";
 import { loanState } from "../query";
 import { Cover } from "./cover";
@@ -24,6 +25,7 @@ const useArrowSelection = () => {
 
 function StatusCell({ book }: { book: Book }) {
   const { today } = useLibrary();
+  const t = useT();
   const loan = loanState(book, today);
   return (
     <span className="flex gap-1">
@@ -31,18 +33,18 @@ function StatusCell({ book }: { book: Book }) {
         <HandHelping
           size={16}
           role="img"
-          aria-label={loan.kind === "overdue" ? `In ritardo, prestato a ${loan.borrower}` : `Prestato a ${loan.borrower}`}
+          aria-label={loan.kind === "overdue" ? t.loans.overdueTo(loan.borrower) : t.loans.lentTo(loan.borrower)}
           className={loan.kind === "overdue" ? "text-danger" : "text-tone-loan"}
         />
       )}
       {book.readStatus === "reading" && (
-        <BookMarked size={16} role="img" aria-label="In lettura" className="text-accent" />
+        <BookMarked size={16} role="img" aria-label={t.readStatus.reading} className="text-accent" />
       )}
     </span>
   );
 }
 
-const cellText = (book: Book, column: Exclude<ColumnKey, "rating">) => {
+const cellText = (book: Book, column: Exclude<ColumnKey, "rating">, t: Messages, locale: string) => {
   switch (column) {
     case "title":
       return book.title;
@@ -51,11 +53,11 @@ const cellText = (book: Book, column: Exclude<ColumnKey, "rating">) => {
     case "genres":
       return book.genres.join(", ");
     case "readStatus":
-      return readStatusLabel[book.readStatus];
+      return t.readStatus[book.readStatus];
     case "series":
       return book.series ? `${book.series}${book.seriesNumber ? ` ${book.seriesNumber}` : ""}` : "";
     case "addedAt":
-      return new Date(book.addedAt).toLocaleDateString("it-IT");
+      return new Date(book.addedAt).toLocaleDateString(locale);
     case "publisher":
     case "location":
       return book[column] ?? "";
@@ -67,14 +69,15 @@ const cellText = (book: Book, column: Exclude<ColumnKey, "rating">) => {
 
 function ColumnPicker() {
   const { columns, dispatch } = useLibrary();
+  const t = useT();
   return (
     <details className="relative">
       <summary className="flex h-8 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft">
         <Columns3 size={15} aria-hidden="true" />
-        Colonne
+        {t.library.columns}
       </summary>
       <fieldset className="absolute right-0 z-20 mt-1 flex w-48 flex-col gap-1 rounded-lg border border-line bg-surface p-2 text-sm shadow-lg">
-        <legend className="sr-only">Colonne visibili</legend>
+        <legend className="sr-only">{t.library.visibleColumns}</legend>
         {columnKeys.map((column) => (
           <label key={column} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-chip">
             <input
@@ -84,7 +87,7 @@ function ColumnPicker() {
               onChange={() => dispatch({ type: "toggleColumn", column })}
               className="accent-(--accent)"
             />
-            {columnLabel[column]}
+            {t.columns[column]}
           </label>
         ))}
       </fieldset>
@@ -94,6 +97,7 @@ function ColumnPicker() {
 
 export function BookTable() {
   const { books, columns, sort, selected, dispatch } = useLibrary();
+  const { t, locale } = useI18n();
   const onArrow = useArrowSelection();
   const primary = sort[0];
   return (
@@ -103,7 +107,7 @@ export function BookTable() {
       </div>
       <div
         tabIndex={0}
-        aria-label="Elenco dei libri, frecce per spostarsi"
+        aria-label={t.library.bookListHint}
         onKeyDown={(event) => onArrow(event, { previous: "ArrowUp", next: "ArrowDown" })}
         className="min-h-0 flex-1 overflow-auto px-3 outline-none"
       >
@@ -111,7 +115,7 @@ export function BookTable() {
           <thead className="sticky top-0 bg-bg text-left text-xs text-muted">
             <tr>
               <th className="w-9 border-b border-line p-2">
-                <span className="sr-only">Stato</span>
+                <span className="sr-only">{t.library.status}</span>
               </th>
               {columns.map((column) => {
                 const active = primary?.column === column;
@@ -127,7 +131,7 @@ export function BookTable() {
                       onClick={() => dispatch({ type: "sortBy", column })}
                       className={`flex w-full items-center gap-1 p-2 text-left ${active ? "text-ink" : ""}`}
                     >
-                      {columnLabel[column]}
+                      {t.columns[column]}
                       {active && <Arrow size={12} aria-hidden="true" />}
                     </button>
                   </th>
@@ -153,7 +157,7 @@ export function BookTable() {
                       column === "title" ? "font-medium" : "text-ink-soft"
                     } ${column === "publishedYear" || column === "pages" ? "tabular-nums" : ""}`}
                   >
-                    {column === "rating" ? <Rating rating={book.rating} /> : cellText(book, column)}
+                    {column === "rating" ? <Rating rating={book.rating} /> : cellText(book, column, t, locale)}
                   </td>
                 ))}
               </tr>
@@ -199,6 +203,7 @@ export function BookGrid() {
 
 export function BookCarousel() {
   const { books, selected, today, dispatch } = useLibrary();
+  const t = useT();
   const onArrow = useArrowSelection();
   const track = useRef<HTMLUListElement>(null);
   const index = books.findIndex((book) => book.id === selected?.id);
@@ -216,14 +221,14 @@ export function BookCarousel() {
 
   return (
     <section
-      aria-label="Carosello"
+      aria-label={t.library.carousel}
       tabIndex={0}
       onKeyDown={(event) => onArrow(event, { previous: "ArrowLeft", next: "ArrowRight" })}
       className="relative flex h-[340px] shrink-0 items-center border-b border-line bg-panel outline-none"
     >
       <button
         type="button"
-        aria-label="Libro precedente"
+        aria-label={t.library.previousBook}
         onClick={() => move(-1)}
         className="absolute left-4 z-10 flex size-10 items-center justify-center rounded-full bg-chip text-ink"
       >
@@ -254,7 +259,7 @@ export function BookCarousel() {
       </ul>
       <button
         type="button"
-        aria-label="Libro successivo"
+        aria-label={t.library.nextBook}
         onClick={() => move(1)}
         className="absolute right-4 z-10 flex size-10 items-center justify-center rounded-full bg-chip text-ink"
       >
@@ -266,10 +271,11 @@ export function BookCarousel() {
 
 export function EmptyState() {
   const { state, dispatch } = useLibrary();
+  const t = useT();
   const filtered = state.query !== "" || state.valueFilter !== null;
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center text-muted">
-      <p>{filtered ? "Nessun libro corrisponde alla ricerca." : "Questa collezione è vuota."}</p>
+      <p>{filtered ? t.library.noMatches : t.library.emptyCollection}</p>
       {filtered && (
         <button
           type="button"
@@ -279,7 +285,7 @@ export function EmptyState() {
           }}
           className="rounded-lg border border-line-strong px-3 py-1.5 text-ink"
         >
-          Mostra tutti
+          {t.library.showAll}
         </button>
       )}
     </div>

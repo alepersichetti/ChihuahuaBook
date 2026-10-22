@@ -2,6 +2,7 @@
 
 import { HandHelping } from "lucide-react";
 import { useEffect, useRef, type FormEvent } from "react";
+import { useT } from "../../i18n/i18n-context";
 import type { Book } from "../model";
 import { addDays } from "../query";
 import { useLibrary } from "./library-context";
@@ -11,6 +12,7 @@ export const defaultLoanDays = 30;
 
 export function LoanDialog({ book, onClose }: { book: Book | null; onClose: () => void }) {
   const { dispatch, today } = useLibrary();
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   // Il form esiste solo dopo un clic, quindi qui siamo sempre nel browser.
   const start = book ? (today ?? new Date().toISOString().slice(0, 10)) : "";
@@ -47,28 +49,28 @@ export function LoanDialog({ book, onClose }: { book: Book | null; onClose: () =
         <form key={book.id} onSubmit={submit} className="flex flex-col gap-4 p-6">
           <h2 id="loan-title" className="flex items-center gap-2 text-lg font-semibold">
             <HandHelping size={20} className="text-tone-loan" aria-hidden="true" />
-            Presta «{book.title}»
+            {t.loans.lendTitle(book.title)}
           </h2>
           <label className={field}>
-            A chi
+            {t.loans.borrower}
             <input name="borrower" required autoFocus className={input} />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className={field}>
-              Dal
+              {t.loans.from}
               <input name="loanedOn" type="date" required defaultValue={start} className={input} />
             </label>
             <label className={field}>
-              Restituzione entro
+              {t.loans.dueBy}
               <input name="dueOn" type="date" defaultValue={addDays(start, defaultLoanDays)} className={input} />
             </label>
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="h-10 rounded-lg border border-line-strong px-4">
-              Annulla
+              {t.common.cancel}
             </button>
             <button type="submit" className="h-10 rounded-lg bg-accent px-4 font-semibold text-accent-ink">
-              Presta
+              {t.loans.lend}
             </button>
           </div>
         </form>

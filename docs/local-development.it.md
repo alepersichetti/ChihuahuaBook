@@ -40,9 +40,9 @@ npm ci
 npm run dev
 ```
 
-Apri <http://localhost:3000>. La libreria mostra i dati di esempio di `src/features/library/sample-library.ts` e funziona anche senza alcuna variabile d'ambiente. Le modifiche ai file si vedono subito (hot reload).
+Apri <http://localhost:3000>. La libreria mostra i dati di esempio di `src/features/library/sample-library.ts` e funziona anche senza alcuna variabile d'ambiente, con un utente dimostrativo amministratore (`DEMO_ROLE=reader npm run dev` per provare un altro ruolo). Le modifiche ai file si vedono subito (hot reload).
 
-Senza configurazione Supabase la pagina funziona, mentre le API rispondono `500 misconfigured`: è normale, vedi il passo successivo.
+Senza configurazione Supabase la pagina funziona, mentre le API rispondono `500 misconfigured`: è normale, vedi il passo successivo. L'utente dimostrativo esiste solo in `npm run dev`.
 
 ## 3. Supabase in locale
 
@@ -97,9 +97,11 @@ Riavvia `npm run dev` dopo aver cambiato `.env.local`: Next legge le variabili s
 curl -i http://localhost:3000/api/books
 ```
 
-La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configurato e chiede un utente. L'interfaccia per il login non c'è ancora, quindi per provare le API con un utente vero:
+La risposta attesa è `401 {"error":"unauthenticated"}`: il backend è configurato e chiede un utente. Apri <http://localhost:3000>: arrivi alla pagina di accesso, e il primo account che crei diventa amministratore (l'email di conferma è in Mailpit, <http://127.0.0.1:54324>). Ruoli e inviti sono spiegati in [authentication.it.md](authentication.it.md).
 
-1. Crea un utente da Studio (<http://127.0.0.1:54323> → Authentication → Add user) oppure da terminale. In locale le email non vanno confermate.
+Per provare le API dal terminale con un utente vero:
+
+1. Crea un utente da Studio (<http://127.0.0.1:54323> → Authentication → Add user) oppure da terminale. Da Studio spunta *Auto Confirm User*; da terminale apri il link di conferma in Mailpit (<http://127.0.0.1:54324>). Il primo utente diventa amministratore; ogni altra email deve prima ricevere un invito.
 
    ```bash
    KEY=sb_publishable_...   # la stessa chiave di .env.local

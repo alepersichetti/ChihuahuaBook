@@ -7,6 +7,7 @@ export const json = (body: unknown, status = 200): Response =>
 const statusOf: { readonly [K in AppError["kind"]]: number } = {
   validation: 400,
   unauthenticated: 401,
+  forbidden: 403,
   not_found: 404,
   conflict: 409,
   upstream: 502,

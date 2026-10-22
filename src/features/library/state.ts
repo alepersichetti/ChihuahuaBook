@@ -76,6 +76,7 @@ export const defaultSort: readonly SortKey[] = [{ column: "title", direction: "a
 export const preferredView: Record<Layout, ViewMode> = {
   classic: "list",
   gallery: "grid",
+  warm: "grid",
   shelf: "carousel",
 };
 
@@ -250,3 +251,21 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       };
   }
 };
+
+// Azioni che cambiano i dati del catalogo: al lettore non arrivano mai.
+export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
+  "setRating",
+  "setReadStatus",
+  "toggleFavorite",
+  "lend",
+  "returnBook",
+  "setImportOpen",
+  "importBooks",
+]);
+
+/** Il reducer giusto per chi usa l'app: in sola lettura ignora le modifiche. */
+export const reducerFor = (canEdit: boolean) =>
+  canEdit
+    ? libraryReducer
+    : (state: LibraryState, action: LibraryAction): LibraryState =>
+        editingActions.has(action.type) ? state : libraryReducer(state, action);

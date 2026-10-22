@@ -20,7 +20,8 @@ export type BookForm = {
   readonly coverUrl: string;
 };
 
-export type FormIssues = Readonly<Partial<Record<keyof BookForm, string>>>;
+/** Campi da correggere: il testo dell'errore lo sceglie la UI. */
+export type FormIssues = readonly (keyof BookForm)[];
 
 export const emptyForm: BookForm = {
   title: "",
@@ -84,7 +85,7 @@ export type FormResult =
 
 export const validateForm = (form: BookForm): FormResult => {
   const isbn = form.isbn.trim() === "" ? null : parseIsbn(form.isbn);
-  if (form.isbn.trim() !== "" && !isbn) return { ok: false, issues: { isbn: "ISBN non valido" } };
+  if (form.isbn.trim() !== "" && !isbn) return { ok: false, issues: ["isbn"] };
   const parsed = bookInputSchema.safeParse({
     title: form.title,
     subtitle: form.subtitle,
@@ -100,11 +101,8 @@ export const validateForm = (form: BookForm): FormResult => {
     cover_url: form.coverUrl.trim() || null,
   });
   if (parsed.success) return { ok: true, book: parsed.data };
-  const issues = parsed.error.issues.reduce<Partial<Record<keyof BookForm, string>>>((found, issue) => {
-    const field = fieldOf[String(issue.path[0])] ?? "title";
-    return found[field] ? found : { ...found, [field]: issue.message };
-  }, {});
-  return { ok: false, issues };
+  const fields = parsed.error.issues.map((issue) => fieldOf[String(issue.path[0])] ?? "title");
+  return { ok: false, issues: [...new Set(fields)] };
 };
 
 /** Il libro appena aggiunto nel modello di vista, per mostrarlo subito. */

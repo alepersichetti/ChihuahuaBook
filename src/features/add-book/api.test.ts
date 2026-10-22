@@ -11,12 +11,12 @@ describe("api aggiunta libro", () => {
     ]);
   });
 
-  it("traduce gli errori della ricerca in messaggi", async () => {
-    const result = await searchOnline(
-      { source: "google_books", field: "title", text: "Dune" },
-      { fetch: reply({ error: "upstream" }, 502) },
-    );
-    expect(result).toMatchObject({ ok: false, message: expect.stringContaining("quota") });
+  it("traduce gli errori della ricerca in codici", async () => {
+    const search = (status: number, body: unknown) =>
+      searchOnline({ source: "google_books", field: "title", text: "Dune" }, { fetch: reply(body, status) });
+    expect(await search(502, { error: "upstream" })).toEqual({ ok: false, error: { kind: "upstream" } });
+    expect(await search(403, { error: "forbidden" })).toEqual({ ok: false, error: { kind: "forbidden" } });
+    expect(await search(500, { error: "unexpected" })).toEqual({ ok: false, error: { kind: "server", status: 500 } });
   });
 
   it("salva sul server o, senza accesso, solo in locale", async () => {
@@ -25,8 +25,8 @@ describe("api aggiunta libro", () => {
       id: "b1",
     });
     expect((await saveBook({ title: "Dune" } as never, { fetch: reply({}, 401) })).kind).toBe("local");
-    expect((await saveBook({ title: "" } as never, { fetch: reply({ error: "validation", issues: [{ message: "no" }] }, 400) })).kind).toBe(
-      "failed",
-    );
+    expect((await saveBook({ title: "Dune" } as never, { fetch: reply({ error: "misconfigured" }, 500) })).kind).toBe("local");
+    expect((await saveBook({ title: "" } as never, { fetch: reply({ error: "validation" }, 400) })).kind).toBe("failed");
+    expect((await saveBook({ title: "Dune" } as never, { fetch: reply({}, 403) })).kind).toBe("failed");
   });
 });
