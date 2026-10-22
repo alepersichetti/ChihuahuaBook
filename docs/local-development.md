@@ -11,7 +11,38 @@ There are two ways to run it:
 | **A. Demo mode** | the interface with sample data and a demo administrator, nothing is saved | Node | 5 minutes |
 | **B. Full stack** | real sign-in, roles, database, cover storage, import, online catalogues | Node + Docker | 15 minutes the first time |
 
-Do steps 1 and 2 for demo mode; 1 and 3–6 for the full stack.
+## Quick start: everything with one command
+
+With Docker running:
+
+```bash
+git clone https://github.com/alepersichetti/ChihuahuaBook.git
+cd ChihuahuaBook
+npm ci
+npm run dev:all
+```
+
+Open <http://127.0.0.1:3000> and go to the [verification checklist](#5-verification-checklist). `Ctrl+C` stops everything.
+
+`npm run dev:all` (`scripts/dev.mjs`) does in order what steps 3 and 4 below explain by hand:
+
+1. checks that Docker responds;
+2. starts the local Supabase (`npx supabase start`, skipping the services the app doesn't use), which the first time downloads the Docker images;
+3. applies any new migrations (`npx supabase migration up --local`);
+4. reads URL and key from `npx supabase status` and, if `.env.local` doesn't exist, creates it;
+5. starts `next dev` on `127.0.0.1:3000` and prints the addresses of the app, Studio, Mailpit and Postgres;
+6. on `Ctrl+C` stops the server and then Supabase (`npx supabase stop`: the data is kept).
+
+Options:
+
+```bash
+npm run dev:all -- --keep-db   # leave Supabase running on exit: the next start is immediate
+npm run dev:all -- -p 3001     # any other argument goes to next dev
+```
+
+`dev:all` always uses the local database: the URL and key from `supabase status` take precedence over those in `.env.local`, while the other variables in `.env.local` (such as `GOOGLE_BOOKS_API_KEY`) still apply. It works the same on macOS, Linux and Windows.
+
+The rest of the guide explains each step one by one, for when you want to run them separately or something goes wrong. Do steps 1 and 2 for demo mode; 1 and 3–6 for the full stack.
 
 ## 0. Prerequisites
 
@@ -195,6 +226,8 @@ Instead of the publishable key, the older "anon key" in `NEXT_PUBLIC_SUPABASE_AN
 npm run dev
 ```
 
+(`npm run dev:all` does 3.1, 4.1 and 4.2 in one go: see the [quick start](#quick-start-everything-with-one-command).)
+
 Open **<http://127.0.0.1:3000>** (not `localhost`): the links in the confirmation emails point to `127.0.0.1:3000`, as set in `supabase/config.toml`, and the browser keeps the session separately for the two names.
 
 Next reads `.env.local` only at startup: restart the server after changing it.
@@ -300,6 +333,7 @@ Without Supabase configuration a production build answers `503` on every page: t
 
 | Command | What it does |
 | --- | --- |
+| `npm run dev:all` | database and server together (see the [quick start](#quick-start-everything-with-one-command)) |
 | `npm test` | unit tests with Vitest (no database or network needed) |
 | `npm run test:watch` | same, rerun on every change |
 | `npm run lint` | ESLint, including the boundaries between `core`, `adapters`, `http` and Next |

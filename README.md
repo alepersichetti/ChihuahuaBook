@@ -25,9 +25,11 @@ Every document exists in two languages: `name.md` in English and `name.it.md` in
 ## Development
 
 ```bash
-npm install
-npm run dev
+npm ci
+npm run dev:all
 ```
+
+With Docker running, `npm run dev:all` starts the local database and the server together; `npm run dev` alone opens the interface on sample data. See [docs/local-development.md](docs/local-development.md).
 
 ## Logo and favicon
 
