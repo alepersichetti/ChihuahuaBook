@@ -50,6 +50,7 @@ setup("una password sbagliata non fa entrare", async ({ page }) => {
   await page.getByLabel("Email").fill(reader.email);
   await page.getByLabel("Password", { exact: true }).fill("password-sbagliata-1");
   await page.getByRole("button", { name: "Accedi", exact: true }).click();
-  await expect(page.getByRole("alert")).toHaveText("Email o password non corretti.");
+  // Filtrato per testo: anche l'annuncio delle navigazioni di Next ha role="alert".
+  await expect(page.getByRole("alert").filter({ hasText: /\S/ })).toHaveText("Email o password non corretti.");
   await expect(page).toHaveURL(/\/login$/);
 });
