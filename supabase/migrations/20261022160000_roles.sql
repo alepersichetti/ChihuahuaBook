@@ -39,6 +39,8 @@ create table public.instance_settings (
   open_signup boolean not null default false,
   -- Ruolo di chi si registra da solo quando la registrazione è aperta.
   signup_role public.app_role not null default 'reader' check (signup_role <> 'admin'),
+  -- Lingua dell'interfaccia per tutti gli utenti dell'istanza.
+  language text not null default 'it' check (language in ('it', 'en')),
   updated_at timestamptz not null default now(),
   updated_by uuid references auth.users (id) on delete set null
 );
@@ -87,6 +89,17 @@ as $$
     when (select open_signup from public.instance_settings) then 'open'
     else 'invite_only'
   end;
+$$;
+
+-- Serve anche alla pagina di accesso, prima del login.
+create or replace function public.instance_language()
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select language from public.instance_settings;
 $$;
 
 -- Registrazione ---------------------------------------------------------------
@@ -329,7 +342,7 @@ revoke insert, update, delete on public.members from authenticated;
 grant update (display_name, role, active) on public.members to authenticated;
 revoke insert, delete on public.instance_settings from authenticated;
 revoke update on public.instance_settings from authenticated;
-grant update (open_signup, signup_role, updated_by) on public.instance_settings to authenticated;
+grant update (open_signup, signup_role, language, updated_by) on public.instance_settings to authenticated;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 revoke execute on function public.handle_user_email_change() from public, anon, authenticated;
@@ -338,6 +351,7 @@ revoke execute on function public.has_role(public.app_role) from public, anon;
 grant execute on function public.member_role() to authenticated;
 grant execute on function public.has_role(public.app_role) to authenticated;
 grant execute on function public.signup_mode() to anon, authenticated;
+grant execute on function public.instance_language() to anon, authenticated;
 
 -- Copertine (Storage) --------------------------------------------------------------
 -- Percorso dei file: <book id>.<ext>. I file salvati prima in <user id>/ restano leggibili.

@@ -3,7 +3,7 @@
 import { KeyRound, LogOut, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { roleLabels } from "@/features/auth/viewer";
+import { useT } from "@/features/i18n/i18n-context";
 import { useLibrary } from "./library-context";
 
 const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm hover:bg-chip";
@@ -11,6 +11,7 @@ const item = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left te
 // Chi è collegato, con quale ruolo, e le azioni sull'account.
 export function AccountMenu() {
   const { viewer } = useLibrary();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
 
@@ -32,7 +33,7 @@ export function AccountMenu() {
     <div ref={root} className="relative">
       <button
         type="button"
-        aria-label="Account"
+        aria-label={t.account.label}
         aria-expanded={open}
         aria-haspopup="menu"
         onClick={() => setOpen((value) => !value)}
@@ -49,17 +50,17 @@ export function AccountMenu() {
             <div className="truncate text-sm font-medium" title={viewer.email}>
               {viewer.email}
             </div>
-            <div className="text-xs text-muted">{roleLabels[viewer.role]}</div>
+            <div className="text-xs text-muted">{t.roles[viewer.role]}</div>
           </div>
           <div className="border-t border-line" />
           <Link role="menuitem" href="/account/password" className={item}>
             <KeyRound size={16} aria-hidden="true" />
-            Cambia password
+            {t.account.changePassword}
           </Link>
           <form action="/auth/signout" method="post">
             <button role="menuitem" type="submit" className={`${item} text-danger`}>
               <LogOut size={16} aria-hidden="true" />
-              Esci
+              {t.account.signOut}
             </button>
           </form>
         </div>

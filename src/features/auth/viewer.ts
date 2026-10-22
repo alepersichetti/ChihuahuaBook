@@ -12,5 +12,5 @@ export type ViewerState =
   | { readonly status: "inactive"; readonly email: string }
   | ({ readonly status: "member" } & SignedInViewer);
 
-export { can, roleLabels, roles } from "@/server/core/auth/roles";
+export { can, roles } from "@/server/core/auth/roles";
 export type { Role } from "@/server/core/auth/roles";

@@ -1,7 +1,9 @@
 "use client";
 
 import { ChartColumn, ChevronDown, ChevronRight, Plus, Settings, Upload } from "lucide-react";
+import { useT } from "../../i18n/i18n-context";
 import { useSettings } from "../../settings/settings-context";
+import { collectionName } from "../labels";
 import type { Collection } from "../model";
 import { childrenOf } from "../query";
 import { collectionIcon } from "./icons";
@@ -10,6 +12,7 @@ import { useLibrary } from "./library-context";
 // I lettori non vedono le impostazioni.
 function SettingsLink() {
   const { canOpen, openPanel } = useSettings();
+  const t = useT();
   if (!canOpen) return null;
   return (
     <button
@@ -18,7 +21,7 @@ function SettingsLink() {
       className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
     >
       <Settings size={16} aria-hidden="true" />
-      Impostazioni
+      {t.settings.title}
     </button>
   );
 }
@@ -27,6 +30,8 @@ const specialKinds = new Set<Collection["kind"]>(["library", "loaned", "wishlist
 
 function CollectionLink({ collection, depth }: { collection: Collection; depth: number }) {
   const { state, dispatch, counts } = useLibrary();
+  const t = useT();
+  const name = collectionName(collection, t);
   const { Icon, tone } = collectionIcon(collection);
   const active = state.collectionId === collection.id;
   const isFolder = collection.kind === "folder";
@@ -41,7 +46,7 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
         {isFolder && (
           <button
             type="button"
-            aria-label={collapsed ? `Apri ${collection.name}` : `Chiudi ${collection.name}`}
+            aria-label={collapsed ? t.collections.expand(name) : t.collections.collapse(name)}
             aria-expanded={!collapsed}
             onClick={() => dispatch({ type: "toggleFolder", folderId: collection.id })}
             className="ml-1 rounded p-1 text-muted"
@@ -56,10 +61,10 @@ function CollectionLink({ collection, depth }: { collection: Collection; depth: 
           className={`flex min-w-0 flex-1 items-center gap-2.5 py-1.5 text-left ${isFolder ? "pr-2.5" : "px-2.5"}`}
         >
           <Icon size={16} className={`shrink-0 ${tone}`} aria-hidden="true" />
-          <span className="flex-1 truncate">{collection.name}</span>
+          <span className="flex-1 truncate">{name}</span>
           {collection.kind === "regular" && collection.excluded ? (
             <span className="rounded border border-line-strong px-1 text-[11px] font-normal text-muted">
-              esclusa
+              {t.collections.excluded}
             </span>
           ) : (
             <span className="text-xs font-normal text-muted">{counts[collection.id]}</span>
@@ -85,20 +90,21 @@ function CollectionTree({ parentId, depth }: { parentId: string; depth: number }
 // Colonna delle collezioni dei layout classico e scaffale.
 export function Sidebar({ className = "w-58 border-r" }: { className?: string }) {
   const { state, dispatch, canEdit } = useLibrary();
+  const t = useT();
   const roots = childrenOf(state.library.collections, null);
   const special = roots.filter((collection) => specialKinds.has(collection.kind));
   const own = roots.filter((collection) => !specialKinds.has(collection.kind));
   return (
-    <nav aria-label="Collezioni" className={`flex shrink-0 flex-col gap-1 border-line bg-panel px-2.5 py-3.5 text-sm ${className}`}>
+    <nav aria-label={t.collections.title} className={`flex shrink-0 flex-col gap-1 border-line bg-panel px-2.5 py-3.5 text-sm ${className}`}>
       <ul className="flex flex-col gap-0.5">
         {special.map((collection) => (
           <CollectionLink key={collection.id} collection={collection} depth={0} />
         ))}
       </ul>
       <div className="flex items-center justify-between px-2.5 pt-4 pb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">
-        Collezioni
+        {t.collections.title}
         {canEdit && (
-          <button type="button" aria-label="Nuova collezione" title="In arrivo" disabled className="rounded p-1 disabled:opacity-60">
+          <button type="button" aria-label={t.collections.new} title={t.common.comingSoon} disabled className="rounded p-1 disabled:opacity-60">
             <Plus size={14} />
           </button>
         )}
@@ -116,12 +122,12 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
             className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip"
           >
             <Upload size={16} aria-hidden="true" />
-            Importa .pedia
+            {t.importer.menu}
           </button>
         )}
-        <button type="button" disabled title="In arrivo" className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60">
+        <button type="button" disabled title={t.common.comingSoon} className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60">
           <ChartColumn size={16} aria-hidden="true" />
-          Statistiche
+          {t.library.statistics}
         </button>
         <SettingsLink />
       </div>

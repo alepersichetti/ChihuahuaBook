@@ -1,6 +1,8 @@
+import { errAsync, okAsync, ResultAsync } from "neverthrow";
 import type { Role } from "@/features/auth/viewer";
+import type { Language } from "@/features/i18n/languages";
 
-// Client delle rotte /api/admin. Ogni chiamata restituisce un esito, mai un'eccezione.
+// Client delle rotte /api/admin. Gli errori sono valori (chiavi dei testi tradotti), mai eccezioni.
 
 export type Member = {
   readonly user_id: string;
@@ -21,34 +23,36 @@ export type Invitation = {
 export type InstanceSettings = {
   readonly open_signup: boolean;
   readonly signup_role: "reader" | "librarian";
+  readonly language: Language;
 };
 
-export type ApiResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly message: string };
+export type AdminError = "unauthenticated" | "forbidden" | "lastAdmin" | "invalid" | "network" | "unknown";
 
-const messages: Readonly<Record<number, string>> = {
-  401: "Sessione scaduta: accedi di nuovo.",
-  403: "Non hai i permessi per questa operazione.",
-  409: "Operazione non consentita: deve restare almeno un amministratore attivo.",
-};
+const errorOf = (status: number): AdminError =>
+  status === 401
+    ? "unauthenticated"
+    : status === 403
+      ? "forbidden"
+      : status === 409
+        ? "lastAdmin"
+        : status === 400
+          ? "invalid"
+          : "unknown";
 
-const request = async <T>(path: string, init?: RequestInit): Promise<ApiResult<T>> => {
-  try {
-    const response = await fetch(`/api/admin${path}`, {
+const request = <T>(path: string, init?: RequestInit): ResultAsync<T, AdminError> =>
+  ResultAsync.fromPromise(
+    fetch(`/api/admin${path}`, {
       ...init,
       headers: init?.body ? { "content-type": "application/json" } : undefined,
-    });
-    if (response.ok) {
-      return { ok: true, value: (response.status === 204 ? undefined : await response.json()) as T };
-    }
-    const body = (await response.json().catch(() => ({}))) as { issues?: { message: string }[] };
-    return {
-      ok: false,
-      message: body.issues?.[0]?.message ?? messages[response.status] ?? "Qualcosa non ha funzionato.",
-    };
-  } catch {
-    return { ok: false, message: "Connessione non riuscita." };
-  }
-};
+    }),
+    (): AdminError => "network",
+  ).andThen((response) =>
+    !response.ok
+      ? errAsync(errorOf(response.status))
+      : response.status === 204
+        ? okAsync(undefined as T)
+        : ResultAsync.fromPromise(response.json() as Promise<T>, (): AdminError => "unknown"),
+  );
 
 const send = (method: string, body?: unknown): RequestInit => ({
   method,

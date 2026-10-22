@@ -2,6 +2,7 @@
 
 import { Settings, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { useT } from "../../i18n/i18n-context";
 import { hasRole } from "../model";
 import { settingsSections } from "../sections";
 import { useSettings } from "../settings-context";
@@ -9,6 +10,7 @@ import { useSettings } from "../settings-context";
 /** Pannello delle impostazioni: si apre dalla voce "Impostazioni" della barra laterale. */
 export function SettingsDialog() {
   const { role, panelOpen: open, closePanel: onClose } = useSettings();
+  const t = useT();
   const dialog = useRef<HTMLDialogElement>(null);
   const sections = settingsSections.filter((section) => hasRole(role, section.minRole));
 
@@ -29,19 +31,21 @@ export function SettingsDialog() {
         <header className="flex items-center gap-2 border-b border-line px-5 py-4">
           <Settings size={20} className="text-muted" aria-hidden="true" />
           <h2 id="settings-title" className="flex-1 font-display text-xl font-bold">
-            Impostazioni
+            {t.settings.title}
           </h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Chiudi"
+            aria-label={t.common.close}
             className="flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-chip"
           >
             <X size={18} />
           </button>
         </header>
         <div className="flex flex-1 flex-col gap-6 overflow-auto px-5 py-5">
-          {sections.map(({ id, title, description, Icon, Body }) => (
+          {sections.map(({ id, Icon, Body }) => {
+            const { title, description } = t.settings.sections[id];
+            return (
             <section key={id} aria-labelledby={`settings-${id}`} className="flex flex-col gap-3">
               <div>
                 <h3 id={`settings-${id}`} className="flex items-center gap-2 text-xs font-bold tracking-wider text-muted uppercase">
@@ -52,7 +56,8 @@ export function SettingsDialog() {
               </div>
               <Body />
             </section>
-          ))}
+            );
+          })}
         </div>
       </div>
     </dialog>

@@ -1,11 +1,15 @@
 "use client";
 
-import { Info, Palette, Users, type LucideIcon } from "lucide-react";
+import { Info, Languages, Palette, Users, type LucideIcon } from "lucide-react";
+import { useState } from "react";
+import { adminApi } from "../admin/api";
 import { UsersAndAccess } from "../admin/components/users-and-access";
 import type { ComponentType } from "react";
 import { branding } from "@/config/branding";
 import { Logo } from "../library/components/logo";
-import { layoutLabel } from "../library/labels";
+import { useI18n, useT } from "../i18n/i18n-context";
+import { languageNames, languages, type Language } from "../i18n/languages";
+import type { Messages } from "../i18n/messages";
 import { layouts, type Layout } from "../library/model";
 import { coverSizes } from "../library/state";
 import pkg from "../../../package.json";
@@ -17,19 +21,11 @@ import { useSettings } from "./settings-context";
  * `minRole` dice chi la vede (il lettore non apre proprio il pannello).
  */
 export type SettingsSection = {
-  readonly id: string;
-  readonly title: string;
-  readonly description: string;
+  /** Titolo e descrizione stanno nei testi tradotti, sotto `settings.sections.<id>`. */
+  readonly id: keyof Messages["settings"]["sections"];
   readonly Icon: LucideIcon;
   readonly minRole: Exclude<Role, "reader">;
   readonly Body: ComponentType;
-};
-
-const layoutHint: Record<Layout, string> = {
-  classic: "Tre colonne: collezioni, elenco e scheda del libro",
-  gallery: "Come la classica, con le copertine in griglia",
-  warm: "Come la galleria, con la palette calda",
-  shelf: "Tema scuro con carosello e scheda sotto",
 };
 
 // Ogni anteprima usa i colori veri del suo layout, presi da globals.css tramite data-layout.
@@ -48,10 +44,11 @@ function LayoutSwatch({ layout }: { layout: Layout }) {
 
 function Appearance() {
   const { preferences, setPreference } = useSettings();
+  const t = useT();
   return (
     <div className="flex flex-col gap-4">
       <fieldset className="flex flex-col gap-2">
-        <legend className="mb-2 text-sm font-semibold">Layout</legend>
+        <legend className="mb-2 text-sm font-semibold">{t.settings.layout}</legend>
         {layouts.map((layout) => (
           <label
             key={layout}
@@ -69,15 +66,15 @@ function Appearance() {
             />
             <LayoutSwatch layout={layout} />
             <span className="flex flex-col">
-              <span className="text-sm font-semibold">{layoutLabel[layout]}</span>
-              <span className="text-xs text-muted">{layoutHint[layout]}</span>
+              <span className="text-sm font-semibold">{t.layouts[layout]}</span>
+              <span className="text-xs text-muted">{t.settings.layoutHints[layout]}</span>
             </span>
           </label>
         ))}
       </fieldset>
       <label className="flex flex-col gap-2 text-sm">
         <span className="flex justify-between font-semibold">
-          Dimensione copertine
+          {t.settings.coverSize}
           <span className="font-normal text-muted">{preferences.coverSize} px</span>
         </span>
         <input
@@ -88,8 +85,49 @@ function Appearance() {
           onChange={(event) => setPreference("coverSize", Number(event.target.value))}
           className="accent-(--accent)"
         />
-        <span className="text-xs text-muted">Nella vista a griglia.</span>
+        <span className="text-xs text-muted">{t.settings.coverSizeHint}</span>
       </label>
+    </div>
+  );
+}
+
+// La lingua vale per tutti gli utenti dell'istanza: la salva il server, solo per l'admin.
+function LanguageSection() {
+  const { t, language, setLanguage } = useI18n();
+  const [error, setError] = useState<string | null>(null);
+  const choose = async (next: Language) => {
+    const result = await adminApi.updateSettings({ language: next });
+    if (result.isOk()) {
+      setError(null);
+      setLanguage(next);
+    } else {
+      setError(t.admin.errors[result.error]);
+    }
+  };
+  return (
+    <div className="flex flex-col gap-2">
+      <div role="radiogroup" aria-label={t.settings.sections.language.title} className="flex gap-2">
+        {languages.map((option) => (
+          <button
+            key={option}
+            type="button"
+            role="radio"
+            aria-checked={language === option}
+            lang={option}
+            onClick={() => void choose(option)}
+            className={`flex-1 rounded-xl border px-3 py-2 text-sm font-semibold ${
+              language === option ? "border-accent bg-selected" : "border-line hover:bg-chip"
+            }`}
+          >
+            {languageNames[option]}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <p role="alert" className="text-xs text-danger">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -101,19 +139,20 @@ function UsersSection() {
 }
 
 function About() {
+  const t = useT();
   return (
     <div className="flex items-center gap-3">
       <Logo size={48} />
       <div className="flex flex-col text-sm">
         <span className="font-semibold">{branding.name}</span>
-        <span className="text-muted">Versione {pkg.version}</span>
+        <span className="text-muted">{t.settings.version(pkg.version)}</span>
         <a
           href="https://github.com/alepersichetti/ChihuahuaBook"
           target="_blank"
           rel="noreferrer"
           className="text-accent hover:underline"
         >
-          Codice sorgente
+          {t.settings.sourceCode}
         </a>
       </div>
     </div>
@@ -123,24 +162,24 @@ function About() {
 export const settingsSections: readonly SettingsSection[] = [
   {
     id: "appearance",
-    title: "Aspetto",
-    description: "Le tue preferenze, salvate in questo browser.",
     Icon: Palette,
     minRole: "librarian",
     Body: Appearance,
   },
   {
+    id: "language",
+    Icon: Languages,
+    minRole: "admin",
+    Body: LanguageSection,
+  },
+  {
     id: "users",
-    title: "Utenti e accessi",
-    description: "Chi può usare la libreria e cosa può fare.",
     Icon: Users,
     minRole: "admin",
     Body: UsersSection,
   },
   {
     id: "about",
-    title: "Informazioni",
-    description: "",
     Icon: Info,
     minRole: "librarian",
     Body: About,

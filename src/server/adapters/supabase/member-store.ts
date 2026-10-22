@@ -5,7 +5,7 @@ import type { Supabase } from "./client";
 
 const memberColumns = "user_id, email, display_name, role, active, created_at";
 const invitationColumns = "email, role, created_at, expires_at";
-const settingsColumns = "open_signup, signup_role";
+const settingsColumns = "open_signup, signup_role, language";
 
 // La RLS limita ogni query all'admin; qui c'è solo la traduzione in PostgREST.
 export const supabaseMemberStore = (supabase: Supabase): MemberStore => ({

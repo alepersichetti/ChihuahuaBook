@@ -1,13 +1,23 @@
-import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AuthCard } from "@/features/auth/components/auth-card";
 import { PasswordForm } from "@/features/auth/components/password-form";
+import { I18nProvider } from "@/features/i18n/i18n-context";
+import { getLanguage } from "@/lib/i18n";
 
-export const metadata: Metadata = { title: "Nuova password" };
+async function LocalizedPasswordForm() {
+  return (
+    <I18nProvider language={await getLanguage()}>
+      <PasswordForm />
+    </I18nProvider>
+  );
+}
 
 export default function PasswordPage() {
   return (
     <AuthCard>
-      <PasswordForm />
+      <Suspense>
+        <LocalizedPasswordForm />
+      </Suspense>
     </AuthCard>
   );
 }

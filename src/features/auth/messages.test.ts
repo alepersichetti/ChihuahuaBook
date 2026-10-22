@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { authErrorMessage } from "./messages";
+import { authErrorKey } from "./messages";
 
-describe("messaggi di autenticazione", () => {
+describe("errori di autenticazione", () => {
   it("il login fallito non dice se l'email esiste", () => {
-    expect(authErrorMessage({ message: "Invalid login credentials", code: "invalid_credentials" }, "signin")).toBe(
-      "Email o password non corretti.",
+    expect(authErrorKey({ message: "Invalid login credentials", code: "invalid_credentials" }, "signin")).toBe(
+      "invalidCredentials",
     );
   });
 
   it("la registrazione rifiutata dal database spiega l'invito", () => {
-    expect(authErrorMessage({ message: "Database error saving new user", code: "unexpected_failure" }, "signup")).toMatch(
-      /invito/,
+    expect(authErrorKey({ message: "Database error saving new user", code: "unexpected_failure" }, "signup")).toBe(
+      "inviteOnly",
     );
   });
 
   it("segnala i limiti di frequenza", () => {
-    expect(authErrorMessage({ message: "x", status: 429 }, "signin")).toMatch(/Troppi tentativi/);
+    expect(authErrorKey({ message: "x", status: 429 }, "signin")).toBe("rateLimited");
   });
 });

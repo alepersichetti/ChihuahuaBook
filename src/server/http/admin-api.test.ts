@@ -13,8 +13,8 @@ const members = (overrides: Partial<MemberStore> = {}): MemberStore => ({
   invitations: () => okAsync([]),
   invite: (input) => okAsync({ ...input, created_at: "", expires_at: "" }),
   revoke: () => okAsync(undefined),
-  settings: () => okAsync({ open_signup: false, signup_role: "reader" }),
-  updateSettings: (patch) => okAsync({ open_signup: false, signup_role: "reader", ...patch }),
+  settings: () => okAsync({ open_signup: false, signup_role: "reader", language: "it" }),
+  updateSettings: (patch) => okAsync({ open_signup: false, signup_role: "reader", language: "it", ...patch }),
   ...overrides,
 });
 

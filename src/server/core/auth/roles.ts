@@ -35,9 +35,3 @@ export const authorize =
   (action: Action) =>
   (viewer: Viewer): ResultAsync<Viewer, AppError> =>
     can(viewer.role, action) ? okAsync(viewer) : errAsync(forbidden);
-
-export const roleLabels: Readonly<Record<Role, string>> = {
-  reader: "Lettore",
-  librarian: "Bibliotecario",
-  admin: "Amministratore",
-};

@@ -112,6 +112,7 @@ type InstanceSettingsRow = {
   id: boolean;
   open_signup: boolean;
   signup_role: AppRole;
+  language: "it" | "en";
   updated_at: string;
   updated_by: string | null;
 };
@@ -185,7 +186,7 @@ export type Database = {
         Row: InstanceSettingsRow;
         Insert: Partial<InstanceSettingsRow>;
         Update: Partial<
-          Pick<InstanceSettingsRow, "open_signup" | "signup_role" | "updated_by">
+          Pick<InstanceSettingsRow, "open_signup" | "signup_role" | "language" | "updated_by">
         >;
         Relationships: [];
       };
@@ -195,6 +196,7 @@ export type Database = {
       immutable_unaccent: { Args: { value: string }; Returns: string };
       member_role: { Args: Record<string, never>; Returns: AppRole | null };
       has_role: { Args: { required: AppRole }; Returns: boolean };
+      instance_language: { Args: Record<string, never>; Returns: "it" | "en" };
       signup_mode: {
         Args: Record<string, never>;
         Returns: "first_admin" | "open" | "invite_only";

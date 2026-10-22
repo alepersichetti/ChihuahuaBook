@@ -6,13 +6,19 @@ Ogni istanza di ChihuahuaBook ha **una sola biblioteca condivisa**. Chi accede v
 | --- | --- |
 | **Lettore** | Consultare tutto il catalogo, in sola lettura. Nessun accesso alle impostazioni. |
 | **Bibliotecario** | Tutto ciò che fa il lettore, più aggiungere, modificare ed eliminare libri, collezioni, prestiti e copertine, e importare file `.pedia`. |
-| **Amministratore** | Tutto ciò che fa il bibliotecario, più gestire gli utenti (ruoli, inviti, disattivazione) e le impostazioni dell'istanza. |
+| **Amministratore** | Tutto ciò che fa il bibliotecario, più gestire gli utenti (ruoli, inviti, disattivazione) e le impostazioni dell'istanza, compresa la lingua dell'interfaccia. |
 
 I ruoli sono applicati in tre punti, così un errore in uno strato non apre i dati:
 
 1. **Database (RLS)**: `supabase/migrations/20261022160000_roles.sql`. La funzione `public.has_role()` legge il ruolo da `public.members` e ogni policy la usa. È la garanzia vera: vale anche per chi chiama Supabase direttamente con il proprio token.
 2. **API**: ogni rotta in `src/server/http` dichiara il ruolo minimo (`guarded("read" | "edit" | "administer")`) e risponde `401` senza sessione, `403` con un ruolo insufficiente.
 3. **Interfaccia**: il lettore non vede i comandi di modifica; il lettore non apre le Impostazioni; solo l'amministratore vi vede la sezione **Utenti e accessi**.
+
+## Impostazioni e lingua
+
+Il lettore non apre le Impostazioni. Il bibliotecario vede le sue preferenze personali (layout, dimensione delle copertine) e la sezione Informazioni. L'amministratore vede anche **Lingua** e **Utenti e accessi**.
+
+L'interfaccia è disponibile in italiano e in inglese. La lingua è una per tutta l'istanza (`instance_settings.language`, italiano se non scelta): la cambia solo l'amministratore, e la usa anche la pagina di accesso. I testi sono in `src/features/i18n/messages/` (`it.ts` è il riferimento, `en.ts` deve avere le stesse chiavi e TypeScript lo verifica).
 
 ## Il primo amministratore
 
@@ -66,7 +72,7 @@ I link delle email arrivano su `/auth/confirm`, che funziona sia con i template 
 Senza Supabase, `npm run dev` apre comunque l'interfaccia sui dati di esempio con un utente dimostrativo amministratore. Per vederla con un altro ruolo:
 
 ```bash
-DEMO_ROLE=reader npm run dev
+DEMO_ROLE=reader DEMO_LANGUAGE=en npm run dev
 ```
 
 L'utente dimostrativo esiste solo in `npm run dev`; una build di produzione senza configurazione rifiuta tutte le pagine.

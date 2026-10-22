@@ -24,9 +24,15 @@ export type Invitation = {
   readonly expires_at: string;
 };
 
+/** Lingue dell'interfaccia; la sceglie l'amministratore per tutta l'istanza. */
+export const instanceLanguages = ["it", "en"] as const;
+
+export type InstanceLanguage = (typeof instanceLanguages)[number];
+
 export type InstanceSettings = {
   readonly open_signup: boolean;
   readonly signup_role: Exclude<Role, "admin">;
+  readonly language: InstanceLanguage;
 };
 
 const roleSchema = z.enum(roles);
@@ -57,6 +63,7 @@ export const settingsPatchSchema = z
   .object({
     open_signup: z.boolean().optional(),
     signup_role: z.enum(["reader", "librarian"]).optional(),
+    language: z.enum(instanceLanguages).optional(),
   })
   .strict()
   .refine((patch) => Object.keys(patch).length > 0, "Nessuna modifica");

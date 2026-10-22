@@ -72,6 +72,8 @@ delete from public.loans;
 select pg_temp.expect((select count(*) from public.loans) = 1, 'il lettore non chiude prestiti');
 select pg_temp.expect(pg_temp.fails($$update public.instance_settings set open_signup = true$$)
   or not (select open_signup from public.instance_settings), 'il lettore non cambia le impostazioni');
+update public.instance_settings set language = 'en';
+select pg_temp.expect((select language from public.instance_settings) = 'it', 'il lettore non cambia la lingua');
 select pg_temp.expect(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('covers', 'a.jpg')$$), 'il lettore non carica copertine');
 
 -- Admin
@@ -81,8 +83,9 @@ update public.members set role = 'librarian' where email = 'reader@example.com';
 select pg_temp.expect((select role from public.members where email = 'reader@example.com') = 'librarian', 'l''admin cambia i ruoli');
 select pg_temp.expect(pg_temp.fails($$update public.members set role = 'reader' where email = 'admin@example.com'$$), 'l''ultimo admin non si declassa');
 select pg_temp.expect(pg_temp.fails($$update public.members set email = 'x@y.z' where email = 'open@example.com'$$), 'l''email del membro non si modifica');
-update public.instance_settings set open_signup = true;
+update public.instance_settings set open_signup = true, language = 'en';
 select pg_temp.expect((select open_signup from public.instance_settings), 'l''admin cambia le impostazioni');
+select pg_temp.expect(pg_temp.fails($$update public.instance_settings set language = 'fr'$$), 'solo lingue previste');
 insert into storage.objects (bucket_id, name) values ('covers', 'b.jpg');
 
 -- Membro disattivato
@@ -96,5 +99,6 @@ set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
 select pg_temp.expect(pg_temp.fails($$select * from public.books$$), 'anon non legge il catalogo');
 select pg_temp.expect(public.signup_mode() = 'open', 'anon vede solo la modalità di registrazione');
+select pg_temp.expect(public.instance_language() = 'en', 'anon legge la lingua dell''istanza');
 
 rollback;

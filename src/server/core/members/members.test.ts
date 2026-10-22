@@ -16,7 +16,7 @@ const echoUpdate: Pick<MemberStore, "update"> = {
     okAsync({ user_id, email: "x@example.com", display_name: null, role: "reader", active: true, created_at: "", ...patch } as Member),
 };
 
-const settings = { open_signup: false, signup_role: "reader"} as const;
+const settings = { open_signup: false, signup_role: "reader", language: "it" } as const;
 
 describe("membri", () => {
   it("l'admin cambia il ruolo di un altro membro", async () => {
@@ -45,6 +45,12 @@ describe("membri", () => {
       invite: (input) => okAsync({ ...input, created_at: "", expires_at: "" }),
     })({ email: " Marta@Example.COM ", role: "librarian" });
     expect(result._unsafeUnwrap()).toMatchObject({ email: "marta@example.com", role: "librarian" });
+  });
+
+  it("accetta solo le lingue previste", async () => {
+    const store = { updateSettings: (patch: object) => okAsync({ ...settings, ...patch }) };
+    expect((await changeSettings(store)(admin, { language: "en" }))._unsafeUnwrap().language).toBe("en");
+    expect((await changeSettings(store)(admin, { language: "fr" }))._unsafeUnwrapErr().kind).toBe("validation");
   });
 
   it("la registrazione aperta non può dare il ruolo di admin", async () => {
