@@ -14,11 +14,10 @@ const run = (...actions: LibraryAction[]) =>
   actions.reduce(libraryReducer, initialState(sampleLibrary));
 
 describe("libraryReducer", () => {
-  it("parte dalla Libreria in vista lista con layout classico", () => {
+  it("parte dalla Libreria in vista lista", () => {
     const state = run();
     expect(state.collectionId).toBe("library");
     expect(currentView(state)).toBe("list");
-    expect(state.layout).toBe("classic");
   });
 
   it("ogni collezione ricorda la sua vista; una nuova eredita l'ultima", () => {
@@ -32,11 +31,6 @@ describe("libraryReducer", () => {
       { type: "selectCollection", collectionId: "library" },
     );
     expect(currentView(back)).toBe("grid");
-  });
-
-  it("cambiare layout non cambia la vista", () => {
-    const grid = run({ type: "setView", view: "grid" });
-    expect(currentView(libraryReducer(grid, { type: "setLayout", layout: "shelf" }))).toBe("grid");
   });
 
   it("non permette di togliere la colonna del titolo", () => {

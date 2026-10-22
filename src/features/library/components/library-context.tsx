@@ -30,10 +30,7 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
   const today = useToday();
   const { preferences } = useSettings();
 
-  // Layout e dimensione delle copertine sono preferenze: le impostazioni le decidono, la libreria le segue.
-  useEffect(() => {
-    dispatch({ type: "setLayout", layout: preferences.layout });
-  }, [preferences.layout]);
+  // La dimensione delle copertine è una preferenza: le impostazioni la decidono, la libreria la segue.
   useEffect(() => {
     dispatch({ type: "setCoverSize", size: preferences.coverSize });
   }, [preferences.coverSize]);

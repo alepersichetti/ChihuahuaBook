@@ -13,12 +13,12 @@ import { LoanDialog } from "./loan-dialog";
 import { MobileShell } from "./mobile";
 
 function Screens() {
-  const { state, selected, canEdit } = useLibrary();
+  const { selected, canEdit } = useLibrary();
   const { preferences } = useSettings();
   const [lending, setLending] = useState(false);
   const lend = () => setLending(true);
   return (
-    <div data-layout={state.layout} data-palette={preferences.palette} className="flex min-h-dvh flex-1 flex-col bg-bg text-ink">
+    <div data-palette={preferences.palette} className="flex min-h-dvh flex-1 flex-col bg-bg text-ink">
       <div className="hidden h-dvh flex-col md:flex">
         <DesktopShell onLend={lend} />
       </div>

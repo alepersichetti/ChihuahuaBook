@@ -1,12 +1,8 @@
 "use client";
 
 import {
-  GalleryHorizontal,
   HandHelping,
-  LayoutGrid,
-  List,
   ListPlus,
-  type LucideIcon,
   PanelRight,
   Pencil,
   Plus,
@@ -17,58 +13,29 @@ import { useEffect, useRef } from "react";
 import { branding } from "@/config/branding";
 import { useT } from "../../i18n/i18n-context";
 import { collectionName } from "../labels";
-import { layouts, searchFields, type Layout, type SearchField, type ViewMode } from "../model";
-import { useSettings } from "../../settings/settings-context";
+import { searchFields, viewModes, type SearchField, type ViewMode } from "../model";
 import { AccountMenu } from "./account-menu";
 import { useLibrary } from "./library-context";
 import { Logo } from "./logo";
 
-const viewButtons: readonly { view: ViewMode; Icon: LucideIcon }[] = [
-  { view: "list", Icon: List },
-  { view: "grid", Icon: LayoutGrid },
-  { view: "carousel", Icon: GalleryHorizontal },
-];
-
 const iconButton =
   "flex size-9 items-center justify-center rounded-lg text-ink-soft hover:bg-chip disabled:opacity-40 disabled:hover:bg-transparent";
 
-export function ViewSwitcher() {
+// Tabella, griglia, galleria o scaffale: si sceglie solo da qui.
+export function ViewPicker() {
   const { view, dispatch } = useLibrary();
   const t = useT();
   return (
-    <div role="group" aria-label={t.views.label} className="flex gap-0.5 rounded-[10px] bg-chip p-[3px]">
-      {viewButtons.map(({ view: mode, Icon }) => (
-        <button
-          key={mode}
-          type="button"
-          aria-label={t.views[mode]}
-          aria-pressed={view === mode}
-          onClick={() => dispatch({ type: "setView", view: mode })}
-          className={`flex h-[30px] w-[34px] items-center justify-center rounded-[7px] ${
-            view === mode ? "bg-surface text-ink shadow-sm" : "text-muted hover:text-ink"
-          }`}
-        >
-          <Icon size={16} aria-hidden="true" />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-export function LayoutPicker() {
-  const { preferences, setPreference } = useSettings();
-  const t = useT();
-  return (
     <label className="flex items-center gap-2 text-sm text-muted">
-      <span className="sr-only lg:not-sr-only">{t.settings.layout}</span>
+      <span className="sr-only lg:not-sr-only">{t.views.label}</span>
       <select
-        value={preferences.layout}
-        onChange={(event) => setPreference("layout", event.target.value as Layout)}
+        value={view}
+        onChange={(event) => dispatch({ type: "setView", view: event.target.value as ViewMode })}
         className="h-9 rounded-lg border border-line-strong bg-surface px-2 text-ink"
       >
-        {layouts.map((layout) => (
-          <option key={layout} value={layout}>
-            {t.layouts[layout]}
+        {viewModes.map((mode) => (
+          <option key={mode} value={mode}>
+            {t.views[mode]}
           </option>
         ))}
       </select>
@@ -162,7 +129,6 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
         </button>
       </div>
       )}
-      <ViewSwitcher />
       <button
         type="button"
         aria-label={state.detailsOpen ? t.library.hideDetails : t.library.showDetails}
@@ -176,7 +142,7 @@ export function Toolbar({ onLend }: { onLend: () => void }) {
       </button>
       <div className="ml-auto flex flex-1 flex-wrap items-center justify-end gap-3">
         <SearchBox className="max-w-90 min-w-52 flex-1" />
-        <LayoutPicker />
+        <ViewPicker />
         <AccountMenu />
       </div>
     </header>

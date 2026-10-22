@@ -47,15 +47,12 @@ export const it = {
     publishedYear: "Anno",
     readStatus: "Lettura",
   },
-  layouts: {
-    classic: "Classica",
-    shelf: "Scaffale",
-  },
   views: {
     label: "Vista",
-    list: "Vista lista",
-    grid: "Vista griglia",
-    carousel: "Vista carosello",
+    list: "Tabella",
+    grid: "Griglia",
+    carousel: "Galleria",
+    shelf: "Scaffale",
   },
   search: {
     label: "Cerca",
@@ -263,7 +260,6 @@ export const it = {
   },
   settings: {
     title: "Impostazioni",
-    layout: "Layout",
     palette: "Palette colori",
     palettes: {
       light: "Chiara",

@@ -87,7 +87,8 @@ export type Library = {
   readonly collections: readonly Collection[];
 };
 
-export const viewModes = ["list", "grid", "carousel"] as const;
+// Tabella, griglia, galleria (carosello) e scaffale (carosello con la scheda sotto).
+export const viewModes = ["list", "grid", "carousel", "shelf"] as const;
 export type ViewMode = (typeof viewModes)[number];
 
 export const columnKeys = [
@@ -117,9 +118,6 @@ export type ValueFilter = {
 };
 
 // Disposizione della finestra: A classica (predefinita), B galleria, C scaffale scuro.
-export const layouts = ["classic", "shelf"] as const;
-export type Layout = (typeof layouts)[number];
-
-// La palette cambia solo i colori (e il carattere dei titoli), con qualsiasi layout.
+// La palette cambia solo i colori (e il carattere dei titoli), con qualsiasi vista.
 export const palettes = ["light", "warm", "dark"] as const;
 export type Palette = (typeof palettes)[number];

@@ -52,6 +52,7 @@ function BooksView() {
     case "grid":
       return <BookGrid />;
     case "carousel":
+    case "shelf":
       return <BookCarousel />;
   }
 }
@@ -96,7 +97,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// A: collezioni, libri e dettagli affiancati.
+// Tabella, griglia e galleria: collezioni, libri e dettagli affiancati.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -116,21 +117,18 @@ function ClassicShell({ onLend }: ShellProps) {
   );
 }
 
-// C: tema scuro, carosello in alto e dettaglio sotto, come Bookpedia.
+// Scaffale: carosello in alto e scheda del libro sotto, come Bookpedia.
 function ShelfShell({ onLend }: ShellProps) {
-  const { state, selected, view } = useLibrary();
+  const { state, selected } = useLibrary();
   return (
     <>
       <Toolbar onLend={onLend} />
       <div className="flex min-h-0 flex-1">
         <Sidebar />
         <main className="flex min-w-0 flex-1 flex-col">
-          {view !== "carousel" && <MainHeader />}
-          <div className={view === "carousel" ? "contents" : "flex min-h-0 flex-1 flex-col"}>
-            <BooksView />
-          </div>
+          <BooksView />
           {state.detailsOpen && selected && (
-            <div className={`border-t border-line ${view === "carousel" ? "min-h-0 flex-1 overflow-auto" : "max-h-[45%] overflow-auto"}`}>
+            <div className="min-h-0 flex-1 overflow-auto border-t border-line">
               <BookDetails book={selected} variant="below" onLend={onLend} />
             </div>
           )}
@@ -142,12 +140,6 @@ function ShelfShell({ onLend }: ShellProps) {
 }
 
 export function DesktopShell({ onLend }: ShellProps) {
-  const { state } = useLibrary();
-  switch (state.layout) {
-    case "classic":
-      return <ClassicShell onLend={onLend} />;
-
-    case "shelf":
-      return <ShelfShell onLend={onLend} />;
-  }
+  const { view } = useLibrary();
+  return view === "shelf" ? <ShelfShell onLend={onLend} /> : <ClassicShell onLend={onLend} />;
 }

@@ -1,16 +1,14 @@
 import { z } from "zod";
 import { coverSizes } from "../library/state";
-import { layouts, palettes, type Layout, type Palette } from "../library/model";
+import { palettes, type Palette } from "../library/model";
 
 // Preferenze personali: restano nel browser di chi le sceglie.
 export type Preferences = {
-  readonly layout: Layout;
   readonly palette: Palette;
   readonly coverSize: number;
 };
 
 export const defaultPreferences: Preferences = {
-  layout: "classic",
   palette: "light",
   coverSize: coverSizes.initial,
 };
@@ -27,16 +25,14 @@ const asRecord = (input: unknown): Record<string, unknown> =>
 
 const coverSizeSchema = z.number().int().min(coverSizes.min).max(coverSizes.max);
 
-// Prima la palette era legata al layout ("warm" era un layout, "shelf" era sempre scuro)
-// e "gallery" era un layout invece di una vista: chi aveva salvato quelle scelte
-// ritrova gli stessi colori, con il layout classico.
+// Prima c'era un layout che portava con sé i colori ("warm" caldo, "shelf" sempre scuro):
+// chi l'aveva scelto ritrova gli stessi colori. Lo scaffale ora è una vista.
 const legacyPalette = (layout: unknown): Palette =>
   layout === "warm" ? "warm" : layout === "shelf" ? "dark" : defaultPreferences.palette;
 
 export const parsePreferences = (input: unknown): Preferences => {
   const raw = asRecord(input);
   return {
-    layout: fieldOr(z.enum(layouts), raw.layout === "warm" || raw.layout === "gallery" ? "classic" : raw.layout, defaultPreferences.layout),
     palette: fieldOr(z.enum(palettes), raw.palette, legacyPalette(raw.layout)),
     coverSize: fieldOr(coverSizeSchema, raw.coverSize, defaultPreferences.coverSize),
   };

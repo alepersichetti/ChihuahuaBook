@@ -49,15 +49,12 @@ export const en: Messages = {
     publishedYear: "Year",
     readStatus: "Reading",
   },
-  layouts: {
-    classic: "Classic",
-    shelf: "Shelf",
-  },
   views: {
     label: "View",
-    list: "List view",
-    grid: "Grid view",
-    carousel: "Carousel view",
+    list: "Table",
+    grid: "Grid",
+    carousel: "Gallery",
+    shelf: "Shelf",
   },
   search: {
     label: "Search",
@@ -265,7 +262,6 @@ export const en: Messages = {
   },
   settings: {
     title: "Settings",
-    layout: "Layout",
     palette: "Color palette",
     palettes: {
       light: "Light",
