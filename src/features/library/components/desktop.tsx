@@ -96,7 +96,7 @@ function NoSelection() {
 
 type ShellProps = { readonly onLend: () => void };
 
-// A, B e Calda: collezioni, libri e dettagli affiancati. B e Calda partono dalle copertine; Calda ha la palette calda.
+// A e B: collezioni, libri e dettagli affiancati. B parte dalle copertine.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   return (
@@ -146,7 +146,6 @@ export function DesktopShell({ onLend }: ShellProps) {
   switch (state.layout) {
     case "classic":
     case "gallery":
-    case "warm":
       return <ClassicShell onLend={onLend} />;
 
     case "shelf":

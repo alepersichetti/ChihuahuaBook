@@ -1,9 +1,8 @@
 @import "tailwindcss";
 
-/* Temi: chiaro per A classica (predefinita) e B galleria, caldo per la variante Calda, scuro per C scaffale. */
+/* Palette colori, indipendenti dal layout: chiara (predefinita), calda e scura. */
 :root,
-[data-layout="classic"],
-[data-layout="gallery"] {
+[data-palette="light"] {
   --bg: #ffffff;
   --panel: #f6f7f9;
   --surface: #ffffff;
@@ -28,7 +27,7 @@
   --tone-smart: #15803d;
 }
 
-[data-layout="warm"] {
+[data-palette="warm"] {
   --bg: #f5f1ea;
   --panel: #efe9de;
   --surface: #fffdf9;
@@ -53,7 +52,7 @@
   --tone-smart: #4b6a2a;
 }
 
-[data-layout="shelf"] {
+[data-palette="dark"] {
   color-scheme: dark;
   --bg: #15161a;
   --panel: #1b1c21;

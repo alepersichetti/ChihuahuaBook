@@ -50,7 +50,6 @@ export const it = {
   layouts: {
     classic: "Classica",
     gallery: "Galleria",
-    warm: "Calda",
     shelf: "Scaffale",
   },
   views: {
@@ -266,11 +265,16 @@ export const it = {
   settings: {
     title: "Impostazioni",
     layout: "Layout",
-    layoutHints: {
-      classic: "Tre colonne: collezioni, elenco e scheda del libro",
-      gallery: "Come la classica, con le copertine in griglia",
-      warm: "Come la galleria, con la palette calda",
-      shelf: "Tema scuro con carosello e scheda sotto",
+    palette: "Palette colori",
+    palettes: {
+      light: "Chiara",
+      warm: "Calda",
+      dark: "Scura",
+    },
+    paletteHints: {
+      light: "Bianco e blu, il tema predefinito",
+      warm: "Toni crema e terracotta, titoli con grazie",
+      dark: "Sfondo scuro e accenti ambra",
     },
     coverSize: "Dimensione copertine",
     coverSizeHint: "Nella vista a griglia.",
