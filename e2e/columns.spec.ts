@@ -9,8 +9,13 @@ const main = (page: Page) => page.getByRole("main");
 const header = (page: Page, name: string) => main(page).getByRole("columnheader", { name, exact: true });
 const bookRow = (page: Page, title: string) => main(page).getByRole("row").filter({ hasText: title });
 
+// Il menu resta aperto finché non si clicca di nuovo "Colonne": lo si apre solo se è chiuso,
+// altrimenti il secondo clic lo richiuderebbe.
 const openColumnsMenu = async (page: Page) => {
-  await main(page).getByText("Colonne", { exact: true }).click();
+  const menu = main(page).locator("details").filter({ has: page.getByText("Colonne", { exact: true }) });
+  if (!(await menu.evaluate((element) => (element as HTMLDetailsElement).open))) {
+    await main(page).getByText("Colonne", { exact: true }).click();
+  }
   return main(page).locator("details[open]");
 };
 
