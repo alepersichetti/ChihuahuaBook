@@ -17,6 +17,10 @@ describe("header di sicurezza", () => {
     expect(csp).toContain("ws:");
   });
 
+  it("permette i worker da blob, con cui si aprono gli zip grandi", () => {
+    expect(contentSecurityPolicy({ development: false })).toContain("worker-src 'self' blob:");
+  });
+
   it("include gli header di base", () => {
     const keys = securityHeaders({ development: false }).map((header) => header.key);
     expect(keys).toEqual(
