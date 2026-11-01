@@ -217,3 +217,37 @@ describe("riorganizzare le collezioni", () => {
     expect(collectionsWithBook(collections, "barone-rampante").map((item) => item.id)).toEqual(["calvino"]);
   });
 });
+
+describe("colonne personalizzate", () => {
+  const books = libraryBooks(sampleLibrary).map((book, index) => ({
+    ...book,
+    // Valori di prova: un numero per metà dei libri, un luogo per tutti, una data per uno.
+    fields: {
+      ...(index % 2 === 0 ? { copie: String(index + 1) } : {}),
+      luogo: index < 3 ? "Italia" : "Francia",
+      ...(index === 0 ? { acquisto: "2024-03-12" } : {}),
+    },
+  }));
+  const columns = ["title", "field:copie", "field:luogo", "field:acquisto"] as const;
+
+  it("cerca come testo e accetta >, < e intervalli sui numeri", () => {
+    expect(books.filter(matchesColumnFilters({ "field:luogo": "ital" }, columns))).toHaveLength(3);
+    const many = books.filter(matchesColumnFilters({ "field:copie": ">4" }, columns));
+    expect(many.map((book) => book.fields.copie)).toEqual(["5", "7"]);
+    expect(books.filter(matchesColumnFilters({ "field:copie": "1-3" }, columns))).toHaveLength(2);
+  });
+
+  it("le date si cercano anche come gg/mm/aaaa", () => {
+    expect(books.filter(matchesColumnFilters({ "field:acquisto": "12/03/2024" }, columns))).toHaveLength(1);
+    expect(books.filter(matchesColumnFilters({ "field:acquisto": "2024-03" }, columns))).toHaveLength(1);
+  });
+
+  it("ordina i numeri come numeri e mette in fondo i valori mancanti", () => {
+    const sorted = books.toSorted(compareBooks([{ column: "field:copie", direction: "desc" }]));
+    expect(sorted.map((book) => book.fields.copie ?? null)).toEqual(["7", "5", "3", "1", null, null, null, null]);
+  });
+
+  it("al primo clic ordina in ordine crescente", () => {
+    expect(toggleSort([], "field:luogo")).toEqual([{ column: "field:luogo", direction: "asc" }]);
+  });
+});

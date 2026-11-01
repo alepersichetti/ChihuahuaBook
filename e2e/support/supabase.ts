@@ -62,3 +62,21 @@ export const booksTitled = (title: string): Promise<SavedBook[]> =>
 /** La lingua dell'istanza, per rimetterla a posto dopo il test che la cambia. */
 export const setInstanceLanguage = (language: "it" | "en") =>
   call("/rest/v1/instance_settings?id=eq.true", { method: "PATCH", body: JSON.stringify({ language }) });
+
+export type SavedColumn = {
+  readonly key: string;
+  readonly label: string;
+  readonly kind: string;
+  readonly catalog_field: string | null;
+  readonly extra_key: string | null;
+};
+
+/** Le colonne personalizzate salvate sul server. */
+export const customColumns = (): Promise<SavedColumn[]> =>
+  call("/rest/v1/custom_columns?select=key,label,kind,catalog_field,extra_key&order=key");
+
+/** I campi extra dei libri salvati con questo titolo. */
+export const extraOf = async (title: string): Promise<Record<string, unknown> | null> => {
+  const rows = await call(`/rest/v1/books?select=extra&title=eq.${encodeURIComponent(title)}`);
+  return rows[0]?.extra ?? null;
+};

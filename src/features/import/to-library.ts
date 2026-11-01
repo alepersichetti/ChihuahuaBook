@@ -16,6 +16,7 @@ export const toLibraryBook = (
   { sourceId, book, extra }: PediaBook,
   coverUrl: string | null,
   addedAt: string,
+  fields: Book["fields"] = {},
 ): Book => ({
   id: localBookId(sourceId),
   title: book.title,
@@ -42,4 +43,5 @@ export const toLibraryBook = (
   wishlist: false,
   loan: null,
   addedAt: addedOn(extra, addedAt),
+  fields,
 });

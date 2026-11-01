@@ -36,6 +36,7 @@ La lettura è comunque tollerante, così funziona anche con altri formati:
 - va bene sia un plist di Apple sia un XML «a elementi» (`<collection><item><title>…`), anche con i nomi dei campi in un attributo (`<field name="Title">`);
 - i nomi dei campi vengono riconosciuti senza badare a maiuscole, spazi e punteggiatura (`Release Date`, `releaseDate`, `release_date`); l'elenco è in `src/server/core/books/pedia.ts`;
 - i campi che il catalogo non ha finiscono nella colonna `extra` del libro, così non si perde nulla;
+- ogni campo del file diventa una colonna della tabella: quelle che mancano si creano come [colonne personalizzate](custom-columns.it.md) e si mostrano quelle con almeno un valore;
 - le schede senza titolo vengono scartate e mostrate nell'anteprima.
 
 Le copertine si abbinano per nome del file (id della scheda, ISBN o titolo). Se nessun nome corrisponde ma le immagini sono numerate (`1.jpg`, `2.jpg`…), si abbinano nell'ordine delle schede e l'anteprima lo segnala. Immagini TIFF, GIF o troppo grandi vengono convertite in JPEG nel browser, se il browser le sa leggere.

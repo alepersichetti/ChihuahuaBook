@@ -6,9 +6,27 @@ import { deflateSync } from "node:zlib";
 
 export const pediaName = "Biblioteca e2e";
 
+// Oltre ai campi del catalogo, due colonne che la tabella non ha: una dal catalogo
+// (il traduttore) e una che resta in `extra` (il luogo di pubblicazione), più una casella sempre a 0.
 export const pediaBooks = [
-  { uid: "E2E-1", title: "Il giardino dei Finzi-Contini", author: "Giorgio Bassani", isbn: "9788804207788", publisher: "Einaudi" },
-  { uid: "E2E-2", title: "Marcovaldo", author: "Italo Calvino", isbn: "", publisher: "Einaudi" },
+  {
+    uid: "E2E-1",
+    title: "Il giardino dei Finzi-Contini",
+    author: "Giorgio Bassani",
+    isbn: "9788804207788",
+    publisher: "Einaudi",
+    placePublished: "Italia",
+    translator: "",
+  },
+  {
+    uid: "E2E-2",
+    title: "Marcovaldo",
+    author: "Italo Calvino",
+    isbn: "",
+    publisher: "Einaudi",
+    placePublished: "Inghilterra",
+    translator: "Weaver William",
+  },
 ] as const;
 
 const escape = (text: string) => text.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
@@ -24,6 +42,9 @@ ${pediaBooks
     <key>publisher</key><string>${escape(book.publisher)}</string>
     ${book.isbn ? `<key>isbn</key><string>${book.isbn}</string>` : ""}
     <key>uid</key><string>${book.uid}</string>
+    <key>placePublished</key><string>${escape(book.placePublished)}</string>
+    ${book.translator ? `<key>translator</key><string>${escape(book.translator)}</string>` : ""}
+    <key>customCheckbox1</key><integer>0</integer>
   </dict>`,
   )
   .join("\n")}
