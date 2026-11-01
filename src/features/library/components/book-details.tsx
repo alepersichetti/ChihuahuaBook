@@ -379,7 +379,7 @@ export function BookDetails({
       aria-label={t.details.label}
       className={`flex flex-col gap-4 overflow-y-auto px-5 py-4 ${
         variant === "side"
-          ? "w-[340px] shrink-0 border-l border-line"
+          ? "w-full min-w-0 border-l border-line"
           : variant === "drawer"
             ? "h-full w-[min(420px,100%)] shrink-0 border-l border-line bg-surface shadow-[-12px_0_32px_rgba(20,20,30,0.18)]"
             : ""

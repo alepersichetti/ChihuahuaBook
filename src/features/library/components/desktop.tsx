@@ -11,6 +11,7 @@ import { BookDetails } from "./book-details";
 import { CollectionSearch, CollectionSearchButton } from "./collection-search";
 import { useLibrary } from "./library-context";
 import { useWide } from "./media";
+import { ResizablePanel } from "./resizable-panel";
 import { Sidebar } from "./sidebar";
 import { Toolbar } from "./toolbar";
 import { BookCarousel, BookGrid, BookTable, EmptyState } from "./views";
@@ -97,7 +98,7 @@ function StatusBar() {
 function NoSelection() {
   const t = useT();
   return (
-    <aside className="flex w-[340px] shrink-0 items-center justify-center border-l border-line p-8 text-center text-sm text-muted">
+    <aside className="flex w-full items-center justify-center border-l border-line p-8 text-center text-sm text-muted">
       {t.library.noSelection}
     </aside>
   );
@@ -155,7 +156,7 @@ function DetailsSheet({ onLend }: ShellProps) {
   );
 }
 
-// Tabella e griglia: collezioni, libri e dettagli affiancati.
+// Tabella e griglia: collezioni, libri e dettagli affiancati; la scheda si allarga trascinandone il bordo.
 function ClassicShell({ onLend }: ShellProps) {
   const { state, selected } = useLibrary();
   const wide = useWide();
@@ -170,7 +171,11 @@ function ClassicShell({ onLend }: ShellProps) {
         </main>
         {wide
           ? state.detailsOpen &&
-            (selected ? <BookDetails book={selected} variant="side" onLend={onLend} /> : <NoSelection />)
+            (
+              <ResizablePanel>
+                {selected ? <BookDetails book={selected} variant="side" onLend={onLend} /> : <NoSelection />}
+              </ResizablePanel>
+            )
           : <DetailsSheet onLend={onLend} />}
       </div>
       <StatusBar />
