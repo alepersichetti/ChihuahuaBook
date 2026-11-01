@@ -1,8 +1,10 @@
-import { ResultAsync } from "neverthrow";
+import { errAsync, ResultAsync } from "neverthrow";
 import type { BookStore, CoverStore, ImportStore } from "../core/books/ports";
 import { importBooks, pruneLibrary, setBookCover } from "../core/books/import";
-import { unexpected, type AppError } from "../core/errors";
+import { notFound, unexpected, type AppError } from "../core/errors";
 import type { Session } from "../core/session";
+import { authorize } from "../core/auth/roles";
+import { errorResponse } from "./responses";
 import { guarded, readJson } from "./guard";
 import { route } from "./router";
 
@@ -37,6 +39,25 @@ export const importRoutes = [
     librarian(({ request, deps }) =>
       readJson(request).andThen(pruneLibrary(deps.imports, deps.covers)),
     ),
+  ),
+  // La copertina salvata, per chiunque possa leggere la biblioteca. L'URL cambia
+  // con il libro (?v=updated_at), quindi il browser può tenerla a lungo.
+  route<ImportApiDeps>("GET", "/books/:id/cover", ({ params, deps }) =>
+    deps.session
+      .viewer()
+      .andThen(authorize("read"))
+      .andThen(() => deps.books.get(params.id))
+      .andThen((book) => (book.cover_path ? deps.covers.read(book.cover_path) : errAsync(notFound)))
+      .match(
+        (image) =>
+          new Response(image, {
+            headers: {
+              "content-type": image.type || "application/octet-stream",
+              "cache-control": "private, max-age=31536000, immutable",
+            },
+          }),
+        errorResponse,
+      ),
   ),
   // Il corpo è l'immagine stessa, con il suo Content-Type.
   route<ImportApiDeps>(

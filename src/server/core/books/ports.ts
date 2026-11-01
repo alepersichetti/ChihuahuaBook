@@ -80,6 +80,8 @@ export type CoverStore = {
     contentType: string,
   ) => ResultAsync<string, AppError>;
   readonly remove: (paths: readonly string[]) => ResultAsync<void, AppError>;
+  /** L'immagine salvata in `path`, con il suo tipo. */
+  readonly read: (path: string) => ResultAsync<Blob, AppError>;
 };
 
 /** Ricerca di libri in un catalogo esterno: un risultato è una bozza da rivedere. */

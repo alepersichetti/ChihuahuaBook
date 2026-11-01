@@ -24,7 +24,7 @@ const app = (deps: Partial<ImportApiDeps> = {}) =>
       update: (_id: string, patch: object) => okAsync({ id, ...patch } as Book),
     } as unknown as BookStore,
     imports,
-    covers: { put: (path) => okAsync(path), remove: () => okAsync(undefined) },
+    covers: { put: (path) => okAsync(path), remove: () => okAsync(undefined), read: () => okAsync(new Blob(["img"], { type: "image/jpeg" })) },
     ...deps,
   }));
 
@@ -42,7 +42,7 @@ describe("import API", () => {
 
   it("riceve la copertina come corpo binario", async () => {
     const put = vi.fn((...args: [string, Uint8Array, string]) => okAsync(args[0]));
-    const response = await app({ covers: { put, remove: () => okAsync(undefined) } })(
+    const response = await app({ covers: { put, remove: () => okAsync(undefined), read: () => okAsync(new Blob()) } })(
       new Request(`http://localhost/api/books/${id}/cover`, {
         method: "PUT",
         headers: { "content-type": "image/png" },
@@ -75,5 +75,25 @@ describe("import API", () => {
       }),
     );
     expect(await response.json()).toEqual({ dry_run: true, removed: 1, kept: 0 });
+  });
+
+  it("mostra la copertina salvata anche al lettore, con una cache lunga", async () => {
+    const response = await app({
+      session: { viewer: () => okAsync({ userId: "user", role: "reader" }) },
+      books: { get: () => okAsync({ id, cover_path: `${id}.jpg` } as Book) } as unknown as BookStore,
+    })(new Request(`http://localhost/api/books/${id}/cover?v=1`));
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("image/jpeg");
+    expect(response.headers.get("cache-control")).toContain("immutable");
+    expect(await response.text()).toBe("img");
+  });
+
+  it("senza copertina salvata risponde 404, senza sessione 401", async () => {
+    const missing = await app()(new Request(`http://localhost/api/books/${id}/cover`));
+    expect(missing.status).toBe(404);
+    const anonymous = await app({ session: { viewer: () => errAsync(unauthenticated) } })(
+      new Request(`http://localhost/api/books/${id}/cover`),
+    );
+    expect(anonymous.status).toBe(401);
   });
 });

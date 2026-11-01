@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, use, useDeferredValue, useEffect, useMemo, useReducer, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, use, useDeferredValue, useEffect, useMemo, useReducer, useState, useSyncExternalStore, type ReactNode } from "react";
 import { can, type SignedInViewer } from "@/features/auth/viewer";
 import { useSettings } from "../../settings/settings-context";
 import type { Library } from "../model";
@@ -44,6 +44,23 @@ const useWarmSearchIndex = (books: readonly Book[], field: SearchField) => {
   }, [books, field]);
 };
 
+// La trama e le note arrivano solo quando si apre la scheda: nella lista sono troppo pesanti.
+const useBookDetails = (book: Book | null, dispatch: (action: LibraryAction) => void) => {
+  const id = book?.detailsPending ? book.id : null;
+  useEffect(() => {
+    if (!id) return;
+    const controller = new AbortController();
+    fetch(`/api/books/${encodeURIComponent(id)}`, { signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((details: { summary?: string | null; notes?: string | null } | null) => {
+        if (details) dispatch({ type: "bookDetails", bookId: id, summary: details.summary ?? null, notes: details.notes ?? null });
+      })
+      // Senza risposta la scheda resta senza trama: si riprova alla prossima apertura.
+      .catch(() => {});
+    return () => controller.abort();
+  }, [id, dispatch]);
+};
+
 const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
   const canEdit = can(viewer.role, "edit");
   const isAdmin = can(viewer.role, "administer");
@@ -83,6 +100,14 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
     [state.library],
   );
   useWarmSearchIndex(state.library.books, state.searchField);
+  useBookDetails(selectedBook(state), dispatch);
+
+  // Una biblioteca nuova dal server (es. router.refresh() dopo un import) sostituisce quella in vista.
+  const [shownLibrary, setShownLibrary] = useState(library);
+  if (shownLibrary !== library) {
+    setShownLibrary(library);
+    dispatch({ type: "loadLibrary", library });
+  }
   const derived = {
     collection: currentCollection(state) ?? state.library.collections[0],
     books,
