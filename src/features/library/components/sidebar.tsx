@@ -472,7 +472,11 @@ export function Sidebar({ className = "w-58 border-r" }: { className?: string })
               {t.importer.menu}
             </button>
           )}
-          <button type="button" disabled title={t.common.comingSoon} className="flex items-center gap-2.5 px-2.5 py-1.5 disabled:opacity-60 touch:py-2.5">
+          <button
+            type="button"
+            onClick={() => dispatch({ type: "setStatsOpen", open: true })}
+            className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 hover:bg-chip touch:py-2.5"
+          >
             <ChartColumn size={16} aria-hidden="true" />
             {t.library.statistics}
           </button>
