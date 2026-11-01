@@ -97,6 +97,9 @@ describe("conversioni", () => {
     ["1.234,50 €", 1234.5],
     ["$1,234.50", 1234.5],
     ["abc", null],
+    ["Euro 25,00", 25],
+    ["£11.99\t\n£11.99\t\n£ 11,99", 11.99],
+    ["12.", 12],
   ])("parseNumber(%s) = %s", (raw, expected) => {
     expect(parseNumber(raw)).toBe(expected);
   });
