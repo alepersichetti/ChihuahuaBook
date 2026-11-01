@@ -9,7 +9,7 @@ test.use({ storageState: librarian.storageState });
 const handle = (page: Page) => page.getByRole("separator", { name: "Ridimensiona la scheda del libro" });
 const details = (page: Page) => page.getByRole("complementary", { name: "Dettagli del libro" });
 
-const showView = async (page: Page, view: "Tabella" | "Griglia") =>
+const showView = async (page: Page, view: "Tabella" | "Griglia" | "Galleria") =>
   page.getByRole("group", { name: "Vista" }).getByRole("button", { name: view }).click();
 
 const panelWidth = async (page: Page) => Math.round((await details(page).boundingBox())?.width ?? 0);
