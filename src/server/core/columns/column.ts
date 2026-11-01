@@ -45,6 +45,10 @@ export const columnsInputSchema = z.object({
   columns: z.array(columnInputSchema).min(1).max(500),
 });
 
+export const columnRenameSchema = z.object({
+  label: z.string().trim().min(1).max(80),
+});
+
 export const fieldValueSchema = z.object({
   value: z.string().max(10_000).nullable(),
 });

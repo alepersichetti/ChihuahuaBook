@@ -52,12 +52,33 @@ export const newCustomColumn = (
   const key = columnKeyOf(name);
   if (key === "") return { ok: false, problem: "empty" };
   const taken = new Set([
-    ...existing.map((column) => column.key),
+    ...existing.flatMap((column) => [column.key, columnKeyOf(column.label)]),
     ...columnKeys.map((column) => columnKeyOf(t.columns[column])),
   ]);
   return taken.has(key)
     ? { ok: false, problem: "exists" }
     : { ok: true, column: { key, label: name, kind, catalogField: null, extraKey: key } };
+};
+
+/**
+ * Il nuovo nome di una colonna personalizzata. La chiave non cambia (i valori restano dove sono):
+ * cambia solo il nome mostrato, che non può ripetere quello di un'altra colonna.
+ */
+export const renamedLabel = (
+  key: string,
+  label: string,
+  existing: readonly CustomColumn[],
+  t: Messages,
+): { readonly ok: true; readonly label: string } | { readonly ok: false; readonly problem: NewColumnProblem } => {
+  const name = label.trim().replace(/\s+/g, " ").slice(0, 80);
+  const normalized = columnKeyOf(name);
+  if (normalized === "") return { ok: false, problem: "empty" };
+  const others = existing.filter((column) => column.key !== key);
+  const taken = new Set([
+    ...others.flatMap((column) => [column.key, columnKeyOf(column.label)]),
+    ...columnKeys.map((column) => columnKeyOf(t.columns[column])),
+  ]);
+  return taken.has(normalized) ? { ok: false, problem: "exists" } : { ok: true, label: name };
 };
 
 /** Aggiunge le colonne che mancano (stessa chiave = stessa colonna) e lascia le altre come sono. */

@@ -259,11 +259,25 @@ describe("colonne personalizzate", () => {
     expect(state.library.books[0].fields).toEqual({ luogo: "Roma" });
   });
 
+  it("rinominarla cambia solo il nome: chiave, posizione in tabella e valori restano", () => {
+    const id = sampleLibrary.books[0].id;
+    const state = run(
+      { type: "createColumn", column },
+      { type: "setFieldValue", bookId: id, key: "luogo", value: "Roma" },
+      { type: "renameColumn", key: "luogo", label: " Città " },
+    );
+    expect(state.library.customColumns).toEqual([{ ...column, label: "Città" }]);
+    expect(currentColumns(state)).toContain("field:luogo");
+    expect(state.library.books[0].fields).toEqual({ luogo: "Roma" });
+    expect(libraryReducer(state, { type: "renameColumn", key: "luogo", label: "  " })).toBe(state);
+  });
+
   it("il lettore non crea, non elimina e non compila colonne", () => {
     const reader = reducerFor(false);
     const start = initialState(sampleLibrary);
     expect(reader(start, { type: "createColumn", column })).toBe(start);
     expect(reader(start, { type: "deleteColumn", key: "luogo" })).toBe(start);
+    expect(reader(start, { type: "renameColumn", key: "luogo", label: "x" })).toBe(start);
     expect(reader(start, { type: "setFieldValue", bookId: sampleLibrary.books[0].id, key: "luogo", value: "x" })).toBe(start);
   });
 

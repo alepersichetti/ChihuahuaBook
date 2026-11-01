@@ -1,5 +1,5 @@
 import type { ColumnStore } from "../core/columns/ports";
-import { ensureColumns, listColumns, removeColumn, setFieldValue } from "../core/columns/use-cases";
+import { ensureColumns, listColumns, removeColumn, renameColumn, setFieldValue } from "../core/columns/use-cases";
 import type { Session } from "../core/session";
 import { guarded, readJson } from "./guard";
 import { route } from "./router";
@@ -23,6 +23,11 @@ export const columnsRoutes = [
     "POST",
     "/columns",
     librarian(({ request, deps }) => readJson(request).andThen(ensureColumns(deps.columns))),
+  ),
+  route<ColumnsApiDeps>(
+    "PATCH",
+    "/columns/:key",
+    librarian(({ request, params, deps }) => readJson(request).andThen((body) => renameColumn(deps.columns)(params.key, body))),
   ),
   route<ColumnsApiDeps>(
     "DELETE",

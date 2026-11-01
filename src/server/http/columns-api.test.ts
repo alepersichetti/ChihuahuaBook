@@ -28,6 +28,7 @@ const store = (overrides: Partial<ColumnStore>): ColumnStore => ({
   list: unreachable,
   ensure: unreachable,
   remove: unreachable,
+  rename: unreachable,
   setValue: unreachable,
   ...overrides,
 });
@@ -82,6 +83,17 @@ describe("columns API", () => {
     expect((await call(handler, "POST", "/api/columns", { columns: [{ key: "Premi Letterari", label: "x" }] })).status).toBe(400);
     expect((await call(handler, "POST", "/api/columns", { columns: [{ key: "x", label: "x", catalog_field: "title" }] })).status).toBe(400);
     expect((await call(handler, "POST", "/api/columns", { columns: [] })).status).toBe(400);
+  });
+
+  it("rinomina una colonna senza cambiarne la chiave", async () => {
+    const rename = vi.fn<ColumnStore["rename"]>((key, label) => okAsync(stored(key, { label })));
+    const response = await call(app(store({ rename })), "PATCH", "/api/columns/premi", { label: " Premi letterari " });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ key: "premi", label: "Premi letterari" });
+    expect(rename).toHaveBeenCalledWith("premi", "Premi letterari");
+    expect((await call(app(store({})), "PATCH", "/api/columns/premi", { label: "  " })).status).toBe(400);
+    expect((await call(app(store({ rename: () => errAsync(notFound) })), "PATCH", "/api/columns/premi", { label: "x" })).status).toBe(404);
+    expect((await call(app(store({}), "reader"), "PATCH", "/api/columns/premi", { label: "x" })).status).toBe(403);
   });
 
   it("elimina una colonna", async () => {

@@ -3,7 +3,7 @@ import { customColumns } from "./support/supabase";
 import { librarian, reader } from "./support/users";
 
 // Colonne personalizzate: il bibliotecario le crea dal menu Colonne, le compila
-// dalla scheda del libro e le elimina; il lettore le vede ma non le tocca.
+// dalla scheda del libro, le rinomina e le elimina; il lettore le vede ma non le tocca.
 
 const main = (page: Page) => page.getByRole("main");
 const header = (page: Page, name: string) => main(page).getByRole("columnheader", { name, exact: true });
@@ -22,7 +22,7 @@ const showTable = async (page: Page) => {
 test.describe("bibliotecario", () => {
   test.use({ storageState: librarian.storageState });
 
-  test("crea una colonna, la compila, la filtra e la elimina", async ({ page }) => {
+  test("crea una colonna, la compila, la filtra, la rinomina e la elimina", async ({ page }) => {
     await showTable(page);
     const menu = await openColumnsMenu(page);
 
@@ -53,11 +53,23 @@ test.describe("bibliotecario", () => {
     await expect(main(page).getByRole("row")).toHaveCount(3); // intestazioni, filtri e il libro
     await main(page).getByRole("button", { name: "Togli filtri" }).click();
 
-    // Eliminare chiede conferma con un secondo clic.
+    // Rinominare cambia il nome per tutti; chiave e valori restano.
     const again = await openColumnsMenu(page);
-    await again.getByRole("button", { name: "Elimina la colonna Luogo d'acquisto" }).click();
-    await again.getByRole("button", { name: "Elimina", exact: true }).click();
+    await again.getByRole("button", { name: "Rinomina la colonna Luogo d'acquisto" }).click();
+    await again.getByLabel("Nuovo nome per Luogo d'acquisto").fill("Autore");
+    await again.getByLabel("Nuovo nome per Luogo d'acquisto").press("Enter");
+    await expect(again.getByRole("alert")).toHaveText("C'è già una colonna con questo nome.");
+    await again.getByLabel("Nuovo nome per Luogo d'acquisto").fill("Negozio");
+    await again.getByRole("button", { name: "Salva" }).click();
+    await expect(header(page, "Negozio")).toBeVisible();
     await expect(header(page, "Luogo d'acquisto")).toHaveCount(0);
+    await expect(bookRow(page, "Il Gattopardo")).toContainText("Libreria Feltrinelli");
+    await expect.poll(customColumns).toContainEqual(expect.objectContaining({ key: "luogodacquisto", label: "Negozio" }));
+
+    // Eliminare chiede conferma con un secondo clic.
+    await again.getByRole("button", { name: "Elimina la colonna Negozio" }).click();
+    await again.getByRole("button", { name: "Elimina", exact: true }).click();
+    await expect(header(page, "Negozio")).toHaveCount(0);
     await expect.poll(async () => (await customColumns()).map((column) => column.key)).not.toContain("luogodacquisto");
   });
 });
@@ -70,6 +82,7 @@ test.describe("lettore", () => {
     const menu = await openColumnsMenu(page);
     await expect(menu.getByRole("checkbox", { name: "Editore" })).toBeVisible();
     await expect(menu.getByRole("button", { name: "Nuova colonna" })).toHaveCount(0);
+    await expect(menu.getByRole("button", { name: /^Rinomina la colonna/ })).toHaveCount(0);
 
     // Anche chiamando l'API direttamente.
     const created = await page.request.post("/api/columns", {
@@ -77,6 +90,11 @@ test.describe("lettore", () => {
       headers: { origin: new URL(page.url()).origin },
     });
     expect(created.status()).toBe(403);
+    const renamed = await page.request.patch("/api/columns/abusiva", {
+      data: { label: "x" },
+      headers: { origin: new URL(page.url()).origin },
+    });
+    expect(renamed.status()).toBe(403);
     expect((await page.request.get("/api/columns")).status()).toBe(200);
   });
 });

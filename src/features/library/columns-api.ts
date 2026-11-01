@@ -42,6 +42,9 @@ export const saveColumns = async (
 export const removeColumn = (key: string, { fetch: fetcher = fetch, baseUrl = "" }: Options = {}) =>
   send(`${baseUrl}/api/columns/${encodeURIComponent(key)}`, { method: "DELETE" }, fetcher);
 
+export const renameColumn = (key: string, label: string, { fetch: fetcher = fetch, baseUrl = "" }: Options = {}) =>
+  send(`${baseUrl}/api/columns/${encodeURIComponent(key)}`, { method: "PATCH", body: JSON.stringify({ label }) }, fetcher);
+
 export const saveFieldValue = (
   bookId: string,
   key: string,

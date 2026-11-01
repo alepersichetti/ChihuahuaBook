@@ -13,6 +13,7 @@ import {
   kindOfValues,
   mergeCustomColumns,
   newCustomColumn,
+  renamedLabel,
 } from "./columns";
 import { columnKeys, type CustomColumn } from "./model";
 
@@ -73,6 +74,26 @@ describe("newCustomColumn", () => {
     expect(newCustomColumn("prezzo", "number", [column("prezzo")], t)).toEqual({ ok: false, problem: "exists" });
     expect(newCustomColumn("Titolo", "text", [], t)).toEqual({ ok: false, problem: "exists" });
     expect(newCustomColumn("Title", "text", [], messages.en)).toEqual({ ok: false, problem: "exists" });
+  });
+});
+
+describe("renamedLabel", () => {
+  const existing = [column("premi", { label: "Premi" }), column("placepublished", { label: "Luogo di pubblicazione" })];
+
+  it("accetta un nome nuovo o lo stesso nome della colonna", () => {
+    expect(renamedLabel("premi", " Premi  letterari ", existing, t)).toEqual({ ok: true, label: "Premi letterari" });
+    expect(renamedLabel("premi", "premi", existing, t)).toEqual({ ok: true, label: "premi" });
+  });
+
+  it("rifiuta un nome vuoto o già usato da un'altra colonna", () => {
+    expect(renamedLabel("premi", " ", existing, t)).toEqual({ ok: false, problem: "empty" });
+    expect(renamedLabel("premi", "Luogo di pubblicazione", existing, t)).toEqual({ ok: false, problem: "exists" });
+    expect(renamedLabel("premi", "placePublished", existing, t)).toEqual({ ok: false, problem: "exists" });
+    expect(renamedLabel("premi", "Editore", existing, t)).toEqual({ ok: false, problem: "exists" });
+  });
+
+  it("anche una colonna nuova non può prendere il nome mostrato di un'altra", () => {
+    expect(newCustomColumn("Luogo di pubblicazione", "text", existing, t)).toEqual({ ok: false, problem: "exists" });
   });
 });
 

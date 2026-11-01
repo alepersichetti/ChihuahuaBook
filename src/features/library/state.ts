@@ -55,6 +55,8 @@ export type LibraryAction =
   | { readonly type: "createColumn"; readonly column: CustomColumn }
   /** Toglie la colonna; i valori restano nei libri e tornano se la si ricrea con lo stesso nome. */
   | { readonly type: "deleteColumn"; readonly key: string }
+  /** Cambia solo il nome mostrato: chiave e valori restano. */
+  | { readonly type: "renameColumn"; readonly key: string; readonly label: string }
   | { readonly type: "setFieldValue"; readonly bookId: string; readonly key: string; readonly value: string }
   | { readonly type: "clearFilters" }
   | { readonly type: "toggleDetails" }
@@ -430,6 +432,20 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
     }
     case "deleteColumn":
       return deleteColumn(state, action.key);
+    case "renameColumn": {
+      const label = action.label.trim();
+      return label === ""
+        ? state
+        : {
+            ...state,
+            library: {
+              ...state.library,
+              customColumns: state.library.customColumns.map((column) =>
+                column.key === action.key ? { ...column, label } : column,
+              ),
+            },
+          };
+    }
     case "setFieldValue":
       return updateBook(state, action.bookId, (book) => ({ ...book, fields: withField(book.fields, action.key, action.value) }));
   }
@@ -453,6 +469,7 @@ export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
   "setCollectionSearchOpen",
   "createColumn",
   "deleteColumn",
+  "renameColumn",
   "setFieldValue",
 ]);
 

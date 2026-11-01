@@ -43,6 +43,10 @@ export const supabaseColumnStore = (supabase: Supabase): ColumnStore => {
           : run(table().upsert(missing, { onConflict: "key", ignoreDuplicates: true }).select("key")).andThen(list);
       }),
 
+    // Nessuna riga (colonna inesistente o RLS) diventa not_found, non un successo vuoto.
+    rename: (key, label) =>
+      run(table().update({ label }).eq("key", key).select(fields).maybeSingle()).map((row) => toColumn(row as unknown as Row)),
+
     remove: (key) => run(table().delete().eq("key", key).select("key")).map(() => undefined),
 
     setValue: (bookId, extraKey, value) =>

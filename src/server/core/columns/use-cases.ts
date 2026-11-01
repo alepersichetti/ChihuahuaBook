@@ -2,7 +2,7 @@ import { errAsync, type ResultAsync } from "neverthrow";
 import { bookIdSchema } from "../books/schema";
 import { notFound, validationError, type AppError } from "../errors";
 import { validate } from "../result";
-import { columnKeySchema, columnsInputSchema, fieldValueSchema, type CustomColumn } from "./column";
+import { columnKeySchema, columnRenameSchema, columnsInputSchema, fieldValueSchema, type CustomColumn } from "./column";
 import type { ColumnStore } from "./ports";
 
 // Casi d'uso delle colonne personalizzate: validano l'input grezzo e chiamano il magazzino.
@@ -28,6 +28,13 @@ export const removeColumn =
   (store: Pick<ColumnStore, "remove">) =>
   (key: unknown): ResultAsync<void, AppError> =>
     validKey(key).asyncAndThen(store.remove);
+
+export const renameColumn =
+  (store: Pick<ColumnStore, "rename">) =>
+  (key: unknown, input: unknown): ResultAsync<CustomColumn, AppError> =>
+    validKey(key)
+      .andThen((column) => validate(columnRenameSchema)(input).mapErr(validationError).map(({ label }) => ({ column, label })))
+      .asyncAndThen(({ column, label }) => store.rename(column, label));
 
 export const setFieldValue =
   (store: Pick<ColumnStore, "setValue" | "list">) =>

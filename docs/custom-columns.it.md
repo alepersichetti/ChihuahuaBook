@@ -6,7 +6,7 @@ i membri dell'istanza.
 
 ## Chi può fare cosa
 
-| Ruolo | Vede le colonne | Le mostra o nasconde | Crea, elimina e compila |
+| Ruolo | Vede le colonne | Le mostra o nasconde | Crea, rinomina, elimina e compila |
 | --- | --- | --- | --- |
 | Lettore | sì | sì | no |
 | Bibliotecario | sì | sì | sì |
@@ -23,6 +23,8 @@ Il server ricontrolla i ruoli (API e RLS), non solo l'interfaccia.
   Esc annulla. I valori che vengono da un campo del catalogo (es. il traduttore) si leggono soltanto.
 - **Filtrare e ordinare**: come le altre colonne. Sulle colonne di numeri il filtro accetta `>10`,
   `<=3`, `1-5`; le date si cercano come `2024-03-12` o `12/03/2024`.
+- **Rinominare**: icona della matita accanto alla colonna nel menu, nuovo nome, Invio. Cambia solo
+  il nome mostrato, per tutti; la chiave e i valori restano.
 - **Eliminare**: icona del cestino accanto alla colonna nel menu, poi *Elimina*. La colonna
   sparisce per tutti; i valori restano nei libri e tornano se la si ricrea con lo stesso nome.
 
@@ -58,6 +60,7 @@ la funzione `set_book_field(book_id, field_key, field_value)`, che tocca solo qu
 | --- | --- | --- | --- |
 | GET | `/api/columns` | lettore | Le colonne, in ordine |
 | POST | `/api/columns` | bibliotecario | `{ columns: [{ key, label, kind?, extra_key?, catalog_field? }] }`: crea quelle che mancano, restituisce tutte |
+| PATCH | `/api/columns/:key` | bibliotecario | `{ label }`: nuovo nome (la chiave non cambia) |
 | DELETE | `/api/columns/:key` | bibliotecario | Elimina la colonna (non i valori) |
 | PUT | `/api/books/:id/fields/:key` | bibliotecario | `{ value: string \| null }`: scrive o toglie il valore |
 

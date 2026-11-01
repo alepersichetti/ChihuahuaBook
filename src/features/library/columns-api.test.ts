@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { removeColumn, saveColumns, saveFieldValue } from "./columns-api";
+import { removeColumn, renameColumn, saveColumns, saveFieldValue } from "./columns-api";
 import type { CustomColumn } from "./model";
 
 const reply = (status: number, body: unknown = {}) =>
@@ -31,6 +31,15 @@ describe("api colonne personalizzate", () => {
     expect(await saveColumns([column], { fetch: reply(500, { error: "misconfigured" }) })).toBe("local");
     expect(await saveColumns([column], { fetch: vi.fn(async () => Promise.reject(new Error("offline"))) })).toBe("local");
     expect(await saveColumns([column], { fetch: reply(403) })).toBe("failed");
+  });
+
+  it("rinomina con PATCH sulla chiave della colonna", async () => {
+    const fetcher = reply(200, {});
+    expect(await renameColumn("luogo d'acquisto", "Città", { fetch: fetcher })).toBe("saved");
+    const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/columns/luogo%20d'acquisto");
+    expect(init.method).toBe("PATCH");
+    expect(JSON.parse(String(init.body))).toEqual({ label: "Città" });
   });
 
   it("un valore vuoto toglie il campo", async () => {

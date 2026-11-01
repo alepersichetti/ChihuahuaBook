@@ -6,7 +6,7 @@ the instance.
 
 ## Who can do what
 
-| Role | Sees the columns | Shows or hides them | Creates, deletes and fills them |
+| Role | Sees the columns | Shows or hides them | Creates, renames, deletes and fills them |
 | --- | --- | --- | --- |
 | Reader | yes | yes | no |
 | Librarian | yes | yes | yes |
@@ -23,6 +23,8 @@ The server checks roles again (API and RLS), not just the interface.
   cancels. Values that come from a catalog field (e.g. the translator) are read-only.
 - **Filter and sort**: like any other column. Number columns accept `>10`, `<=3`, `1-5`; dates can
   be searched as `2024-03-12` or `12/03/2024`.
+- **Rename**: pencil icon next to the column in the menu, new name, Enter. Only the displayed name
+  changes, for everyone; the key and the values stay.
 - **Delete**: bin icon next to the column in the menu, then *Delete*. The column disappears for
   everyone; values stay in the books and come back if you recreate it with the same name.
 
@@ -58,6 +60,7 @@ A column has either `extra_key` or `catalog_field`, never both. Free values are 
 | --- | --- | --- | --- |
 | GET | `/api/columns` | reader | The columns, in order |
 | POST | `/api/columns` | librarian | `{ columns: [{ key, label, kind?, extra_key?, catalog_field? }] }`: creates the missing ones, returns all |
+| PATCH | `/api/columns/:key` | librarian | `{ label }`: new name (the key doesn't change) |
 | DELETE | `/api/columns/:key` | librarian | Deletes the column (not the values) |
 | PUT | `/api/books/:id/fields/:key` | librarian | `{ value: string \| null }`: writes or removes the value |
 

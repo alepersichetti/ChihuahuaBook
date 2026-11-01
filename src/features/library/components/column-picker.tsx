@@ -1,11 +1,11 @@
 "use client";
 
-import { Columns3, Plus, Trash2 } from "lucide-react";
+import { Check, Columns3, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { useT } from "../../i18n/i18n-context";
-import { customColumnId, newCustomColumn, type NewColumnProblem } from "../columns";
-import { removeColumn, saveColumns } from "../columns-api";
-import { columnKeys, customColumnKinds, type ColumnId, type CustomColumnKind } from "../model";
+import { customColumnId, newCustomColumn, renamedLabel, type NewColumnProblem } from "../columns";
+import { removeColumn, renameColumn, saveColumns } from "../columns-api";
+import { columnKeys, customColumnKinds, type ColumnId, type CustomColumn, type CustomColumnKind } from "../model";
 import { useLibrary } from "./library-context";
 
 const row = "flex items-center gap-2 rounded px-1.5 py-1 hover:bg-chip touch:py-2";
@@ -102,9 +102,65 @@ function NewColumnForm({ onDone }: { onDone: () => void }) {
   );
 }
 
+// Nuovo nome al posto della riga: Invio salva, Esc annulla. La chiave (e quindi i valori) non cambia.
+function RenameField({ column, onDone }: { column: CustomColumn; onDone: () => void }) {
+  const { state, dispatch } = useLibrary();
+  const t = useT();
+  const [name, setName] = useState(column.label);
+  const [problem, setProblem] = useState<NewColumnProblem | null>(null);
+  const save = () => {
+    const result = renamedLabel(column.key, name, state.library.customColumns, t);
+    if (!result.ok) return setProblem(result.problem);
+    if (result.label !== column.label) {
+      dispatch({ type: "renameColumn", key: column.key, label: result.label });
+      void renameColumn(column.key, result.label);
+    }
+    onDone();
+  };
+  const iconButton = "flex size-7 shrink-0 items-center justify-center rounded-md hover:bg-chip touch:size-9";
+  return (
+    <div className="flex flex-col gap-1 px-1.5 py-1">
+      <div className="flex items-center gap-1">
+        <input
+          autoFocus
+          size={1}
+          value={name}
+          aria-label={t.library.customColumns.newName(column.label)}
+          aria-invalid={problem !== null}
+          onChange={(event) => {
+            setName(event.target.value);
+            setProblem(null);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              save();
+            } else if (event.key === "Escape") {
+              event.preventDefault();
+              onDone();
+            }
+          }}
+          className="h-7 min-w-0 flex-1 rounded-md border border-line-strong bg-surface px-2 text-sm text-ink outline-none focus:border-accent aria-invalid:border-danger touch:h-9"
+        />
+        <button type="button" aria-label={t.library.customColumns.save} onClick={save} className={`${iconButton} text-accent`}>
+          <Check size={15} aria-hidden="true" />
+        </button>
+        <button type="button" aria-label={t.library.customColumns.cancel} onClick={onDone} className={`${iconButton} text-muted`}>
+          <X size={15} aria-hidden="true" />
+        </button>
+      </div>
+      {problem && (
+        <p role="alert" className="text-xs text-danger">
+          {t.library.customColumns[problem]}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /**
  * Menu Colonne: quali mostrare nella tabella. Bibliotecari e amministratori
- * possono anche creare colonne nuove ed eliminarle, per tutta la biblioteca.
+ * possono anche creare colonne nuove, rinominarle ed eliminarle, per tutta la biblioteca.
  */
 export function ColumnPicker() {
   const { state, dispatch, canEdit } = useLibrary();
@@ -112,6 +168,7 @@ export function ColumnPicker() {
   const [adding, setAdding] = useState(false);
   // Eliminare chiede un secondo clic sullo stesso pulsante.
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
   const custom = state.library.customColumns;
   const remove = (key: string) => {
     if (confirming !== key) return setConfirming(key);
@@ -120,7 +177,7 @@ export function ColumnPicker() {
     setConfirming(null);
   };
   return (
-    <details className="relative" onToggle={() => (setAdding(false), setConfirming(null))}>
+    <details className="relative" onToggle={() => (setAdding(false), setConfirming(null), setRenaming(null))}>
       <summary className="flex h-8 touch:h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft">
         <Columns3 size={15} aria-hidden="true" />
         {t.library.columns}
@@ -135,9 +192,23 @@ export function ColumnPicker() {
         {custom.length > 0 && (
           <fieldset className="flex flex-col gap-0.5 border-t border-line pt-1">
             <legend className={`${heading} pt-2`}>{t.library.customColumns.custom}</legend>
-            {custom.map((column) => (
-              <div key={column.key} className="flex items-center gap-1">
+            {custom.map((column) =>
+              renaming === column.key ? (
+                <RenameField key={column.key} column={column} onDone={() => setRenaming(null)} />
+              ) : (
+              <div key={column.key} className="flex items-center gap-0.5">
                 <ColumnToggle column={customColumnId(column.key)} label={column.label} />
+                {canEdit && confirming !== column.key && (
+                  <button
+                    type="button"
+                    aria-label={t.library.customColumns.rename(column.label)}
+                    title={t.library.customColumns.rename(column.label)}
+                    onClick={() => (setRenaming(column.key), setConfirming(null))}
+                    className="flex size-7 shrink-0 items-center justify-center rounded-md text-muted hover:bg-chip hover:text-ink touch:size-9"
+                  >
+                    <Pencil size={14} aria-hidden="true" />
+                  </button>
+                )}
                 {canEdit &&
                   (confirming === column.key ? (
                     <button
@@ -160,7 +231,8 @@ export function ColumnPicker() {
                     </button>
                   ))}
               </div>
-            ))}
+              ),
+            )}
           </fieldset>
         )}
         {canEdit &&
