@@ -58,6 +58,20 @@ describe("libraryReducer", () => {
   });
 });
 
+describe("filtri per colonna", () => {
+  it("imposta e toglie un filtro; Mostra tutti azzera tutto", () => {
+    const state = run(
+      { type: "setColumnFilter", column: "authors", value: "calvino" },
+      { type: "setColumnFilter", column: "publishedYear", value: ">1960" },
+      { type: "setColumnFilter", column: "authors", value: "" },
+    );
+    expect(state.columnFilters).toEqual({ publishedYear: ">1960" });
+    const cleared = libraryReducer({ ...state, query: "eco" }, { type: "clearFilters" });
+    expect(cleared.columnFilters).toEqual({});
+    expect(cleared.query).toBe("");
+  });
+});
+
 describe("importBooks", () => {
   const imported = (id: string, title: string) => ({ ...sampleLibrary.books[0], id, title });
 

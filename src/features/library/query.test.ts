@@ -12,7 +12,9 @@ import {
   compareBooks,
   libraryBooks,
   loanState,
+  matchesColumnFilters,
   matchesSearch,
+  parseNumberFilter,
   parseSearch,
   titleSortKey,
   toggleSort,
@@ -70,6 +72,46 @@ describe("ricerca", () => {
   it("limita la ricerca al campo scelto", () => {
     expect(sampleLibrary.books.filter(matchesSearch("einaudi", "title"))).toHaveLength(0);
     expect(sampleLibrary.books.filter(matchesSearch("einaudi", "publisher")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("filtri per colonna", () => {
+  const books = sampleLibrary.books;
+  const columns = ["title", "authors", "publishedYear", "rating", "readStatus"] as const;
+
+  it("legge numeri, confronti e intervalli", () => {
+    expect(parseNumberFilter("1990")).toEqual({ op: "eq", value: 1990 });
+    expect(parseNumberFilter(">= 1990")).toEqual({ op: "gte", value: 1990 });
+    expect(parseNumberFilter("<300")).toEqual({ op: "lt", value: 300 });
+    expect(parseNumberFilter("1990-1980")).toEqual({ op: "between", from: 1980, to: 1990 });
+    expect(parseNumberFilter("anni 80")).toBeNull();
+  });
+
+  it("combina i filtri di più colonne, senza accenti né maiuscole", () => {
+    const found = books.filter(matchesColumnFilters({ authors: "CALVINO", title: "citta" }, columns));
+    expect(titles(found)).toEqual(["Le città invisibili"]);
+  });
+
+  it("filtra anno, voto e stato di lettura", () => {
+    const filter = matchesColumnFilters({ publishedYear: "1950-1960", rating: "4" }, columns);
+    expect(titles(books.filter(filter)).toSorted()).toEqual(["Il Gattopardo", "Il barone rampante"]);
+    expect(titles(books.filter(matchesColumnFilters({ readStatus: "reading" }, columns)))).toContain("L'amica geniale");
+    expect(books.filter(matchesColumnFilters({ rating: "none" }, columns)).every((book) => book.rating === null)).toBe(true);
+  });
+
+  it("ignora i filtri delle colonne nascoste", () => {
+    expect(books.filter(matchesColumnFilters({ publisher: "nessuno" }, columns))).toHaveLength(books.length);
+  });
+
+  it("entra nella pipeline della vista", () => {
+    const found = visibleBooks(sampleLibrary, collection("library"), {
+      query: "",
+      searchField: "all",
+      valueFilter: null,
+      sort: [{ column: "title", direction: "asc" }],
+      columnFilters: { filters: { authors: "svevo" }, columns },
+    });
+    expect(titles(found)).toEqual(["La coscienza di Zeno"]);
   });
 });
 

@@ -143,6 +143,17 @@ export const en: Messages = {
     noMatches: "No books match your search.",
     emptyCollection: "This collection is empty.",
     showAll: "Show all",
+    columnFilters: {
+      label: (column: string) => `Filter by ${column.toLowerCase()}`,
+      placeholder: "Filter…",
+      numberPlaceholder: "e.g. >1990",
+      numberHint: "A number, >, <, >=, <= or a range like 1980-1990",
+      any: "All",
+      atLeast: (stars: number) => `${stars}★ or more`,
+      unrated: "Unrated",
+      clear: "Clear filters",
+      noMatches: "No books match the column filters.",
+    },
   },
   details: {
     label: "Book details",

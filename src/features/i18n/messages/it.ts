@@ -141,6 +141,17 @@ export const it = {
     noMatches: "Nessun libro corrisponde alla ricerca.",
     emptyCollection: "Questa collezione è vuota.",
     showAll: "Mostra tutti",
+    columnFilters: {
+      label: (column: string) => `Filtra per ${column.toLowerCase()}`,
+      placeholder: "Filtra…",
+      numberPlaceholder: "es. >1990",
+      numberHint: "Un numero, >, <, >=, <= oppure un intervallo come 1980-1990",
+      any: "Tutti",
+      atLeast: (stars: number) => `${stars}★ o più`,
+      unrated: "Senza voto",
+      clear: "Togli filtri",
+      noMatches: "Nessun libro corrisponde ai filtri delle colonne.",
+    },
   },
   details: {
     label: "Dettagli del libro",

@@ -106,6 +106,9 @@ export const columnKeys = [
 ] as const;
 export type ColumnKey = (typeof columnKeys)[number];
 
+/** Filtri della riga sotto le intestazioni della tabella: testo libero per colonna. */
+export type ColumnFilters = Readonly<Partial<Record<ColumnKey, string>>>;
+
 export type SortKey = { readonly column: ColumnKey; readonly direction: "asc" | "desc" };
 
 export const searchFields = ["all", "title", "authors", "publisher", "genres", "tags", "isbn13"] as const;

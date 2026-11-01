@@ -4,7 +4,7 @@ import { X } from "lucide-react";
 import { useEffect } from "react";
 import { useT } from "../../i18n/i18n-context";
 import { collectionName } from "../labels";
-import { loanState } from "../query";
+import { hasColumnFilters, loanState } from "../query";
 import { useSettings } from "../../settings/settings-context";
 import { coverSizes } from "../state";
 import { BookDetails } from "./book-details";
@@ -51,8 +51,10 @@ function MainHeader() {
 }
 
 function BooksView() {
-  const { view, books } = useLibrary();
-  if (books.length === 0) return <EmptyState />;
+  const { view, books, columns, state } = useLibrary();
+  // Con i filtri per colonna attivi la tabella resta, così i campi si possono correggere.
+  const keepTable = view === "list" && hasColumnFilters(state.columnFilters, columns);
+  if (books.length === 0 && !keepTable) return <EmptyState />;
   switch (view) {
     case "list":
       return <BookTable />;

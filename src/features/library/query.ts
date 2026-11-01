@@ -1,6 +1,7 @@
 import type {
   Book,
   Collection,
+  ColumnFilters,
   ColumnKey,
   Library,
   SearchField,
@@ -192,6 +193,107 @@ export const valueFilterOf = (book: Book, field: ValueFilter["field"]): readonly
 export const matchesValueFilter = (filter: ValueFilter | null) => (book: Book) =>
   filter === null || valueFilterOf(book, filter.field).includes(filter.value);
 
+// Filtri per colonna ----------------------------------------------------------
+
+export type NumberFilter =
+  | { readonly op: "eq" | "gt" | "gte" | "lt" | "lte"; readonly value: number }
+  | { readonly op: "between"; readonly from: number; readonly to: number };
+
+/** "1990", ">1990", ">=1990", "<300", "1980-1990": null se non è un filtro numerico. */
+export const parseNumberFilter = (text: string): NumberFilter | null => {
+  const compact = text.replace(/\s+/g, "").replace("≥", ">=").replace("≤", "<=");
+  const range = /^(\d+)(?:-|\.\.)(\d+)$/.exec(compact);
+  if (range) {
+    const [from, to] = [Number(range[1]), Number(range[2])].sort((a, b) => a - b);
+    return { op: "between", from, to };
+  }
+  const single = /^(>=|<=|>|<|=)?(\d+)$/.exec(compact);
+  if (!single) return null;
+  const ops = { ">=": "gte", "<=": "lte", ">": "gt", "<": "lt", "=": "eq" } as const;
+  return { op: single[1] ? ops[single[1] as keyof typeof ops] : "eq", value: Number(single[2]) };
+};
+
+const matchesNumber = (filter: NumberFilter, actual: number) => {
+  switch (filter.op) {
+    case "eq":
+      return actual === filter.value;
+    case "gt":
+      return actual > filter.value;
+    case "gte":
+      return actual >= filter.value;
+    case "lt":
+      return actual < filter.value;
+    case "lte":
+      return actual <= filter.value;
+    case "between":
+      return actual >= filter.from && actual <= filter.to;
+  }
+};
+
+// Il voto si sceglie da un menu: "3" = almeno tre stelle, "none" = senza voto.
+export const unratedFilter = "none";
+
+const columnText = (book: Book, column: ColumnKey): readonly string[] => {
+  switch (column) {
+    case "title":
+      return [book.title, book.subtitle ?? ""];
+    case "authors":
+    case "genres":
+      return book[column];
+    case "series":
+      return book.series ? [book.series, book.seriesNumber?.toString() ?? ""] : [];
+    case "publisher":
+    case "location":
+      return book[column] ? [book[column]] : [];
+    case "addedAt": {
+      // La data si cerca come si legge: 2024-03-12 oppure 12/03/2024.
+      const [year = "", month = "", day = ""] = book.addedAt.slice(0, 10).split("-");
+      return [book.addedAt.slice(0, 10), `${day}/${month}/${year}`];
+    }
+    case "readStatus":
+      return [book.readStatus];
+    case "publishedYear":
+    case "pages":
+    case "rating":
+      return book[column] === null ? [] : [String(book[column])];
+  }
+};
+
+const columnMatcher = (column: ColumnKey, text: string): ((book: Book) => boolean) | null => {
+  if (text.trim() === "") return null;
+  switch (column) {
+    case "rating":
+      return text === unratedFilter
+        ? (book) => book.rating === null
+        : (book) => book.rating !== null && book.rating >= Number(text);
+    case "readStatus":
+      return (book) => book.readStatus === text;
+    case "publishedYear":
+    case "pages": {
+      const filter = parseNumberFilter(text);
+      if (filter) return (book) => book[column] !== null && matchesNumber(filter, book[column]);
+      break;
+    }
+  }
+  const terms = parseSearch(text).flat();
+  return (book) => {
+    const value = normalize(columnText(book, column).join(" \u0000 "));
+    return terms.every((term) => value.includes(term));
+  };
+};
+
+/** Vale solo per le colonne visibili: un filtro su una colonna nascosta non si vedrebbe. */
+export const matchesColumnFilters = (filters: ColumnFilters, columns: readonly ColumnKey[]) => {
+  const matchers = columns.flatMap((column) => {
+    const matcher = columnMatcher(column, filters[column] ?? "");
+    return matcher ? [matcher] : [];
+  });
+  return (book: Book) => matchers.every((matcher) => matcher(book));
+};
+
+export const hasColumnFilters = (filters: ColumnFilters, columns: readonly ColumnKey[]) =>
+  columns.some((column) => (filters[column] ?? "").trim() !== "");
+
 // Ordinamento -----------------------------------------------------------------
 
 type Comparable = string | number | null;
@@ -270,11 +372,14 @@ export const visibleBooks = (
     readonly searchField: SearchField;
     readonly valueFilter: ValueFilter | null;
     readonly sort: readonly SortKey[];
+    /** I filtri della tabella, con le colonne a cui si applicano. */
+    readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnKey[] };
   },
 ) =>
   booksInCollection(library, collection)
     .filter(matchesSearch(options.query, options.searchField))
     .filter(matchesValueFilter(options.valueFilter))
+    .filter(matchesColumnFilters(options.columnFilters?.filters ?? {}, options.columnFilters?.columns ?? []))
     .toSorted(compareBooks(options.sort));
 
 // Prestiti --------------------------------------------------------------------

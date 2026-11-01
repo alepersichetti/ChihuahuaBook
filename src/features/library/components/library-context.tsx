@@ -37,12 +37,16 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
   const derived = useMemo(() => {
     const collection = currentCollection(state) ?? state.library.collections[0];
     const sort = currentSort(state);
+    const view = currentView(state);
+    const columns = currentColumns(state);
     const books = collection
       ? visibleBooks(state.library, collection, {
           query: state.query,
           searchField: state.searchField,
           valueFilter: state.valueFilter,
           sort,
+          // I filtri per colonna stanno nella Tabella: nelle altre viste non si vedono e non valgono.
+          columnFilters: view === "list" ? { filters: state.columnFilters, columns } : undefined,
         })
       : [];
     const counts = Object.fromEntries(
@@ -53,8 +57,8 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
       books,
       counts,
       sort,
-      view: currentView(state),
-      columns: currentColumns(state),
+      view,
+      columns,
       selected: selectedBook(state),
     };
   }, [state]);
