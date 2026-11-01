@@ -12,7 +12,9 @@ import {
   compareBooks,
   libraryBooks,
   loanState,
+  matchesColumnFilters,
   matchesSearch,
+  parseNumberFilter,
   parseSearch,
   titleSortKey,
   toggleSort,
@@ -73,6 +75,46 @@ describe("ricerca", () => {
   it("limita la ricerca al campo scelto", () => {
     expect(sampleLibrary.books.filter(matchesSearch("einaudi", "title"))).toHaveLength(0);
     expect(sampleLibrary.books.filter(matchesSearch("einaudi", "publisher")).length).toBeGreaterThan(0);
+  });
+});
+
+describe("filtri per colonna", () => {
+  const books = sampleLibrary.books;
+  const columns = ["title", "authors", "publishedYear", "rating", "readStatus"] as const;
+
+  it("legge numeri, confronti e intervalli", () => {
+    expect(parseNumberFilter("1990")).toEqual({ op: "eq", value: 1990 });
+    expect(parseNumberFilter(">= 1990")).toEqual({ op: "gte", value: 1990 });
+    expect(parseNumberFilter("<300")).toEqual({ op: "lt", value: 300 });
+    expect(parseNumberFilter("1990-1980")).toEqual({ op: "between", from: 1980, to: 1990 });
+    expect(parseNumberFilter("anni 80")).toBeNull();
+  });
+
+  it("combina i filtri di più colonne, senza accenti né maiuscole", () => {
+    const found = books.filter(matchesColumnFilters({ authors: "CALVINO", title: "citta" }, columns));
+    expect(titles(found)).toEqual(["Le città invisibili"]);
+  });
+
+  it("filtra anno, voto e stato di lettura", () => {
+    const filter = matchesColumnFilters({ publishedYear: "1950-1960", rating: "4" }, columns);
+    expect(titles(books.filter(filter)).toSorted()).toEqual(["Il Gattopardo", "Il barone rampante"]);
+    expect(titles(books.filter(matchesColumnFilters({ readStatus: "reading" }, columns)))).toContain("L'amica geniale");
+    expect(books.filter(matchesColumnFilters({ rating: "none" }, columns)).every((book) => book.rating === null)).toBe(true);
+  });
+
+  it("ignora i filtri delle colonne nascoste", () => {
+    expect(books.filter(matchesColumnFilters({ publisher: "nessuno" }, columns))).toHaveLength(books.length);
+  });
+
+  it("entra nella pipeline della vista", () => {
+    const found = visibleBooks(sampleLibrary, collection("library"), {
+      query: "",
+      searchField: "all",
+      valueFilter: null,
+      sort: [{ column: "title", direction: "asc" }],
+      columnFilters: { filters: { authors: "svevo" }, columns },
+    });
+    expect(titles(found)).toEqual(["La coscienza di Zeno"]);
   });
 });
 
@@ -199,5 +241,39 @@ describe("prestazioni della ricerca", () => {
     const [book] = sampleLibrary.books;
     expect(matchesSearch("zibaldone", "title")(book)).toBe(false);
     expect(matchesSearch("zibaldone", "title")({ ...book, title: "Zibaldone" })).toBe(true);
+  });
+});
+
+describe("colonne personalizzate", () => {
+  const books = libraryBooks(sampleLibrary).map((book, index) => ({
+    ...book,
+    // Valori di prova: un numero per metà dei libri, un luogo per tutti, una data per uno.
+    fields: {
+      ...(index % 2 === 0 ? { copie: String(index + 1) } : {}),
+      luogo: index < 3 ? "Italia" : "Francia",
+      ...(index === 0 ? { acquisto: "2024-03-12" } : {}),
+    },
+  }));
+  const columns = ["title", "field:copie", "field:luogo", "field:acquisto"] as const;
+
+  it("cerca come testo e accetta >, < e intervalli sui numeri", () => {
+    expect(books.filter(matchesColumnFilters({ "field:luogo": "ital" }, columns))).toHaveLength(3);
+    const many = books.filter(matchesColumnFilters({ "field:copie": ">4" }, columns));
+    expect(many.map((book) => book.fields.copie)).toEqual(["5", "7"]);
+    expect(books.filter(matchesColumnFilters({ "field:copie": "1-3" }, columns))).toHaveLength(2);
+  });
+
+  it("le date si cercano anche come gg/mm/aaaa", () => {
+    expect(books.filter(matchesColumnFilters({ "field:acquisto": "12/03/2024" }, columns))).toHaveLength(1);
+    expect(books.filter(matchesColumnFilters({ "field:acquisto": "2024-03" }, columns))).toHaveLength(1);
+  });
+
+  it("ordina i numeri come numeri e mette in fondo i valori mancanti", () => {
+    const sorted = books.toSorted(compareBooks([{ column: "field:copie", direction: "desc" }]));
+    expect(sorted.map((book) => book.fields.copie ?? null)).toEqual(["7", "5", "3", "1", null, null, null, null]);
+  });
+
+  it("al primo clic ordina in ordine crescente", () => {
+    expect(toggleSort([], "field:luogo")).toEqual([{ column: "field:luogo", direction: "asc" }]);
   });
 });

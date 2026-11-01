@@ -25,7 +25,7 @@ Checked against a real export (October 2026, 6334 books):
 - people are written «Surname Name» and separated by commas (`Fruttero Carlo, Lucentini Franco`), like genres;
 - `myRating` goes from 0 to 10 (0 = not rated) and becomes 0–5 stars;
 - dates are stored as local midnight (`2004-06-30T22:00:00Z` is 1 July in Italy), so they are read in the browser's time zone;
-- prices are free text (`Euro 25,00`, `9,30 EUR`): amount and currency are extracted;
+- prices are free text (`Euro 25,00`, `9,30 EUR`): amount and currency are extracted. Sometimes the price is repeated on several lines (`£11.99` `£ 11,99`): the first one counts;
 - some texts contain control characters that XML does not allow: they are stripped before parsing;
 - the `Cover` folder holds the images named after the book id. They are matched both by `uid` and by record number (the two ranges don't overlap).
 
@@ -38,6 +38,7 @@ Parsing is still lenient, so other layouts work too:
 - both an Apple plist and an "element-based" XML (`<collection><item><title>…`) work, including field names given in an attribute (`<field name="Title">`);
 - field names are matched ignoring case, spaces and punctuation (`Release Date`, `releaseDate`, `release_date`); the list is in `src/server/core/books/pedia.ts`;
 - fields the catalogue doesn't have go into the book's `extra` column, so nothing is lost;
+- every field in the file becomes a table column: missing ones are created as [custom columns](custom-columns.md) and the ones with at least one value are shown;
 - records without a title are skipped and shown in the preview.
 
 Covers are matched by file name (record id, ISBN or title). If no name matches but the images are numbered (`1.jpg`, `2.jpg`…), they are matched in record order and the preview says so. TIFF, GIF or oversized images are converted to JPEG in the browser, if the browser can read them.

@@ -1,6 +1,8 @@
 import type {
   Book,
   Collection,
+  ColumnFilters,
+  ColumnId,
   ColumnKey,
   Library,
   SearchField,
@@ -9,6 +11,7 @@ import type {
   SortKey,
   ValueFilter,
 } from "./model";
+import { customKeyOf, isIsoDate, numericValue } from "./columns";
 
 // Testo -----------------------------------------------------------------------
 
@@ -217,11 +220,159 @@ export const valueFilterOf = (book: Book, field: ValueFilter["field"]): readonly
 export const matchesValueFilter = (filter: ValueFilter | null) => (book: Book) =>
   filter === null || valueFilterOf(book, filter.field).includes(filter.value);
 
+// Filtri per colonna ----------------------------------------------------------
+
+export type NumberFilter =
+  | { readonly op: "eq" | "gt" | "gte" | "lt" | "lte"; readonly value: number }
+  | { readonly op: "between"; readonly from: number; readonly to: number };
+
+/** "1990", ">1990", ">=1990", "<300", "1980-1990": null se non è un filtro numerico. */
+export const parseNumberFilter = (text: string): NumberFilter | null => {
+  const compact = text.replace(/\s+/g, "").replace("≥", ">=").replace("≤", "<=");
+  const range = /^(\d+)(?:-|\.\.)(\d+)$/.exec(compact);
+  if (range) {
+    const [from, to] = [Number(range[1]), Number(range[2])].sort((a, b) => a - b);
+    return { op: "between", from, to };
+  }
+  const single = /^(>=|<=|>|<|=)?(\d+)$/.exec(compact);
+  if (!single) return null;
+  const ops = { ">=": "gte", "<=": "lte", ">": "gt", "<": "lt", "=": "eq" } as const;
+  return { op: single[1] ? ops[single[1] as keyof typeof ops] : "eq", value: Number(single[2]) };
+};
+
+const matchesNumber = (filter: NumberFilter, actual: number) => {
+  switch (filter.op) {
+    case "eq":
+      return actual === filter.value;
+    case "gt":
+      return actual > filter.value;
+    case "gte":
+      return actual >= filter.value;
+    case "lt":
+      return actual < filter.value;
+    case "lte":
+      return actual <= filter.value;
+    case "between":
+      return actual >= filter.from && actual <= filter.to;
+  }
+};
+
+// Il voto si sceglie da un menu: "3" = almeno tre stelle, "none" = senza voto.
+export const unratedFilter = "none";
+
+// Le date si cercano come si leggono: 2024-03-12 oppure 12/03/2024.
+const dateTexts = (iso: string) => {
+  const [year = "", month = "", day = ""] = iso.slice(0, 10).split("-");
+  return [iso.slice(0, 10), `${day}/${month}/${year}`];
+};
+
+const customText = (book: Book, key: string): readonly string[] => {
+  const value = book.fields[key];
+  if (!value) return [];
+  return isIsoDate(value) ? dateTexts(value) : [value];
+};
+
+const columnText = (book: Book, column: ColumnId): readonly string[] => {
+  const key = customKeyOf(column);
+  return key !== null ? customText(book, key) : fixedText(book, column as ColumnKey);
+};
+
+const fixedText = (book: Book, column: ColumnKey): readonly string[] => {
+  switch (column) {
+    case "title":
+      return [book.title, book.subtitle ?? ""];
+    case "authors":
+    case "genres":
+    case "tags":
+      return book[column];
+    case "series":
+      return book.series ? [book.series, book.seriesNumber?.toString() ?? ""] : [];
+    case "subtitle":
+    case "publisher":
+    case "format":
+    case "language":
+    case "isbn13":
+    case "location":
+    case "summary":
+    case "notes":
+      return book[column] ? [book[column]] : [];
+    case "addedAt":
+      return dateTexts(book.addedAt);
+    case "readStatus":
+      return [book.readStatus];
+    case "publishedYear":
+    case "pages":
+    case "rating":
+      return book[column] === null ? [] : [String(book[column])];
+  }
+};
+
+// Come per la barra di ricerca, il testo normalizzato di una colonna si calcola una volta per libro.
+const columnSearchText = memoPerBook((book: Book, column: ColumnId) => normalize(columnText(book, column).join(" \u0000 ")));
+
+const columnMatcher = (column: ColumnId, text: string): ((book: Book) => boolean) | null => {
+  if (text.trim() === "") return null;
+  const key = customKeyOf(column);
+  // Nelle colonne personalizzate ">10" vale per i valori numerici; il resto si cerca come testo.
+  const numberFilter = key !== null ? parseNumberFilter(text) : null;
+  if (key !== null && numberFilter) {
+    return (book) => {
+      const number = numericValue(book.fields[key] ?? "");
+      return number !== null
+        ? matchesNumber(numberFilter, number)
+        : normalize(book.fields[key] ?? "").includes(normalize(text));
+    };
+  }
+  switch (column) {
+    case "rating":
+      return text === unratedFilter
+        ? (book) => book.rating === null
+        : (book) => book.rating !== null && book.rating >= Number(text);
+    case "readStatus":
+      return (book) => book.readStatus === text;
+    case "publishedYear":
+    case "pages": {
+      const filter = parseNumberFilter(text);
+      if (filter) return (book) => book[column] !== null && matchesNumber(filter, book[column]);
+      break;
+    }
+  }
+  const terms = parseSearch(text).flat();
+  return (book) => {
+    const value = columnSearchText(book, column);
+    return terms.every((term) => value.includes(term));
+  };
+};
+
+/** Vale solo per le colonne visibili: un filtro su una colonna nascosta non si vedrebbe. */
+export const matchesColumnFilters = (filters: ColumnFilters, columns: readonly ColumnId[]) => {
+  const matchers = columns.flatMap((column) => {
+    const matcher = columnMatcher(column, filters[column] ?? "");
+    return matcher ? [matcher] : [];
+  });
+  return (book: Book) => matchers.every((matcher) => matcher(book));
+};
+
+export const hasColumnFilters = (filters: ColumnFilters, columns: readonly ColumnId[]) =>
+  columns.some((column) => (filters[column] ?? "").trim() !== "");
+
 // Ordinamento -----------------------------------------------------------------
 
 type Comparable = string | number | null;
 
-const computeSortValue = (book: Book, column: ColumnKey): Comparable => {
+// Numeri come numeri, date ISO in ordine di calendario, il resto in ordine alfabetico.
+const customSortValue = (book: Book, key: string): Comparable => {
+  const value = book.fields[key]?.trim();
+  if (!value) return null;
+  return numericValue(value) ?? (isIsoDate(value) ? value : normalize(value));
+};
+
+const computeSortValue = (book: Book, column: ColumnId): Comparable => {
+  const key = customKeyOf(column);
+  return key !== null ? customSortValue(book, key) : fixedSortValue(book, column as ColumnKey);
+};
+
+const fixedSortValue = (book: Book, column: ColumnKey): Comparable => {
   switch (column) {
     case "title":
       return titleSortKey(book);
@@ -229,9 +380,17 @@ const computeSortValue = (book: Book, column: ColumnKey): Comparable => {
       return book.authors[0] ? surnameKey(book.authors[0]) : null;
     case "genres":
       return book.genres[0] ? normalize(book.genres[0]) : null;
+    case "tags":
+      return book.tags[0] ? normalize(book.tags[0]) : null;
+    case "subtitle":
     case "publisher":
     case "series":
+    case "format":
+    case "language":
+    case "isbn13":
     case "location":
+    case "summary":
+    case "notes":
       return book[column] ? normalize(book[column]) : null;
     case "readStatus":
       return ["reading", "unread", "read", "abandoned"].indexOf(book.readStatus);
@@ -280,7 +439,7 @@ export const compareBooks = (keys: readonly SortKey[]) => (a: Book, b: Book) => 
 export const maxSortKeys = 6;
 
 // Clic su un'intestazione: diventa il criterio principale; un secondo clic inverte la direzione.
-export const toggleSort = (keys: readonly SortKey[], column: ColumnKey): readonly SortKey[] => {
+export const toggleSort = (keys: readonly SortKey[], column: ColumnId): readonly SortKey[] => {
   const [first] = keys;
   if (first?.column === column) {
     return [{ column, direction: first.direction === "asc" ? "desc" : "asc" }, ...keys.slice(1)];
@@ -303,12 +462,15 @@ export type BookFilters = {
   readonly query: string;
   readonly searchField: SearchField;
   readonly valueFilter: ValueFilter | null;
+  /** I filtri della tabella, con le colonne a cui si applicano. */
+  readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnId[] };
 };
 
 export const filterBooks = (books: readonly Book[], options: BookFilters) => {
   const search = matchesSearch(options.query, options.searchField);
   const value = matchesValueFilter(options.valueFilter);
-  return books.filter((book) => search(book) && value(book));
+  const columns = matchesColumnFilters(options.columnFilters?.filters ?? {}, options.columnFilters?.columns ?? []);
+  return books.filter((book) => search(book) && value(book) && columns(book));
 };
 
 export const visibleBooks = (

@@ -132,4 +132,5 @@ export const toLibraryBook = (id: string, book: NewBook, addedAt: string): Book 
   wishlist: false,
   loan: null,
   addedAt,
+  fields: {},
 });

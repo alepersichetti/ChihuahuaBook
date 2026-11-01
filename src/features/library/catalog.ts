@@ -49,6 +49,8 @@ export const bookFromCatalog = (row: CatalogBook, loan: Loan | null): Book => ({
   loan,
   addedAt: addedAtOf(row),
   detailsPending: true,
+  // Le colonne personalizzate non si leggono ancora dal catalogo: restano vuote.
+  fields: {},
   ...(row.source === "bookpedia" && row.source_id ? { importKey: localBookId(row.source_id) } : {}),
 });
 
@@ -72,6 +74,7 @@ export const libraryFromCatalog = (catalog: Catalog): Library => {
         }),
       ),
     ],
+    customColumns: [],
   };
 };
 

@@ -18,6 +18,8 @@ export type PediaBook = {
   readonly extra: Readonly<Record<string, string | readonly string[]>>;
   /** Nomi con cui cercare la copertina nella cartella del bundle, in ordine di affidabilità. */
   readonly coverHints: readonly string[];
+  /** La scheda così com'era nel file: serve a mostrare tutte le sue colonne. */
+  readonly record: PediaRecord;
 };
 
 export type PediaRecordError = {
@@ -98,12 +100,16 @@ const aliases = {
 } as const satisfies Record<string, readonly string[]>;
 
 type Field = keyof typeof aliases;
+export type PediaField = Field;
 
 const aliasOfKey: ReadonlyMap<string, { field: Field; rank: number }> = new Map(
   (Object.entries(aliases) as [Field, readonly string[]][]).flatMap(
     ([field, keys]) => keys.map((key, rank) => [key, { field, rank }] as const),
   ),
 );
+
+/** Il campo del catalogo a cui corrisponde un nome di campo del file, se c'è. */
+export const pediaFieldOf = (key: string): PediaField | undefined => aliasOfKey.get(normalizeKey(key))?.field;
 
 /** Raccoglie i valori della scheda per campo del catalogo; il resto finisce in `extra`. */
 const groupFields = (record: PediaRecord) => {
@@ -201,9 +207,10 @@ const parseYear = (raw: string | null): number | null => {
 
 /** Numeri scritti all'italiana o all'inglese, con o senza simbolo di valuta. */
 export const parseNumber = (raw: string | null): number | null => {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d.,-]/g, "");
-  if (!/\d/.test(digits)) return null;
+  // Solo il primo numero: Bookpedia a volte ripete il prezzo su più righe ("£11.99\n£11.99"),
+  // e unire tutte le cifre darebbe un valore enorme.
+  const digits = raw?.match(/-?\d[\d.,]*/)?.[0].replace(/[.,]+$/, "");
+  if (!digits) return null;
   const lastComma = digits.lastIndexOf(",");
   const lastDot = digits.lastIndexOf(".");
   const normalized =
@@ -226,9 +233,12 @@ const currencyOf = (values: readonly (string | null)[]) =>
     values.some((value) => value && pattern.test(value)),
   )?.[1] ?? null;
 
+// Il limite della colonna numeric(10, 2): oltre, il database rifiuta l'intero lotto.
+const maxMoney = 99_999_999.99;
+
 const money = (raw: string | null) => {
   const value = parseNumber(raw);
-  return value !== null && value >= 0 ? Math.round(value * 100) / 100 : null;
+  return value !== null && value >= 0 && value <= maxMoney ? Math.round(value * 100) / 100 : null;
 };
 
 const truthy = /^(1|y|yes|true|s|si|sì|x|checked|on|read|letto)$/i;
@@ -359,6 +369,7 @@ export const mapPediaRecord = (
       book: withDerivedIsbn(book),
       extra: leftovers,
       coverHints: [...new Set(coverHints)],
+      record,
     }))
     .mapErr((issues) => ({ index, title: draft.title || null, issues }));
 };

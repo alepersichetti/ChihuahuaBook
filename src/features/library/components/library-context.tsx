@@ -78,6 +78,8 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
   const shown = deferred.library;
   const shownCollection = currentCollection(deferred) ?? shown.collections[0];
   const sort = currentSort(deferred);
+  const shownView = currentView(deferred);
+  const shownColumns = currentColumns(deferred);
   // Ordinare non dipende dalla ricerca: si rifà solo se cambiano libri, collezione o criteri.
   const sorted = useMemo(
     () => (shownCollection ? sortedBooks(shown, shownCollection, sort) : []),
@@ -89,8 +91,10 @@ const useLibraryValue = (library: Library, viewer: SignedInViewer) => {
         query: deferred.query,
         searchField: deferred.searchField,
         valueFilter: deferred.valueFilter,
+        // I filtri per colonna stanno nella Tabella: nelle altre viste non si vedono e non valgono.
+        columnFilters: shownView === "list" ? { filters: deferred.columnFilters, columns: shownColumns } : undefined,
       }),
-    [sorted, deferred.query, deferred.searchField, deferred.valueFilter],
+    [sorted, deferred.query, deferred.searchField, deferred.valueFilter, deferred.columnFilters, shownView, shownColumns],
   );
   const counts = useMemo(
     () =>

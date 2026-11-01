@@ -2,6 +2,7 @@ import { googleBooksSource } from "../adapters/google-books/search";
 import { openLibraryLookup } from "../adapters/open-library/lookup";
 import { openLibrarySource } from "../adapters/open-library/search";
 import { supabaseBookStore } from "../adapters/supabase/book-store";
+import { supabaseColumnStore } from "../adapters/supabase/column-store";
 import {
   supabaseCoverStore,
   supabaseImportStore,
@@ -12,6 +13,7 @@ import { supabaseSession } from "../adapters/supabase/session";
 import { readConfig, type Config } from "../config";
 import { adminRoutes, type AdminApiDeps } from "../http/admin-api";
 import { booksRoutes, type BooksApiDeps } from "../http/books-api";
+import { columnsRoutes, type ColumnsApiDeps } from "../http/columns-api";
 import { importRoutes, type ImportApiDeps } from "../http/import-api";
 import { sameOriginOnly } from "../http/csrf";
 import { requestOrigin } from "../http/origin";
@@ -20,7 +22,7 @@ import { router } from "../http/router";
 
 export type AppHandler = (request: Request) => Promise<Response>;
 
-type AppDeps = BooksApiDeps & ImportApiDeps & AdminApiDeps;
+type AppDeps = BooksApiDeps & ImportApiDeps & AdminApiDeps & ColumnsApiDeps;
 
 /** Composizione: collega gli adattatori reali ai casi d'uso. */
 export const createApp = (
@@ -30,12 +32,13 @@ export const createApp = (
   sameOriginOnly(
     router<AppDeps>(
       options.basePath ?? "/api",
-      [...booksRoutes, ...importRoutes, ...adminRoutes],
+      [...booksRoutes, ...columnsRoutes, ...importRoutes, ...adminRoutes],
       (request) => {
         const supabase = supabaseForRequest(config, request);
         return {
           session: supabaseSession(supabase, request),
           books: supabaseBookStore(supabase),
+          columns: supabaseColumnStore(supabase),
           imports: supabaseImportStore(supabase),
           covers: supabaseCoverStore(supabase),
           members: supabaseMemberStore(supabase),

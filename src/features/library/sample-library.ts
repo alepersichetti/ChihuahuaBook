@@ -25,6 +25,7 @@ const book = (fields: Partial<Book> & Pick<Book, "id" | "title" | "authors">): B
   wishlist: false,
   loan: null,
   addedAt: "2026-10-01T10:00:00Z",
+  fields: {},
   ...fields,
 });
 
@@ -187,4 +188,5 @@ export const sampleLibrary: Library = {
       excluded: true,
     },
   ],
+  customColumns: [],
 };

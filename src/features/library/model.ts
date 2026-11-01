@@ -42,6 +42,8 @@ export type Book = {
   readonly detailsPending?: boolean;
   /** Id del libro nel programma d'origine, come localBookId dell'import: evita doppioni. */
   readonly importKey?: string;
+  /** Valori delle colonne personalizzate, per chiave della colonna. */
+  readonly fields: Readonly<Record<string, string>>;
 };
 
 export type SmartField =
@@ -89,9 +91,27 @@ export type Collection =
 
 export type CollectionKind = Collection["kind"];
 
+export const customColumnKinds = ["text", "number", "date"] as const;
+export type CustomColumnKind = (typeof customColumnKinds)[number];
+
+/**
+ * Colonna creata dall'utente o arrivata da un import: vale per tutta la biblioteca.
+ * `key` è il nome senza maiuscole né spazi ("Luogo di pubblicazione" → "luogodipubblicazione").
+ */
+export type CustomColumn = {
+  readonly key: string;
+  readonly label: string;
+  readonly kind: CustomColumnKind;
+  /** Campo del catalogo da cui vengono i valori (es. "translators"); null = valori liberi. */
+  readonly catalogField: string | null;
+  /** Per i valori liberi: la chiave in books.extra, come nel file importato (es. "placePublished"). */
+  readonly extraKey: string | null;
+};
+
 export type Library = {
   readonly books: readonly Book[];
   readonly collections: readonly Collection[];
+  readonly customColumns: readonly CustomColumn[];
 };
 
 // Tabella, griglia e galleria (carosello).
@@ -100,6 +120,7 @@ export type ViewMode = (typeof viewModes)[number];
 
 export const columnKeys = [
   "title",
+  "subtitle",
   "authors",
   "publishedYear",
   "publisher",
@@ -108,12 +129,25 @@ export const columnKeys = [
   "rating",
   "readStatus",
   "pages",
+  "format",
+  "language",
+  "isbn13",
+  "tags",
   "location",
+  "summary",
+  "notes",
   "addedAt",
 ] as const;
 export type ColumnKey = (typeof columnKeys)[number];
 
-export type SortKey = { readonly column: ColumnKey; readonly direction: "asc" | "desc" };
+/** Le colonne personalizzate hanno un id col prefisso, così non si confondono con quelle fisse. */
+export type CustomColumnId = `field:${string}`;
+export type ColumnId = ColumnKey | CustomColumnId;
+
+/** Filtri della riga sotto le intestazioni della tabella: testo libero per colonna. */
+export type ColumnFilters = Readonly<Partial<Record<ColumnId, string>>>;
+
+export type SortKey = { readonly column: ColumnId; readonly direction: "asc" | "desc" };
 
 export const searchFields = ["all", "title", "authors", "publisher", "genres", "tags", "isbn13"] as const;
 export type SearchField = (typeof searchFields)[number];

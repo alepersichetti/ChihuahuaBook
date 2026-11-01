@@ -23,7 +23,7 @@ Verificato su un export reale (ottobre 2026, 6334 libri):
 - le persone sono scritte «Cognome Nome» e separate da virgole (`Fruttero Carlo, Lucentini Franco`), come i generi;
 - `myRating` va da 0 a 10 (0 = nessun voto) e diventa 0–5 stelle;
 - le date sono salvate a mezzanotte dell'ora locale (`2004-06-30T22:00:00Z` è il 1° luglio in Italia), quindi si leggono nel fuso del browser;
-- i prezzi sono testo libero (`Euro 25,00`, `9,30 EUR`): si prendono importo e valuta;
+- i prezzi sono testo libero (`Euro 25,00`, `9,30 EUR`): si prendono importo e valuta. A volte il prezzo è ripetuto su più righe (`£11.99` `£ 11,99`): conta il primo;
 - alcuni testi contengono caratteri di controllo che l'XML non ammette: vengono tolti prima della lettura;
 - la cartella `Cover` contiene le immagini con l'id del libro come nome. Si abbinano sia per `uid` sia per il numero della scheda (i due intervalli non si sovrappongono).
 
@@ -36,6 +36,7 @@ La lettura è comunque tollerante, così funziona anche con altri formati:
 - va bene sia un plist di Apple sia un XML «a elementi» (`<collection><item><title>…`), anche con i nomi dei campi in un attributo (`<field name="Title">`);
 - i nomi dei campi vengono riconosciuti senza badare a maiuscole, spazi e punteggiatura (`Release Date`, `releaseDate`, `release_date`); l'elenco è in `src/server/core/books/pedia.ts`;
 - i campi che il catalogo non ha finiscono nella colonna `extra` del libro, così non si perde nulla;
+- ogni campo del file diventa una colonna della tabella: quelle che mancano si creano come [colonne personalizzate](custom-columns.it.md) e si mostrano quelle con almeno un valore;
 - le schede senza titolo vengono scartate e mostrate nell'anteprima.
 
 Le copertine si abbinano per nome del file (id della scheda, ISBN o titolo). Se nessun nome corrisponde ma le immagini sono numerate (`1.jpg`, `2.jpg`…), si abbinano nell'ordine delle schede e l'anteprima lo segnala. Immagini TIFF, GIF o troppo grandi vengono convertite in JPEG nel browser, se il browser le sa leggere.

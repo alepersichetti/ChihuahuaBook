@@ -1,7 +1,9 @@
 import type {
   Book,
   Collection,
-  ColumnKey,
+  ColumnFilters,
+  ColumnId,
+  CustomColumn,
   Library,
   Loan,
   ReadStatus,
@@ -11,6 +13,7 @@ import type {
   ViewMode,
 } from "./model";
 import { withDetails } from "./catalog";
+import { customColumnId, customKeyOf, mergeCustomColumns } from "./columns";
 import { canMoveInto, toggleSort } from "./query";
 
 export type LibraryState = {
@@ -19,12 +22,14 @@ export type LibraryState = {
   readonly selectedBookId: string | null;
   // Come Bookpedia, ogni collezione ricorda vista, colonne e ordinamento.
   readonly viewByCollection: Readonly<Record<string, ViewMode>>;
-  readonly columnsByCollection: Readonly<Record<string, readonly ColumnKey[]>>;
+  readonly columnsByCollection: Readonly<Record<string, readonly ColumnId[]>>;
   readonly sortByCollection: Readonly<Record<string, readonly SortKey[]>>;
   readonly lastView: ViewMode;
   readonly query: string;
   readonly searchField: SearchField;
   readonly valueFilter: ValueFilter | null;
+  // Filtri sotto le intestazioni della Tabella, oltre alla ricerca in alto.
+  readonly columnFilters: ColumnFilters;
   readonly detailsOpen: boolean;
   readonly sidebarOpen: boolean;
   readonly coverSize: number;
@@ -41,11 +46,20 @@ export type LibraryAction =
   | { readonly type: "selectCollection"; readonly collectionId: string }
   | { readonly type: "selectBook"; readonly bookId: string | null }
   | { readonly type: "setView"; readonly view: ViewMode }
-  | { readonly type: "toggleColumn"; readonly column: ColumnKey }
-  | { readonly type: "sortBy"; readonly column: ColumnKey }
+  | { readonly type: "toggleColumn"; readonly column: ColumnId }
+  | { readonly type: "sortBy"; readonly column: ColumnId }
   | { readonly type: "setQuery"; readonly query: string }
   | { readonly type: "setSearchField"; readonly field: SearchField }
   | { readonly type: "setValueFilter"; readonly filter: ValueFilter | null }
+  | { readonly type: "setColumnFilter"; readonly column: ColumnId; readonly value: string }
+  /** Nuova colonna per tutta la biblioteca: compare subito nella tabella che si sta guardando. */
+  | { readonly type: "createColumn"; readonly column: CustomColumn }
+  /** Toglie la colonna; i valori restano nei libri e tornano se la si ricrea con lo stesso nome. */
+  | { readonly type: "deleteColumn"; readonly key: string }
+  /** Cambia solo il nome mostrato: chiave e valori restano. */
+  | { readonly type: "renameColumn"; readonly key: string; readonly label: string }
+  | { readonly type: "setFieldValue"; readonly bookId: string; readonly key: string; readonly value: string }
+  | { readonly type: "clearFilters" }
   | { readonly type: "toggleDetails" }
   | { readonly type: "setSidebarOpen"; readonly open: boolean }
   | { readonly type: "setCoverSize"; readonly size: number }
@@ -64,6 +78,8 @@ export type LibraryAction =
       readonly collectionName: string;
       /** La biblioteca diventa uguale al file: i libri che non ci sono spariscono. */
       readonly replace: boolean;
+      /** Le colonne del file: quelle che mancano si creano, quelle con dati si mostrano. */
+      readonly columns?: ImportedColumns;
     }
   | { readonly type: "setAddOpen"; readonly open: boolean }
   | { readonly type: "addBook"; readonly book: Book; readonly collectionId?: string | null }
@@ -96,7 +112,12 @@ export type LibraryAction =
       readonly notes: string | null;
     };
 
-export const defaultColumns: readonly ColumnKey[] = [
+export type ImportedColumns = {
+  readonly custom: readonly CustomColumn[];
+  readonly visible: readonly ColumnId[];
+};
+
+export const defaultColumns: readonly ColumnId[] = [
   "title",
   "authors",
   "publishedYear",
@@ -120,6 +141,7 @@ export const initialState = (library: Library): LibraryState => ({
   query: "",
   searchField: "all",
   valueFilter: null,
+  columnFilters: {},
   detailsOpen: true,
   sidebarOpen: false,
   coverSize: coverSizes.initial,
@@ -160,7 +182,36 @@ const updateBook = (state: LibraryState, bookId: string, update: (book: Book) =>
 // Ogni import finisce anche in una collezione col nome del file, come in Bookpedia.
 export const importCollectionId = (name: string) => `import:${name.trim().toLowerCase()}`;
 
-const addImported = (state: LibraryState, books: readonly Book[], name: string, replace: boolean): LibraryState => {
+const withVisible = (current: readonly ColumnId[], extra: readonly ColumnId[]) => [
+  ...current,
+  ...extra.filter((column) => !current.includes(column)),
+];
+
+// La tabella si adatta al file: la collezione dell'import mostra le sue colonne,
+// e quella che si stava guardando aggiunge quelle che non aveva.
+const showImportedColumns = (
+  state: LibraryState,
+  importId: string,
+  columns: ImportedColumns | undefined,
+): Pick<LibraryState, "columnsByCollection"> => {
+  if (!columns || columns.visible.length === 0) return { columnsByCollection: state.columnsByCollection };
+  const fileColumns = withVisible(["title"], columns.visible);
+  return {
+    columnsByCollection: {
+      ...state.columnsByCollection,
+      [state.collectionId]: withVisible(currentColumns(state), fileColumns),
+      [importId]: fileColumns,
+    },
+  };
+};
+
+const addImported = (
+  state: LibraryState,
+  books: readonly Book[],
+  name: string,
+  replace: boolean,
+  columns?: ImportedColumns,
+): LibraryState => {
   const ids = new Set(books.map((book) => book.id));
   // Un libro letto dal database ha un altro id, ma la stessa chiave d'origine.
   const kept = replace ? [] : state.library.books.filter((book) => !ids.has(book.id) && !ids.has(book.importKey ?? ""));
@@ -176,9 +227,11 @@ const addImported = (state: LibraryState, books: readonly Book[], name: string, 
   };
   return {
     ...state,
+    ...showImportedColumns(state, id, columns),
     library: {
       // Reimportare sostituisce i libri con lo stesso id invece di duplicarli.
       books: [...kept, ...books],
+      customColumns: mergeCustomColumns(state.library.customColumns, columns?.custom ?? []),
       collections: [
         ...state.library.collections
           .filter((item) => item.id !== id)
@@ -233,6 +286,25 @@ const moveCollection = (
   return [...rest.slice(0, index), { ...item, parentId }, ...rest.slice(index)];
 };
 
+const withField = (fields: Book["fields"], key: string, value: string): Book["fields"] => {
+  const rest = Object.fromEntries(Object.entries(fields).filter(([name]) => name !== key));
+  return value.trim() === "" ? rest : { ...rest, [key]: value.trim() };
+};
+
+// La colonna sparisce da ogni tabella, dagli ordinamenti e dai filtri.
+const deleteColumn = (state: LibraryState, key: string): LibraryState => {
+  const keep = (column: ColumnId) => customKeyOf(column) !== key;
+  const mapValues = <T,>(record: Readonly<Record<string, T>>, update: (value: T) => T) =>
+    Object.fromEntries(Object.entries(record).map(([id, value]) => [id, update(value)]));
+  return {
+    ...state,
+    library: { ...state.library, customColumns: state.library.customColumns.filter((column) => column.key !== key) },
+    columnsByCollection: mapValues(state.columnsByCollection, (columns) => columns.filter(keep)),
+    sortByCollection: mapValues(state.sortByCollection, (keys) => keys.filter((sortKey) => keep(sortKey.column))),
+    columnFilters: Object.fromEntries(Object.entries(state.columnFilters).filter(([column]) => keep(column as ColumnId))),
+  };
+};
+
 const toggleIn = <T,>(values: readonly T[], value: T) =>
   values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
 
@@ -277,6 +349,12 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return { ...state, searchField: action.field };
     case "setValueFilter":
       return { ...state, valueFilter: action.filter };
+    case "setColumnFilter": {
+      const rest = Object.fromEntries(Object.entries(state.columnFilters).filter(([column]) => column !== action.column));
+      return { ...state, columnFilters: action.value === "" ? rest : { ...rest, [action.column]: action.value } };
+    }
+    case "clearFilters":
+      return { ...state, query: "", valueFilter: null, columnFilters: {} };
     case "toggleDetails":
       return { ...state, detailsOpen: !state.detailsOpen };
     case "setSidebarOpen":
@@ -305,13 +383,14 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
     case "setImportOpen":
       return { ...state, importOpen: action.open };
     case "importBooks":
-      return addImported(state, action.books, action.collectionName, action.replace);
+      return addImported(state, action.books, action.collectionName, action.replace, action.columns);
     case "setAddOpen":
       return { ...state, addOpen: action.open };
     case "addBook":
       return {
         ...state,
         library: {
+          ...state.library,
           books: [...state.library.books.filter((book) => book.id !== action.book.id), action.book],
           collections: state.library.collections.map((item) =>
             item.kind === "regular" && item.id === action.collectionId && !item.bookIds.includes(action.book.id)
@@ -371,6 +450,36 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
           ),
         },
       };
+    case "createColumn": {
+      const customColumns = mergeCustomColumns(state.library.customColumns, [action.column]);
+      if (customColumns === state.library.customColumns) return state;
+      return {
+        ...state,
+        library: { ...state.library, customColumns },
+        columnsByCollection: {
+          ...state.columnsByCollection,
+          [state.collectionId]: withVisible(currentColumns(state), [customColumnId(action.column.key)]),
+        },
+      };
+    }
+    case "deleteColumn":
+      return deleteColumn(state, action.key);
+    case "renameColumn": {
+      const label = action.label.trim();
+      return label === ""
+        ? state
+        : {
+            ...state,
+            library: {
+              ...state.library,
+              customColumns: state.library.customColumns.map((column) =>
+                column.key === action.key ? { ...column, label } : column,
+              ),
+            },
+          };
+    }
+    case "setFieldValue":
+      return updateBook(state, action.bookId, (book) => ({ ...book, fields: withField(book.fields, action.key, action.value) }));
   }
 };
 
@@ -390,6 +499,10 @@ export const editingActions: ReadonlySet<LibraryAction["type"]> = new Set([
   "removeFromCollection",
   "moveCollection",
   "setCollectionSearchOpen",
+  "createColumn",
+  "deleteColumn",
+  "renameColumn",
+  "setFieldValue",
 ]);
 
 /** Il reducer giusto per chi usa l'app: in sola lettura ignora le modifiche. */

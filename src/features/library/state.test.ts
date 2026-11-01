@@ -8,6 +8,7 @@ import {
   libraryReducer,
   reducerFor,
   selectedBook,
+  currentSort,
   type LibraryAction,
 } from "./state";
 
@@ -55,6 +56,20 @@ describe("libraryReducer", () => {
     const state = run({ type: "openBook", bookId: "gattopardo" });
     expect(state.mobileScreen).toBe("book");
     expect(state.selectedBookId).toBe("gattopardo");
+  });
+});
+
+describe("filtri per colonna", () => {
+  it("imposta e toglie un filtro; Mostra tutti azzera tutto", () => {
+    const state = run(
+      { type: "setColumnFilter", column: "authors", value: "calvino" },
+      { type: "setColumnFilter", column: "publishedYear", value: ">1960" },
+      { type: "setColumnFilter", column: "authors", value: "" },
+    );
+    expect(state.columnFilters).toEqual({ publishedYear: ">1960" });
+    const cleared = libraryReducer({ ...state, query: "eco" }, { type: "clearFilters" });
+    expect(cleared.columnFilters).toEqual({});
+    expect(cleared.query).toBe("");
   });
 });
 
@@ -201,5 +216,91 @@ describe("spostare collezioni e cartelle", () => {
   it("le collezioni di sistema restano dove sono", () => {
     const start = initialState(sampleLibrary);
     expect(libraryReducer(start, { type: "moveCollection", collectionId: "library", parentId: "authors", beforeId: null })).toBe(start);
+  });
+});
+
+describe("colonne personalizzate", () => {
+  const column = { key: "luogo", label: "Luogo", kind: "text" as const, catalogField: null, extraKey: "luogo" };
+
+  it("una nuova colonna vale per la biblioteca e compare nella tabella che si sta guardando", () => {
+    const state = run({ type: "createColumn", column });
+    expect(state.library.customColumns).toEqual([column]);
+    expect(currentColumns(state)).toEqual([...currentColumns(run()), "field:luogo"]);
+    // Nelle altre collezioni si sceglie dal menu Colonne.
+    expect(currentColumns(libraryReducer(state, { type: "selectCollection", collectionId: "loaned" }))).not.toContain("field:luogo");
+  });
+
+  it("non crea due volte la stessa colonna", () => {
+    const once = run({ type: "createColumn", column });
+    expect(libraryReducer(once, { type: "createColumn", column: { ...column, label: "Altro" } })).toBe(once);
+  });
+
+  it("compila e svuota il valore di un libro", () => {
+    const id = sampleLibrary.books[0].id;
+    const filled = run({ type: "createColumn", column }, { type: "setFieldValue", bookId: id, key: "luogo", value: " Roma " });
+    expect(selectedBook({ ...filled, selectedBookId: id })?.fields).toEqual({ luogo: "Roma" });
+    const emptied = libraryReducer(filled, { type: "setFieldValue", bookId: id, key: "luogo", value: "" });
+    expect(selectedBook({ ...emptied, selectedBookId: id })?.fields).toEqual({});
+  });
+
+  it("eliminarla la toglie da tabelle, ordinamenti e filtri ma lascia i valori nei libri", () => {
+    const id = sampleLibrary.books[0].id;
+    const state = run(
+      { type: "createColumn", column },
+      { type: "setFieldValue", bookId: id, key: "luogo", value: "Roma" },
+      { type: "sortBy", column: "field:luogo" },
+      { type: "setColumnFilter", column: "field:luogo", value: "ro" },
+      { type: "deleteColumn", key: "luogo" },
+    );
+    expect(state.library.customColumns).toEqual([]);
+    expect(currentColumns(state)).not.toContain("field:luogo");
+    expect(currentSort(state).map((key) => key.column)).not.toContain("field:luogo");
+    expect(state.columnFilters).toEqual({});
+    expect(state.library.books[0].fields).toEqual({ luogo: "Roma" });
+  });
+
+  it("rinominarla cambia solo il nome: chiave, posizione in tabella e valori restano", () => {
+    const id = sampleLibrary.books[0].id;
+    const state = run(
+      { type: "createColumn", column },
+      { type: "setFieldValue", bookId: id, key: "luogo", value: "Roma" },
+      { type: "renameColumn", key: "luogo", label: " Città " },
+    );
+    expect(state.library.customColumns).toEqual([{ ...column, label: "Città" }]);
+    expect(currentColumns(state)).toContain("field:luogo");
+    expect(state.library.books[0].fields).toEqual({ luogo: "Roma" });
+    expect(libraryReducer(state, { type: "renameColumn", key: "luogo", label: "  " })).toBe(state);
+  });
+
+  it("il lettore non crea, non elimina e non compila colonne", () => {
+    const reader = reducerFor(false);
+    const start = initialState(sampleLibrary);
+    expect(reader(start, { type: "createColumn", column })).toBe(start);
+    expect(reader(start, { type: "deleteColumn", key: "luogo" })).toBe(start);
+    expect(reader(start, { type: "renameColumn", key: "luogo", label: "x" })).toBe(start);
+    expect(reader(start, { type: "setFieldValue", bookId: sampleLibrary.books[0].id, key: "luogo", value: "x" })).toBe(start);
+  });
+
+  it("l'import crea le colonne mancanti e adatta la tabella al file", () => {
+    const placePublished = { key: "placepublished", label: "Luogo di pubblicazione", kind: "text" as const, catalogField: null, extraKey: "placePublished" };
+    const state = run(
+      { type: "createColumn", column },
+      {
+        type: "importBooks",
+        collectionName: "Libri",
+        books: [{ ...sampleLibrary.books[0], id: "bookpedia:1", fields: { placepublished: "Italia" } }],
+        replace: false,
+        columns: {
+          custom: [{ ...column, label: "Doppione" }, placePublished],
+          visible: ["authors", "publisher", "field:placepublished"],
+        },
+      },
+    );
+    expect(state.library.customColumns).toEqual([column, placePublished]);
+    // La collezione dell'import mostra esattamente le colonne del file, titolo compreso.
+    expect(currentColumns(state)).toEqual(["title", "authors", "publisher", "field:placepublished"]);
+    // La Libreria, che si stava guardando, aggiunge quelle che non aveva.
+    const library = libraryReducer(state, { type: "selectCollection", collectionId: "library" });
+    expect(currentColumns(library)).toEqual([...currentColumns(run()), "field:luogo", "publisher", "field:placepublished"]);
   });
 });

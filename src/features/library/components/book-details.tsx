@@ -13,7 +13,9 @@ import {
 import type { ReactNode } from "react";
 import { useI18n, useT } from "../../i18n/i18n-context";
 import type { Messages } from "../../i18n/messages";
-import { readStatuses, type Book, type ReadStatus, type ValueFilter } from "../model";
+import { customColumnId, formatCustomValue } from "../columns";
+import { saveFieldValue } from "../columns-api";
+import { readStatuses, type Book, type CustomColumn, type ReadStatus, type ValueFilter } from "../model";
 import { loanState } from "../query";
 import { BookCollections } from "./book-collections";
 import { Cover } from "./cover";
@@ -76,6 +78,69 @@ const facts = (book: Book, t: Messages): readonly { label: string; value: ReactN
     },
     { label: "ISBN", value: book.isbn13 },
   ].filter((fact) => fact.value !== null && fact.value !== false && fact.value !== undefined);
+
+// Il valore si salva uscendo dal campo o con Invio; Esc lo riporta com'era.
+function FieldInput({ book, column }: { book: Book; column: CustomColumn }) {
+  const { dispatch } = useLibrary();
+  const t = useT();
+  const current = book.fields[column.key] ?? "";
+  const commit = (value: string) => {
+    if (value.trim() === current) return;
+    dispatch({ type: "setFieldValue", bookId: book.id, key: column.key, value });
+    void saveFieldValue(book.id, column.key, value);
+  };
+  return (
+    <input
+      key={`${book.id}:${current}`}
+      type={column.kind === "date" ? "date" : "text"}
+      inputMode={column.kind === "number" ? "decimal" : undefined}
+      defaultValue={column.kind === "date" ? current.slice(0, 10) : current}
+      aria-label={t.details.editField(column.label)}
+      onBlur={(event) => commit(event.target.value)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter") event.currentTarget.blur();
+        if (event.key === "Escape") event.currentTarget.value = current;
+      }}
+      className="h-7 w-full min-w-0 rounded-md border border-transparent bg-transparent px-1.5 -mx-1.5 text-ink outline-none hover:border-line focus:border-accent focus:bg-surface touch:h-9"
+    />
+  );
+}
+
+/**
+ * Le colonne personalizzate del libro. Chi può modificare compila anche quelle vuote
+ * che si vedono nella tabella; i valori che vengono dal catalogo (es. il traduttore) si leggono soltanto.
+ */
+function CustomFields({ book }: { book: Book }) {
+  const { state, columns, canEdit } = useLibrary();
+  const { t, locale } = useI18n();
+  const shown = state.library.customColumns.filter(
+    (column) =>
+      Boolean(book.fields[column.key]) ||
+      (canEdit && column.catalogField === null && columns.includes(customColumnId(column.key))),
+  );
+  if (shown.length === 0) return null;
+  return (
+    <section>
+      <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-muted uppercase">{t.details.customFields}</h3>
+      <dl className="grid grid-cols-[96px_minmax(0,1fr)] items-center gap-y-1.5 text-[13px]">
+        {shown.map((column) => (
+          <div key={column.key} className="contents">
+            <dt className="truncate pr-2 text-muted" title={column.label}>
+              {column.label}
+            </dt>
+            <dd className="min-w-0 break-words">
+              {canEdit && column.catalogField === null ? (
+                <FieldInput book={book} column={column} />
+              ) : (
+                formatCustomValue(book.fields[column.key], column.kind, locale)
+              )}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 function LoanBox({ book, onLend }: { book: Book; onLend: () => void }) {
   const { today, dispatch, canEdit } = useLibrary();
@@ -244,6 +309,7 @@ export function BookDetails({
           ))}
         </dl>
       )}
+      <CustomFields book={book} />
       <BookCollections key={book.id} book={book} />
       {book.summary && (
         <section>

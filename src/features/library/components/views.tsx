@@ -1,12 +1,14 @@
 "use client";
 
-import { ArrowDown, ArrowUp, BookMarked, ChevronLeft, ChevronRight, Columns3, HandHelping } from "lucide-react";
+import { ArrowDown, ArrowUp, BookMarked, ChevronLeft, ChevronRight, FilterX, HandHelping } from "lucide-react";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { Messages } from "../../i18n/messages";
 import { useI18n, useT } from "../../i18n/i18n-context";
-import { columnKeys, type Book, type ColumnKey } from "../model";
-import { loanState, type LoanState } from "../query";
+import { readStatuses, type Book, type ColumnId, type ColumnKey, type CustomColumn } from "../model";
+import { columnLabel, customKeyOf, findCustomColumn, formatCustomValue } from "../columns";
+import { hasColumnFilters, loanState, unratedFilter, type LoanState } from "../query";
 import { chunk, gridColumns } from "../virtual-range";
+import { ColumnPicker } from "./column-picker";
 import { Cover } from "./cover";
 import { CollectionSearchButton } from "./collection-search";
 import { draggableBook } from "./drag";
@@ -66,55 +68,108 @@ function StatusCell({ book }: { book: Book }) {
   );
 }
 
-const cellText = (book: Book, column: Exclude<ColumnKey, "rating">, t: Messages, locale: string) => {
-  switch (column) {
+const cellText = (
+  book: Book,
+  column: Exclude<ColumnId, "rating">,
+  customColumns: readonly CustomColumn[],
+  t: Messages,
+  locale: string,
+): string => {
+  const key = customKeyOf(column);
+  if (key !== null) {
+    const kind = customColumns.find((item) => item.key === key)?.kind ?? "text";
+    return formatCustomValue(book.fields[key], kind, locale);
+  }
+  switch (column as Exclude<ColumnKey, "rating">) {
     case "title":
       return book.title;
     case "authors":
-      return book.authors.join(", ");
     case "genres":
-      return book.genres.join(", ");
+    case "tags":
+      return book[column as "authors" | "genres" | "tags"].join(", ");
     case "readStatus":
       return t.readStatus[book.readStatus];
     case "series":
       return book.series ? `${book.series}${book.seriesNumber ? ` ${book.seriesNumber}` : ""}` : "";
     case "addedAt":
       return new Date(book.addedAt).toLocaleDateString(locale);
+    case "subtitle":
     case "publisher":
+    case "format":
+    case "language":
+    case "isbn13":
     case "location":
-      return book[column] ?? "";
+    case "summary":
+    case "notes":
+      return book[column as "publisher"] ?? "";
     case "publishedYear":
     case "pages":
-      return book[column]?.toString() ?? "";
+      return book[column as "pages"]?.toString() ?? "";
   }
 };
 
-function ColumnPicker() {
-  const { columns, dispatch } = useLibrary();
+const wideTable = 8;
+
+const filterField = (active: boolean) =>
+  `h-7 w-full min-w-0 rounded-md border px-1.5 text-xs text-ink outline-none placeholder:font-normal placeholder:text-muted focus:border-accent touch:h-9 ${
+    active ? "border-accent bg-selected font-medium" : "border-line bg-surface font-normal"
+  }`;
+
+// Un campo sotto ogni intestazione: testo per le colonne di parole, numeri con >, < e intervalli, menu per voto e lettura.
+function ColumnFilter({ column }: { column: ColumnId }) {
+  const { state, dispatch } = useLibrary();
   const t = useT();
-  return (
-    <details className="relative">
-      <summary className="flex h-8 touch:h-10 cursor-pointer list-none items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft">
-        <Columns3 size={15} aria-hidden="true" />
-        {t.library.columns}
-      </summary>
-      <fieldset className="absolute right-0 z-20 mt-1 flex w-48 flex-col gap-1 rounded-lg border border-line bg-surface p-2 text-sm shadow-lg">
-        <legend className="sr-only">{t.library.visibleColumns}</legend>
-        {columnKeys.map((column) => (
-          <label key={column} className="flex items-center gap-2 rounded px-1.5 py-1 hover:bg-chip touch:py-2">
-            <input
-              type="checkbox"
-              checked={columns.includes(column)}
-              disabled={column === "title"}
-              onChange={() => dispatch({ type: "toggleColumn", column })}
-              className="accent-(--accent)"
-            />
-            {t.columns[column]}
-          </label>
-        ))}
-      </fieldset>
-    </details>
-  );
+  const value = state.columnFilters[column] ?? "";
+  const label = t.library.columnFilters.label(columnLabel(column, state.library.customColumns, t));
+  const set = (next: string) => dispatch({ type: "setColumnFilter", column, value: next });
+  const className = filterField(value !== "");
+  switch (column) {
+    case "rating":
+      return (
+        <select aria-label={label} value={value} onChange={(event) => set(event.target.value)} className={className}>
+          <option value="">{t.library.columnFilters.any}</option>
+          {[1, 2, 3, 4, 5].map((stars) => (
+            <option key={stars} value={String(stars)}>
+              {t.library.columnFilters.atLeast(stars)}
+            </option>
+          ))}
+          <option value={unratedFilter}>{t.library.columnFilters.unrated}</option>
+        </select>
+      );
+    case "readStatus":
+      return (
+        <select aria-label={label} value={value} onChange={(event) => set(event.target.value)} className={className}>
+          <option value="">{t.library.columnFilters.any}</option>
+          {readStatuses.map((status) => (
+            <option key={status} value={status}>
+              {t.readStatus[status]}
+            </option>
+          ))}
+        </select>
+      );
+    default: {
+      const numeric =
+        column === "publishedYear" ||
+        column === "pages" ||
+        findCustomColumn(state.library.customColumns, column)?.kind === "number";
+      return (
+        <input
+          type="search"
+          // Larghezza decisa dalla colonna, non dalla misura predefinita del campo (20 caratteri).
+          size={1}
+          value={value}
+          onChange={(event) => set(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") set("");
+          }}
+          aria-label={label}
+          title={numeric ? t.library.columnFilters.numberHint : undefined}
+          placeholder={numeric ? t.library.columnFilters.numberPlaceholder : t.library.columnFilters.placeholder}
+          className={className}
+        />
+      );
+    }
+  }
 }
 
 // Larghezze fisse: con la tabella virtualizzata le colonne non devono dipendere dalle righe visibili.
@@ -131,14 +186,24 @@ const columnWidth: Partial<Record<ColumnKey, string>> = {
   location: "12%",
 };
 
+// Con tante colonne la tabella scorre di lato: ogni colonna ha una misura sua, in rem.
+const statusWidthRem = 2.25;
+const wideColumnRem = (column: ColumnId) => {
+  const fixed = customKeyOf(column) === null ? columnWidth[column as ColumnKey] : undefined;
+  if (fixed?.endsWith("rem")) return Number.parseFloat(fixed);
+  return column === "title" ? 16 : 11;
+};
+
 const BookRow = memo(function BookRow({
   book,
   columns,
+  customColumns,
   selected,
   rowRef,
 }: {
   book: Book;
-  columns: readonly ColumnKey[];
+  columns: readonly ColumnId[];
+  customColumns: readonly CustomColumn[];
   selected: boolean;
   rowRef?: (element: HTMLElement | null) => void;
 }) {
@@ -157,12 +222,12 @@ const BookRow = memo(function BookRow({
         <StatusCell book={book} />
       </td>
       {columns.map((column) => {
-        const text = column === "rating" ? null : cellText(book, column, t, locale);
+        const text = column === "rating" ? "" : cellText(book, column, customColumns, t, locale);
         return (
           <td
             key={column}
-            title={text ?? undefined}
-            className={`truncate border-b border-line/70 px-2 py-2.5 touch:py-3.5 ${
+            title={text || undefined}
+            className={`truncate whitespace-nowrap border-b border-line/70 px-2 py-2.5 touch:py-3.5 ${
               column === "title" ? "font-medium" : "text-ink-soft"
             } ${column === "publishedYear" || column === "pages" ? "tabular-nums" : ""}`}
           >
@@ -184,7 +249,7 @@ const useKeepSelectedVisible = (scrollToIndex: (index: number) => void) => {
 };
 
 export function BookTable() {
-  const { books, columns, sort, selected, dispatch } = useLibrary();
+  const { books, columns, sort, selected, state, dispatch } = useLibrary();
   const t = useT();
   const onArrow = useArrowSelection();
   const primary = sort[0];
@@ -192,9 +257,24 @@ export function BookTable() {
   const { setList, measureItem, scrollToIndex, start, end, before, after } = useVirtualList<HTMLTableSectionElement>({ count: books.length, estimate: 41, scrollRef: scroller });
   useKeepSelectedVisible(scrollToIndex);
   const span = columns.length + 1;
+  const customColumns = state.library.customColumns;
+  const filtering = hasColumnFilters(state.columnFilters, columns);
+  // Con tante colonne (es. dopo un import) ogni cella sta su una riga e la tabella scorre di lato.
+  const wide = columns.length > wideTable;
+  const wideWidth = statusWidthRem + columns.reduce((total, column) => total + wideColumnRem(column), 0);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex justify-end px-5 pb-2">
+      <div className="flex justify-end gap-2 px-5 pb-2">
+        {filtering && (
+          <button
+            type="button"
+            onClick={() => columns.forEach((column) => dispatch({ type: "setColumnFilter", column, value: "" }))}
+            className="flex h-8 touch:h-10 items-center gap-1.5 rounded-lg border border-line-strong bg-surface px-2.5 text-[13px] text-ink-soft"
+          >
+            <FilterX size={15} aria-hidden="true" />
+            {t.library.columnFilters.clear}
+          </button>
+        )}
         <ColumnPicker />
       </div>
       <div
@@ -204,11 +284,18 @@ export function BookTable() {
         onKeyDown={(event) => onArrow(event, { previous: "ArrowUp", next: "ArrowDown" })}
         className="min-h-0 flex-1 overflow-auto px-3 outline-none"
       >
-        <table aria-rowcount={books.length + 1} className="w-full min-w-[620px] table-fixed border-collapse text-sm">
+        <table
+          aria-rowcount={books.length + 2}
+          style={wide ? { width: `${wideWidth}rem` } : undefined}
+          className={`table-fixed border-collapse text-sm ${wide ? "min-w-full" : "w-full min-w-[620px]"}`}
+        >
           <colgroup>
-            <col className="w-9" />
+            <col style={{ width: `${statusWidthRem}rem` }} />
             {columns.map((column) => (
-              <col key={column} style={{ width: columnWidth[column] }} />
+              <col
+                key={column}
+                style={{ width: wide ? `${wideColumnRem(column)}rem` : customKeyOf(column) === null ? columnWidth[column as ColumnKey] : undefined }}
+              />
             ))}
           </colgroup>
           <thead className="sticky top-0 z-10 bg-bg text-left text-xs text-muted">
@@ -230,15 +317,30 @@ export function BookTable() {
                       onClick={() => dispatch({ type: "sortBy", column })}
                       className={`flex w-full items-center gap-1 p-2 text-left ${active ? "text-ink" : ""}`}
                     >
-                      <span className="truncate">{t.columns[column]}</span>
+                      <span className="truncate">{columnLabel(column, customColumns, t)}</span>
                       {active && <Arrow size={12} className="shrink-0" aria-hidden="true" />}
                     </button>
                   </th>
                 );
               })}
             </tr>
+            <tr>
+              <th className="border-b border-line px-2 pb-2" aria-hidden="true" />
+              {columns.map((column) => (
+                <th key={column} className="border-b border-line px-1 pt-0 pb-2">
+                  <ColumnFilter column={column} />
+                </th>
+              ))}
+            </tr>
           </thead>
           <tbody ref={setList}>
+            {books.length === 0 && (
+              <tr>
+                <td colSpan={span} className="p-10 text-center text-muted">
+                  {t.library.columnFilters.noMatches}
+                </td>
+              </tr>
+            )}
             {before > 0 && (
               <tr aria-hidden="true">
                 <td colSpan={span} style={{ height: before, padding: 0 }} />
@@ -249,6 +351,7 @@ export function BookTable() {
                 key={book.id}
                 book={book}
                 columns={columns}
+                customColumns={customColumns}
                 selected={book.id === selected?.id}
                 rowRef={index === 0 ? measureItem : undefined}
               />
@@ -468,10 +571,7 @@ export function EmptyState() {
       {filtered && (
         <button
           type="button"
-          onClick={() => {
-            dispatch({ type: "setQuery", query: "" });
-            dispatch({ type: "setValueFilter", filter: null });
-          }}
+          onClick={() => dispatch({ type: "clearFilters" })}
           className="rounded-lg border border-line-strong px-3 py-1.5 text-ink"
         >
           {t.library.showAll}
