@@ -12,6 +12,7 @@ import type {
   ValueFilter,
   ViewMode,
 } from "./model";
+import { withDetails } from "./catalog";
 import { customColumnId, customKeyOf, mergeCustomColumns } from "./columns";
 import { canMoveInto, toggleSort } from "./query";
 
@@ -100,7 +101,16 @@ export type LibraryAction =
       /** La collezione davanti a cui si mette; null = in fondo alla cartella. */
       readonly beforeId: string | null;
     }
-  | { readonly type: "setCollectionSearchOpen"; readonly open: boolean };
+  | { readonly type: "setCollectionSearchOpen"; readonly open: boolean }
+  /** La biblioteca riletta dal server (es. dopo un import): la vista resta dov'era. */
+  | { readonly type: "loadLibrary"; readonly library: Library }
+  /** Trama e note di un libro, arrivate quando se ne apre la scheda. */
+  | {
+      readonly type: "bookDetails";
+      readonly bookId: string;
+      readonly summary: string | null;
+      readonly notes: string | null;
+    };
 
 export type ImportedColumns = {
   readonly custom: readonly CustomColumn[];
@@ -203,7 +213,8 @@ const addImported = (
   columns?: ImportedColumns,
 ): LibraryState => {
   const ids = new Set(books.map((book) => book.id));
-  const kept = replace ? [] : state.library.books.filter((book) => !ids.has(book.id));
+  // Un libro letto dal database ha un altro id, ma la stessa chiave d'origine.
+  const kept = replace ? [] : state.library.books.filter((book) => !ids.has(book.id) && !ids.has(book.importKey ?? ""));
   const present = new Set([...kept, ...books].map((book) => book.id));
   const id = importCollectionId(name);
   const collection: Collection = {
@@ -236,6 +247,15 @@ const addImported = (
     valueFilter: null,
   };
 };
+
+const loadLibrary = (state: LibraryState, library: Library): LibraryState => ({
+  ...state,
+  library,
+  collectionId: library.collections.some((item) => item.id === state.collectionId)
+    ? state.collectionId
+    : initialState(library).collectionId,
+  selectedBookId: library.books.some((book) => book.id === state.selectedBookId) ? state.selectedBookId : null,
+});
 
 const withCollections = (state: LibraryState, update: (collections: readonly Collection[]) => readonly Collection[]) => ({
   ...state,
@@ -418,6 +438,18 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
     }
     case "setCollectionSearchOpen":
       return { ...state, collectionSearchOpen: action.open };
+    case "loadLibrary":
+      return loadLibrary(state, action.library);
+    case "bookDetails":
+      return {
+        ...state,
+        library: {
+          ...state.library,
+          books: state.library.books.map((book) =>
+            book.id === action.bookId ? withDetails(book, { summary: action.summary, notes: action.notes }) : book,
+          ),
+        },
+      };
     case "createColumn": {
       const customColumns = mergeCustomColumns(state.library.customColumns, [action.column]);
       if (customColumns === state.library.customColumns) return state;

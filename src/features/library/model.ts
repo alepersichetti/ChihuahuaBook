@@ -35,6 +35,13 @@ export type Book = {
   readonly wishlist: boolean;
   readonly loan: Loan | null;
   readonly addedAt: string; // ISO
+  /**
+   * Libri letti dal database: trama e note non sono ancora arrivate (si caricano
+   * quando si apre la scheda). Assente per i libri già completi.
+   */
+  readonly detailsPending?: boolean;
+  /** Id del libro nel programma d'origine, come localBookId dell'import: evita doppioni. */
+  readonly importKey?: string;
   /** Valori delle colonne personalizzate, per chiave della colonna. */
   readonly fields: Readonly<Record<string, string>>;
 };

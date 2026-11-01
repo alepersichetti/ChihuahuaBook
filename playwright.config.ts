@@ -28,6 +28,8 @@ const appEnv = {
   GOOGLE_BOOKS_API_URL: `${E2E_MOCK_URL}/google/`,
   GOOGLE_BOOKS_API_KEY: "e2e",
   OPEN_LIBRARY_URL: `${E2E_MOCK_URL}/openlibrary/`,
+  // Le prove su collezioni e cartelle partono dalla biblioteca di esempio, non da quella nel database.
+  LIBRARY_DATA: "sample",
 };
 
 export default defineConfig({

@@ -3,21 +3,22 @@ import { Suspense } from "react";
 import { InactiveAccount } from "@/features/auth/components/inactive-account";
 import { I18nProvider } from "@/features/i18n/i18n-context";
 import { LibraryApp } from "@/features/library/components/library-app";
-import { sampleLibrary } from "@/features/library/sample-library";
 import { getViewer } from "@/lib/auth/viewer";
 import { getLanguage } from "@/lib/i18n";
+import { loadLibrary } from "@/lib/library/load";
 
-// Per ora la UI gira sui dati di esempio; il collegamento a Supabase arriva con il backend.
+// La biblioteca arriva dal database già nella pagina: niente attesa dopo il primo disegno.
 async function Library() {
   const [viewer, language] = await Promise.all([getViewer(), getLanguage()]);
   if (viewer.status === "anonymous") redirect("/login");
   const { userId, email, role } = viewer.status === "member" ? viewer : { userId: "", email: viewer.email, role: null };
+  const library = role === null ? null : await loadLibrary();
   return (
     <I18nProvider language={language}>
-      {role === null ? (
+      {role === null || library === null ? (
         <InactiveAccount email={email} />
       ) : (
-        <LibraryApp library={sampleLibrary} viewer={{ userId, email, role }} />
+        <LibraryApp library={library} viewer={{ userId, email, role }} />
       )}
     </I18nProvider>
   );

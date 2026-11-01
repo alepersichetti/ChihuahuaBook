@@ -15,10 +15,13 @@ import { customKeyOf, isIsoDate, numericValue } from "./columns";
 
 // Testo -----------------------------------------------------------------------
 
+const plainAscii = /^[\x20-\x7e]*$/;
+const combiningMarks = /[\u0300-\u036f]/g;
+
+// Toglie accenti e maiuscole. Il testo solo ASCII salta la scomposizione; per gli altri
+// basta togliere i segni combinanti: \p{Diacritic} era quattro volte più lento su note lunghe.
 export const normalize = (value: string) =>
-  value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
+  (plainAscii.test(value) ? value : value.normalize("NFD").replace(combiningMarks, ""))
     .toLowerCase()
     .trim();
 
@@ -167,11 +170,33 @@ const searchableText = (book: Book, field: SearchField) => {
   }
 };
 
+/**
+ * Memoria per libro: i libri sono immutabili, quindi ciò che si ricava da uno
+ * di essi (testo normalizzato, chiavi di ordinamento) si calcola una volta sola.
+ * Con migliaia di libri normalizzare tutto a ogni tasto bloccava la pagina.
+ */
+const memoPerBook = <K extends string, V>(compute: (book: Book, key: K) => V) => {
+  const cache = new WeakMap<Book, Map<K, V>>();
+  return (book: Book, key: K): V => {
+    const known = cache.get(book) ?? new Map<K, V>();
+    if (!cache.has(book)) cache.set(book, known);
+    if (known.has(key)) return known.get(key) as V;
+    const value = compute(book, key);
+    known.set(key, value);
+    return value;
+  };
+};
+
+/** Il testo di un campo, già normalizzato: è quello in cui cerca la barra di ricerca. */
+export const searchText = memoPerBook((book: Book, field: SearchField) =>
+  normalize(searchableText(book, field).join(" \u0000 ")),
+);
+
 export const matchesSearch = (query: string, field: SearchField) => {
   const groups = parseSearch(query);
   return (book: Book) => {
     if (groups.length === 0) return true;
-    const text = normalize(searchableText(book, field).join(" \u0000 "));
+    const text = searchText(book, field);
     return groups.some((terms) => terms.every((term) => text.includes(term)));
   };
 };
@@ -282,6 +307,9 @@ const fixedText = (book: Book, column: ColumnKey): readonly string[] => {
   }
 };
 
+// Come per la barra di ricerca, il testo normalizzato di una colonna si calcola una volta per libro.
+const columnSearchText = memoPerBook((book: Book, column: ColumnId) => normalize(columnText(book, column).join(" \u0000 ")));
+
 const columnMatcher = (column: ColumnId, text: string): ((book: Book) => boolean) | null => {
   if (text.trim() === "") return null;
   const key = customKeyOf(column);
@@ -311,7 +339,7 @@ const columnMatcher = (column: ColumnId, text: string): ((book: Book) => boolean
   }
   const terms = parseSearch(text).flat();
   return (book) => {
-    const value = normalize(columnText(book, column).join(" \u0000 "));
+    const value = columnSearchText(book, column);
     return terms.every((term) => value.includes(term));
   };
 };
@@ -339,7 +367,7 @@ const customSortValue = (book: Book, key: string): Comparable => {
   return numericValue(value) ?? (isIsoDate(value) ? value : normalize(value));
 };
 
-const sortValue = (book: Book, column: ColumnId): Comparable => {
+const computeSortValue = (book: Book, column: ColumnId): Comparable => {
   const key = customKeyOf(column);
   return key !== null ? customSortValue(book, key) : fixedSortValue(book, column as ColumnKey);
 };
@@ -375,6 +403,11 @@ const fixedSortValue = (book: Book, column: ColumnKey): Comparable => {
   }
 };
 
+const sortValue = memoPerBook(computeSortValue);
+
+// Un solo Intl.Collator: localeCompare ne crea uno a ogni confronto ed è molto più lento.
+const collator = new Intl.Collator("it");
+
 // I valori mancanti finiscono sempre in fondo, in qualunque direzione.
 const compareValues = (a: Comparable, b: Comparable) =>
   a === b
@@ -385,7 +418,7 @@ const compareValues = (a: Comparable, b: Comparable) =>
         ? -1
         : typeof a === "number" && typeof b === "number"
           ? a - b
-          : String(a).localeCompare(String(b), "it");
+          : collator.compare(String(a), String(b));
 
 const compareByKey = (a: Book, b: Book, { column, direction }: SortKey) => {
   const left = sortValue(a, column);
@@ -395,11 +428,13 @@ const compareByKey = (a: Book, b: Book, { column, direction }: SortKey) => {
 };
 
 // Fino a sei criteri in cascata; a parità decide il titolo.
-export const compareBooks = (keys: readonly SortKey[]) => (a: Book, b: Book) =>
-  [
-    ...keys.map((key) => compareByKey(a, b, key)),
-    compareValues(titleSortKey(a), titleSortKey(b)),
-  ].find((result) => result !== 0) ?? 0;
+export const compareBooks = (keys: readonly SortKey[]) => (a: Book, b: Book) => {
+  for (const key of keys) {
+    const result = compareByKey(a, b, key);
+    if (result !== 0) return result;
+  }
+  return compareValues(sortValue(a, "title"), sortValue(b, "title"));
+};
 
 export const maxSortKeys = 6;
 
@@ -417,24 +452,32 @@ export const toggleSort = (keys: readonly SortKey[], column: ColumnId): readonly
   ].slice(0, maxSortKeys);
 };
 
-// Pipeline completa per la vista centrale.
+// Pipeline della vista centrale, in due passi: l'ordinamento non dipende dalla
+// ricerca, quindi la UI lo ricalcola solo quando cambiano libri, collezione o criteri;
+// a ogni tasto si filtra soltanto, e filtrare non cambia l'ordine.
+export const sortedBooks = (library: Library, collection: Collection, sort: readonly SortKey[]) =>
+  booksInCollection(library, collection).toSorted(compareBooks(sort));
+
+export type BookFilters = {
+  readonly query: string;
+  readonly searchField: SearchField;
+  readonly valueFilter: ValueFilter | null;
+  /** I filtri della tabella, con le colonne a cui si applicano. */
+  readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnId[] };
+};
+
+export const filterBooks = (books: readonly Book[], options: BookFilters) => {
+  const search = matchesSearch(options.query, options.searchField);
+  const value = matchesValueFilter(options.valueFilter);
+  const columns = matchesColumnFilters(options.columnFilters?.filters ?? {}, options.columnFilters?.columns ?? []);
+  return books.filter((book) => search(book) && value(book) && columns(book));
+};
+
 export const visibleBooks = (
   library: Library,
   collection: Collection,
-  options: {
-    readonly query: string;
-    readonly searchField: SearchField;
-    readonly valueFilter: ValueFilter | null;
-    readonly sort: readonly SortKey[];
-    /** I filtri della tabella, con le colonne a cui si applicano. */
-    readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnId[] };
-  },
-) =>
-  booksInCollection(library, collection)
-    .filter(matchesSearch(options.query, options.searchField))
-    .filter(matchesValueFilter(options.valueFilter))
-    .filter(matchesColumnFilters(options.columnFilters?.filters ?? {}, options.columnFilters?.columns ?? []))
-    .toSorted(compareBooks(options.sort));
+  options: BookFilters & { readonly sort: readonly SortKey[] },
+) => filterBooks(sortedBooks(library, collection, options.sort), options);
 
 // Prestiti --------------------------------------------------------------------
 

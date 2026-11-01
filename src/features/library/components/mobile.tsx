@@ -10,6 +10,7 @@ import { BookDetails } from "./book-details";
 import { CollectionSearch, CollectionSearchButton } from "./collection-search";
 import { Cover, loanBanner } from "./cover";
 import { useLibrary } from "./library-context";
+import { useVirtualList } from "./virtual";
 import { AccountMenu } from "./account-menu";
 import { Logo } from "./logo";
 import { Rating } from "./rating";
@@ -58,14 +59,16 @@ function QuickFilters() {
 function BookRows() {
   const { books, today, dispatch } = useLibrary();
   const t = useT();
+  // Qui scorre la pagina intera: si disegnano solo le righe sullo schermo.
+  const { setList, measureItem, start, end, before, after } = useVirtualList<HTMLUListElement>({ count: books.length, estimate: 89 });
   if (books.length === 0) return <p className="p-8 text-center text-muted">{t.mobile.noBooks}</p>;
   return (
-    <ul className="px-4">
-      {books.map((book) => {
+    <ul ref={setList} className="px-4" style={{ paddingTop: before, paddingBottom: after }}>
+      {books.slice(start, end).map((book, index) => {
         const loan = loanState(book, today);
         const banner = loanBanner(loan, t);
         return (
-          <li key={book.id} className="border-b border-line/70">
+          <li key={book.id} ref={index === 0 ? measureItem : undefined} className="border-b border-line/70">
             <button
               type="button"
               onClick={() => dispatch({ type: "openBook", bookId: book.id })}
@@ -74,7 +77,8 @@ function BookRows() {
               <Cover book={book} size="xs" className="w-11 shrink-0" />
               <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                 <span className="truncate font-semibold">{book.title}</span>
-                <span className="text-[13px] text-muted">{book.authors.join(", ")}</span>
+                {/* Sempre presente, anche vuota: righe tutte alte uguali per la lista virtualizzata. */}
+                <span className="truncate text-[13px] text-muted">{book.authors.join(", ") || "\u00a0"}</span>
                 <span className="flex items-center gap-2 text-xs">
                   <Rating rating={book.rating} size={12} />
                   {banner && (

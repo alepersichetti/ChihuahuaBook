@@ -10,6 +10,7 @@ import { DesktopShell } from "./desktop";
 import { ImportDialog } from "./import-dialog";
 import { LibraryProvider, useLibrary } from "./library-context";
 import { LoanDialog } from "./loan-dialog";
+import { useMedia } from "./media";
 import { MobileShell } from "./mobile";
 import { TouchDragProvider } from "./touch-drag";
 
@@ -17,15 +18,20 @@ function Screens() {
   const { selected, canEdit } = useLibrary();
   const { preferences } = useSettings();
   const [lending, setLending] = useState(false);
+  const desktop = useMedia("(min-width: 48rem)", true);
   const lend = () => setLending(true);
   return (
     <div data-palette={preferences.palette} className="flex min-h-dvh flex-1 flex-col bg-bg text-ink">
-      <div className="hidden h-dvh flex-col md:flex">
-        <DesktopShell onLend={lend} />
-      </div>
-      <div className="md:hidden">
-        <MobileShell onLend={lend} />
-      </div>
+      {/* Una sola delle due interfacce alla volta: nascondere l'altra con il CSS la terrebbe comunque in pagina. */}
+      {desktop ? (
+        <div className="flex h-dvh flex-col">
+          <DesktopShell onLend={lend} />
+        </div>
+      ) : (
+        <div>
+          <MobileShell onLend={lend} />
+        </div>
+      )}
       {canEdit && (
         <>
           <LoanDialog book={lending ? selected : null} onClose={() => setLending(false)} />

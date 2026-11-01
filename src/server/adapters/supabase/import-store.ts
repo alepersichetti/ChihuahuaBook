@@ -101,6 +101,17 @@ export const supabaseCoverStore = (
         })),
     ),
 
+  read: (path) =>
+    run(
+      supabase.storage
+        .from(bucket)
+        .download(path)
+        .then(({ data, error }) => ({
+          data,
+          error: error ? { message: error.message } : null,
+        })),
+    ),
+
   remove: (paths) =>
     sequence(chunks(paths, idChunk), (group) =>
       run(
