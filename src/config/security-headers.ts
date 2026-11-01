@@ -13,12 +13,15 @@ const websocketOf = (url: string) => url.replace(/^http/, "ws");
  * script-src ammette 'unsafe-inline' ma solo dalla nostra origine.
  * Il browser parla con Supabase (login, storage), le copertine arrivano da
  * cataloghi esterni via https.
+ * worker-src ammette blob: perché fflate apre gli zip grandi in un worker creato
+ * da un blob: senza, l'import di un .pedia zippato resta fermo su «Leggo il file…».
  */
 export const contentSecurityPolicy = ({ supabaseUrl, development }: Options) => {
   const supabase = supabaseUrl ? [supabaseUrl, websocketOf(supabaseUrl)] : [];
   const directives: Readonly<Record<string, readonly string[]>> = {
     "default-src": ["'self'"],
     "script-src": ["'self'", "'unsafe-inline'", ...(development ? ["'unsafe-eval'"] : [])],
+    "worker-src": ["'self'", "blob:"],
     "style-src": ["'self'", "'unsafe-inline'"],
     "img-src": ["'self'", "blob:", "data:", "https:"],
     "font-src": ["'self'"],
