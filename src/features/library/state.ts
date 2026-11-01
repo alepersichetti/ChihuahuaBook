@@ -1,6 +1,7 @@
 import type {
   Book,
   Collection,
+  ColumnFilters,
   ColumnKey,
   Library,
   Loan,
@@ -24,6 +25,8 @@ export type LibraryState = {
   readonly query: string;
   readonly searchField: SearchField;
   readonly valueFilter: ValueFilter | null;
+  // Filtri sotto le intestazioni della Tabella, oltre alla ricerca in alto.
+  readonly columnFilters: ColumnFilters;
   readonly detailsOpen: boolean;
   readonly sidebarOpen: boolean;
   readonly coverSize: number;
@@ -45,6 +48,8 @@ export type LibraryAction =
   | { readonly type: "setQuery"; readonly query: string }
   | { readonly type: "setSearchField"; readonly field: SearchField }
   | { readonly type: "setValueFilter"; readonly filter: ValueFilter | null }
+  | { readonly type: "setColumnFilter"; readonly column: ColumnKey; readonly value: string }
+  | { readonly type: "clearFilters" }
   | { readonly type: "toggleDetails" }
   | { readonly type: "setSidebarOpen"; readonly open: boolean }
   | { readonly type: "setCoverSize"; readonly size: number }
@@ -110,6 +115,7 @@ export const initialState = (library: Library): LibraryState => ({
   query: "",
   searchField: "all",
   valueFilter: null,
+  columnFilters: {},
   detailsOpen: true,
   sidebarOpen: false,
   coverSize: coverSizes.initial,
@@ -257,6 +263,12 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
       return { ...state, searchField: action.field };
     case "setValueFilter":
       return { ...state, valueFilter: action.filter };
+    case "setColumnFilter": {
+      const rest = Object.fromEntries(Object.entries(state.columnFilters).filter(([column]) => column !== action.column));
+      return { ...state, columnFilters: action.value === "" ? rest : { ...rest, [action.column]: action.value } };
+    }
+    case "clearFilters":
+      return { ...state, query: "", valueFilter: null, columnFilters: {} };
     case "toggleDetails":
       return { ...state, detailsOpen: !state.detailsOpen };
     case "setSidebarOpen":
