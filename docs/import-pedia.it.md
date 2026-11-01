@@ -23,7 +23,7 @@ Verificato su un export reale (ottobre 2026, 6334 libri):
 - le persone sono scritte «Cognome Nome» e separate da virgole (`Fruttero Carlo, Lucentini Franco`), come i generi;
 - `myRating` va da 0 a 10 (0 = nessun voto) e diventa 0–5 stelle;
 - le date sono salvate a mezzanotte dell'ora locale (`2004-06-30T22:00:00Z` è il 1° luglio in Italia), quindi si leggono nel fuso del browser;
-- i prezzi sono testo libero (`Euro 25,00`, `9,30 EUR`): si prendono importo e valuta;
+- i prezzi sono testo libero (`Euro 25,00`, `9,30 EUR`): si prendono importo e valuta. A volte il prezzo è ripetuto su più righe (`£11.99` `£ 11,99`): conta il primo;
 - alcuni testi contengono caratteri di controllo che l'XML non ammette: vengono tolti prima della lettura;
 - la cartella `Cover` contiene le immagini con l'id del libro come nome. Si abbinano sia per `uid` sia per il numero della scheda (i due intervalli non si sovrappongono).
 

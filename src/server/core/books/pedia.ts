@@ -201,9 +201,10 @@ const parseYear = (raw: string | null): number | null => {
 
 /** Numeri scritti all'italiana o all'inglese, con o senza simbolo di valuta. */
 export const parseNumber = (raw: string | null): number | null => {
-  if (!raw) return null;
-  const digits = raw.replace(/[^\d.,-]/g, "");
-  if (!/\d/.test(digits)) return null;
+  // Solo il primo numero: Bookpedia a volte ripete il prezzo su più righe ("£11.99\n£11.99"),
+  // e unire tutte le cifre darebbe un valore enorme.
+  const digits = raw?.match(/-?\d[\d.,]*/)?.[0].replace(/[.,]+$/, "");
+  if (!digits) return null;
   const lastComma = digits.lastIndexOf(",");
   const lastDot = digits.lastIndexOf(".");
   const normalized =
@@ -226,9 +227,12 @@ const currencyOf = (values: readonly (string | null)[]) =>
     values.some((value) => value && pattern.test(value)),
   )?.[1] ?? null;
 
+// Il limite della colonna numeric(10, 2): oltre, il database rifiuta l'intero lotto.
+const maxMoney = 99_999_999.99;
+
 const money = (raw: string | null) => {
   const value = parseNumber(raw);
-  return value !== null && value >= 0 ? Math.round(value * 100) / 100 : null;
+  return value !== null && value >= 0 && value <= maxMoney ? Math.round(value * 100) / 100 : null;
 };
 
 const truthy = /^(1|y|yes|true|s|si|sì|x|checked|on|read|letto)$/i;

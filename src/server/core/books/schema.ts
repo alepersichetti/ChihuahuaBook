@@ -18,7 +18,9 @@ const names = z
 
 const isoDate = z.iso.date().nullish();
 
-const money = z.number().nonnegative().multipleOf(0.01).nullish();
+// Gli stessi limiti delle colonne numeric(10, 2) e numeric(6, 2), così un valore fuori scala
+// è un errore di quel libro e non fa fallire l'intero lotto nel database.
+const money = z.number().nonnegative().max(99_999_999.99).multipleOf(0.01).nullish();
 
 const bookFields = z.object({
   title: z.string().trim().min(1, "Il titolo è obbligatorio"),
@@ -40,12 +42,12 @@ const bookFields = z.object({
     .transform(cleanIsbn)
     .refine(isValidIsbn10, "ISBN-10 non valido")
     .nullish(),
-  pages: z.int().positive().nullish(),
+  pages: z.int().positive().max(2_147_483_647).nullish(),
   format: text,
   language: text,
   genres: names,
   series: text,
-  series_number: z.number().nonnegative().nullish(),
+  series_number: z.number().nonnegative().max(9999.99).nullish(),
   summary: text,
   cover_path: text,
   cover_url: z.url().nullish(),

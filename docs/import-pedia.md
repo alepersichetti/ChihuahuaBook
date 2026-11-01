@@ -25,7 +25,7 @@ Checked against a real export (October 2026, 6334 books):
 - people are written «Surname Name» and separated by commas (`Fruttero Carlo, Lucentini Franco`), like genres;
 - `myRating` goes from 0 to 10 (0 = not rated) and becomes 0–5 stars;
 - dates are stored as local midnight (`2004-06-30T22:00:00Z` is 1 July in Italy), so they are read in the browser's time zone;
-- prices are free text (`Euro 25,00`, `9,30 EUR`): amount and currency are extracted;
+- prices are free text (`Euro 25,00`, `9,30 EUR`): amount and currency are extracted. Sometimes the price is repeated on several lines (`£11.99` `£ 11,99`): the first one counts;
 - some texts contain control characters that XML does not allow: they are stripped before parsing;
 - the `Cover` folder holds the images named after the book id. They are matched both by `uid` and by record number (the two ranges don't overlap).
 
