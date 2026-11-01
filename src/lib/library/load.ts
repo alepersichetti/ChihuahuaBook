@@ -1,5 +1,4 @@
 import "server-only";
-import { connection } from "next/server";
 import { libraryFromCatalog } from "@/features/library/catalog";
 import type { Library } from "@/features/library/model";
 import { sampleLibrary } from "@/features/library/sample-library";
@@ -18,9 +17,6 @@ const wantsSample = () => process.env.LIBRARY_DATA === "sample";
  */
 export const loadLibrary = async (): Promise<Library> => {
   if (wantsSample()) return sampleLibrary;
-  // Dati di ogni richiesta, mai prerenderizzati: supabase-js legge l'ora (Date.now)
-  // per la scadenza della sessione, e con cacheComponents Next lo segnala come errore.
-  await connection();
   const client = await createClient();
   if (client.isErr()) {
     if (process.env.NODE_ENV === "development") return sampleLibrary;
