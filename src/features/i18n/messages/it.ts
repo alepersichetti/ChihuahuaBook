@@ -222,6 +222,8 @@ export const it = {
   },
   details: {
     label: "Dettagli del libro",
+    resize: "Ridimensiona la scheda del libro",
+    resizeHint: "Trascina per allargare o stringere; doppio clic per tornare alla larghezza iniziale",
     close: "Chiudi dettagli",
     customFields: "Altri campi",
     editField: (name: string) => `Modifica ${name}`,

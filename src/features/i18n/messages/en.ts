@@ -222,6 +222,8 @@ export const en: Messages = {
   },
   details: {
     label: "Book details",
+    resize: "Resize book details",
+    resizeHint: "Drag to widen or narrow; double-click to reset the width",
     close: "Close details",
     customFields: "More fields",
     editField: (name: string) => `Edit ${name}`,
