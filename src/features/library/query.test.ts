@@ -17,6 +17,9 @@ import {
   titleSortKey,
   toggleSort,
   visibleBooks,
+  filterBooks,
+  normalize,
+  sortedBooks,
 } from "./query";
 import { sampleLibrary } from "./sample-library";
 
@@ -173,5 +176,28 @@ describe("riorganizzare le collezioni", () => {
 
   it("elenca le collezioni che contengono un libro", () => {
     expect(collectionsWithBook(collections, "barone-rampante").map((item) => item.id)).toEqual(["calvino"]);
+  });
+});
+
+describe("prestazioni della ricerca", () => {
+  const library = collection("library");
+  const sort = [{ column: "authors", direction: "asc" }] as const;
+
+  it("ordinare una volta e poi filtrare dà lo stesso risultato della pipeline completa", () => {
+    const options = { query: "calvino or pirandello", searchField: "all", valueFilter: null } as const;
+    const sorted = sortedBooks(sampleLibrary, library, sort);
+    expect(filterBooks(sorted, options)).toEqual(visibleBooks(sampleLibrary, library, { ...options, sort }));
+  });
+
+  it("normalize toglie accenti e maiuscole, anche nel testo lungo", () => {
+    expect(normalize("  Perché CITTÀ  ")).toBe("perche citta");
+    expect(normalize("Tolstòj Lev Nikolaević")).toBe("tolstoj lev nikolaevic");
+    expect(normalize("Plain ASCII")).toBe("plain ascii");
+  });
+
+  it("un libro modificato è un oggetto nuovo: la ricerca vede il testo nuovo", () => {
+    const [book] = sampleLibrary.books;
+    expect(matchesSearch("zibaldone", "title")(book)).toBe(false);
+    expect(matchesSearch("zibaldone", "title")({ ...book, title: "Zibaldone" })).toBe(true);
   });
 });

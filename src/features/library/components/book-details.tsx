@@ -54,7 +54,7 @@ const facts = (book: Book, t: Messages): readonly { label: string; value: ReactN
       label: t.fields.genres,
       value:
         book.genres.length > 0 &&
-        joinNodes(book.genres.map((genre) => <FilterValue key={genre} field="genres" value={genre} />)),
+        joinNodes(unique(book.genres).map((genre) => <FilterValue key={genre} field="genres" value={genre} />)),
     },
     {
       label: t.fields.series,
@@ -72,7 +72,7 @@ const facts = (book: Book, t: Messages): readonly { label: string; value: ReactN
       label: t.fields.tags,
       value:
         book.tags.length > 0 &&
-        joinNodes(book.tags.map((tag) => <FilterValue key={tag} field="tags" value={tag} />)),
+        joinNodes(unique(book.tags).map((tag) => <FilterValue key={tag} field="tags" value={tag} />)),
     },
     { label: "ISBN", value: book.isbn13 },
   ].filter((fact) => fact.value !== null && fact.value !== false && fact.value !== undefined);
@@ -191,6 +191,9 @@ function Pager({ onClose }: { onClose?: () => void }) {
   );
 }
 
+// Un file importato può ripetere lo stesso genere: due chiavi uguali confondono React.
+const unique = (values: readonly string[]) => [...new Set(values)];
+
 export function BookDetails({
   book,
   variant,
@@ -218,7 +221,7 @@ export function BookDetails({
         </h2>
         {book.subtitle && <p className="text-sm text-muted">{book.subtitle}</p>}
         <div className="font-medium">
-          {joinNodes(book.authors.map((author) => <FilterValue key={author} field="authors" value={author} />))}
+          {joinNodes(unique(book.authors).map((author) => <FilterValue key={author} field="authors" value={author} />))}
         </div>
         {canEdit ? (
           <RatingInput rating={book.rating} onChange={(rating) => dispatch({ type: "setRating", bookId: book.id, rating })} />
