@@ -36,7 +36,7 @@ test("un libro trascinato su una collezione ci finisce dentro", async ({ page })
 
   await collectionButton(page, "Preferiti e2e").click();
   await expect(bookRow(page, "Il Gattopardo")).toBeVisible();
-  await expect(page.getByRole("main").getByRole("row")).toHaveCount(2); // intestazione + il libro
+  await expect(page.getByRole("main").locator("tbody").getByRole("row")).toHaveCount(1); // solo il libro
 });
 
 test("una collezione si sposta in una cartella trascinandola e ne esce dal menu", async ({ page }) => {
