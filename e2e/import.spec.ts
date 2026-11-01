@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { collectionButton, sidebar } from "./support/app";
 import { pediaBooks, pediaName, pediaZip } from "./support/pedia";
-import { booksTitled } from "./support/supabase";
+import { booksTitled, customColumns, extraOf } from "./support/supabase";
 import { librarian } from "./support/users";
 
 // Import di un export di Bookpedia (.pedia compresso in zip): anteprima, salvataggio
@@ -15,6 +15,8 @@ const importZip = async (page: Page) => {
   await dialog.getByLabel("Scegli lo zip del .pedia").setInputFiles(pediaZip());
   await expect(dialog.getByText(`2 libri pronti da importare da «${pediaName}».`)).toBeVisible();
   await expect(dialog.getByText("1 copertina abbinata.")).toBeVisible();
+  // Titolo, autore, editore, ISBN più le due colonne che la tabella non aveva.
+  await expect(dialog.getByText(/^6 colonne con dati da mostrare nella tabella/)).toBeVisible();
   await expect(dialog.getByRole("radio", { name: /Aggiungi solo le novità/ })).toBeChecked();
   await dialog.getByRole("button", { name: "Importa 2 libri" }).click();
   await expect(dialog.getByText(`2 libri aggiunti alla collezione «Bookpedia: ${pediaName}».`)).toBeVisible();
@@ -33,6 +35,24 @@ test("un .pedia zippato viene letto, salvato sul server e diventa una collezione
     expect(await booksTitled(book.title)).toHaveLength(1);
   }
   expect((await booksTitled(pediaBooks[0].title))[0].isbn13).toBe(pediaBooks[0].isbn);
+
+  // Tutte le colonne del file sono nella tabella; quelle che mancavano sono state create.
+  const main = page.getByRole("main");
+  for (const name of ["Titolo", "Autore", "Editore", "ISBN", "Luogo di pubblicazione", "Traduttore"]) {
+    await expect(main.getByRole("columnheader", { name, exact: true })).toBeVisible();
+  }
+  await expect(main.getByRole("columnheader", { name: "Casella 1", exact: true })).toHaveCount(0);
+  await expect(main.getByRole("row").filter({ hasText: "Marcovaldo" })).toContainText("Inghilterra");
+  await expect(main.getByRole("row").filter({ hasText: "Marcovaldo" })).toContainText("Weaver William");
+  await expect.poll(customColumns).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ key: "placepublished", label: "Luogo di pubblicazione", extra_key: "placePublished" }),
+      expect.objectContaining({ key: "translators", label: "Traduttore", catalog_field: "translators", extra_key: null }),
+      // Anche le colonne senza dati esistono: si possono mostrare dal menu Colonne.
+      expect.objectContaining({ key: "customcheckbox1", label: "Casella 1" }),
+    ]),
+  );
+  expect(await extraOf("Marcovaldo")).toMatchObject({ placePublished: "Inghilterra" });
 
   // Lo stesso file una seconda volta: niente doppioni, i libri risultano invariati.
   await page.reload();

@@ -57,6 +57,11 @@ update public.books set rating = 5;
 insert into public.collections (name) values ('Romanzi');
 insert into public.collection_books (collection_id, book_id) select c.id, b.id from public.collections c, public.books b;
 insert into public.loans (book_id, borrower) select id, 'Marta' from public.books;
+insert into public.custom_columns (key, label, extra_key) values ('placepublished', 'Luogo di pubblicazione', 'placePublished');
+select pg_temp.expect(public.set_book_field((select id from public.books), 'placePublished', ' Italia '), 'il bibliotecario compila una colonna');
+select pg_temp.expect((select extra ->> 'placePublished' from public.books) = 'Italia', 'il valore finisce in extra, ripulito');
+select pg_temp.expect(pg_temp.fails($$insert into public.custom_columns (key, label, extra_key) values ('Non Valida', 'x', 'x')$$), 'la chiave della colonna è normalizzata');
+select pg_temp.expect(pg_temp.fails($$insert into public.custom_columns (key, label) values ('senzafonte', 'x')$$), 'una colonna legge da extra o dal catalogo');
 select pg_temp.expect(pg_temp.fails($$update public.members set role = 'admin' where email = 'lib@example.com'$$)
   or not exists (select 1 from public.members where role = 'admin' and email = 'lib@example.com'), 'il bibliotecario non si promuove');
 select pg_temp.expect((select count(*) from public.members) = 1, 'il bibliotecario vede solo sé stesso tra i membri');
@@ -77,6 +82,12 @@ select pg_temp.expect(pg_temp.fails($$update public.instance_settings set open_s
 update public.instance_settings set language = 'en';
 select pg_temp.expect((select language from public.instance_settings) = 'it', 'il lettore non cambia la lingua');
 select pg_temp.expect(pg_temp.fails($$insert into storage.objects (bucket_id, name) values ('covers', 'a.jpg')$$), 'il lettore non carica copertine');
+select pg_temp.expect((select count(*) from public.custom_columns) = 1, 'il lettore vede le colonne personalizzate');
+select pg_temp.expect(pg_temp.fails($$insert into public.custom_columns (key, label, extra_key) values ('premi', 'Premi', 'awards')$$), 'il lettore non crea colonne');
+delete from public.custom_columns;
+select pg_temp.expect((select count(*) from public.custom_columns) = 1, 'il lettore non elimina colonne');
+select pg_temp.expect(not public.set_book_field((select id from public.books), 'placePublished', 'Francia'), 'il lettore non compila colonne');
+select pg_temp.expect((select extra ->> 'placePublished' from public.books) = 'Italia', 'il valore resta quello del bibliotecario');
 
 -- Admin
 select pg_temp.as_user('admin@example.com');

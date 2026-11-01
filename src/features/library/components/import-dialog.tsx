@@ -5,12 +5,15 @@ import { AlertTriangle, CheckCircle2, FileArchive, FolderOpen, LoaderCircle, Upl
 import { useEffect, useRef, useState, type DragEvent, type ReactNode } from "react";
 import type { PruneReport } from "@/server/core/books/import";
 import { filesFromDrop, filesFromInput, isLooseXml, readBundle, type Bundle, type BundleFile } from "../../import/bundle";
+import { pediaColumns, pediaFieldValues, type PediaColumnPlan } from "../../import/columns";
 import { matchCovers, type CoverMatch } from "../../import/covers";
 import { countReplaced, saveImport, type ImportMode, type SaveOutcome, type SaveProgress } from "../../import/save";
 import { toLibraryBook } from "../../import/to-library";
 import { parsePediaXml } from "../../import/xml";
 import { useT } from "../../i18n/i18n-context";
 import type { Messages } from "../../i18n/messages";
+import type { CustomColumn } from "../model";
+import { saveColumns } from "../columns-api";
 import { useLibrary } from "./library-context";
 
 type Preview = {
@@ -19,6 +22,7 @@ type Preview = {
   readonly books: readonly PediaBook[];
   readonly errors: readonly PediaRecordError[];
   readonly covers: CoverMatch;
+  readonly columns: PediaColumnPlan;
 };
 
 type Stage =
@@ -31,7 +35,11 @@ type Stage =
 const pick: Stage = { kind: "pick", problem: null };
 
 /** Dal bundle all'anteprima: niente viene ancora salvato. */
-const buildPreview = async (files: readonly BundleFile[], t: Messages): Promise<Preview | string> => {
+const buildPreview = async (
+  files: readonly BundleFile[],
+  existing: readonly CustomColumn[],
+  t: Messages,
+): Promise<Preview | string> => {
   if (isLooseXml(files)) return t.importer.xmlAlone;
   const bundle = await readBundle(files);
   if (!bundle.xml) return t.importer.noXml;
@@ -39,7 +47,14 @@ const buildPreview = async (files: readonly BundleFile[], t: Messages): Promise<
   if (parsed.isErr()) return t.importer.unreadable(bundle.xml.path, parsed.error);
   if (parsed.value.records.length === 0) return t.importer.noRecords(bundle.xml.path);
   const { books, errors } = mapPediaRecords(parsed.value.records);
-  return { bundle, format: parsed.value.format, books, errors, covers: matchCovers(books, bundle.images) };
+  return {
+    bundle,
+    format: parsed.value.format,
+    books,
+    errors,
+    covers: matchCovers(books, bundle.images),
+    columns: pediaColumns(books.map((book) => book.record), existing, t),
+  };
 };
 
 // Il bundle si chiama spesso "Libreria", come la collezione principale: il prefisso evita confusione.
@@ -73,13 +88,14 @@ function Problems({ summary, items }: { summary: string; items: readonly { title
 }
 
 function PreviewSummary({ preview }: { preview: Preview }) {
-  const { books, errors, covers, bundle } = preview;
+  const { books, errors, covers, bundle, columns } = preview;
   const t = useT();
   return (
     <div className="flex flex-col gap-2">
       <Notice tone="ok">
         {t.importer.ready(books.length, bundle.name)}
       </Notice>
+      <Notice tone="ok">{t.importer.columnsFound(columns.visible.length, columns.added.length)}</Notice>
       {covers.method === "none" ? (
         bundle.images.length > 0 && (
           <Notice tone="warn">
@@ -280,7 +296,7 @@ export function ImportDialog() {
   const load = (files: Promise<readonly BundleFile[]>) => {
     setStage({ kind: "reading" });
     files
-      .then((list) => buildPreview(list, t))
+      .then((list) => buildPreview(list, state.library.customColumns, t))
       .then((result) =>
         setStage(typeof result === "string" ? { kind: "pick", problem: result } : { kind: "preview", preview: result }),
       )
@@ -302,11 +318,16 @@ export function ImportDialog() {
       type: "importBooks",
       collectionName: collectionName(preview),
       replace: mode === "replace",
+      // Tutte le colonne del file entrano nella tabella; quelle che mancano si creano.
+      columns: { custom: preview.columns.custom, visible: preview.columns.visible },
       books: preview.books.map((book) => {
         const cover = preview.covers.bySourceId.get(book.sourceId);
-        return toLibraryBook(book, cover ? URL.createObjectURL(cover.blob) : null, addedAt);
+        const fields = pediaFieldValues(book.record, preview.columns);
+        return toLibraryBook(book, cover ? URL.createObjectURL(cover.blob) : null, addedAt, fields);
       }),
     });
+    // Le colonne nuove si salvano per tutta la biblioteca; senza server restano nel browser.
+    void saveColumns(preview.columns.added);
     setStage({ kind: "saving", preview, progress: null });
     saveImport({
       books: preview.books,

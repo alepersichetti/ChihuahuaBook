@@ -2,6 +2,7 @@ import type {
   Book,
   Collection,
   ColumnFilters,
+  ColumnId,
   ColumnKey,
   Library,
   SearchField,
@@ -10,6 +11,7 @@ import type {
   SortKey,
   ValueFilter,
 } from "./model";
+import { customKeyOf, isIsoDate, numericValue } from "./columns";
 
 // Testo -----------------------------------------------------------------------
 
@@ -233,23 +235,44 @@ const matchesNumber = (filter: NumberFilter, actual: number) => {
 // Il voto si sceglie da un menu: "3" = almeno tre stelle, "none" = senza voto.
 export const unratedFilter = "none";
 
-const columnText = (book: Book, column: ColumnKey): readonly string[] => {
+// Le date si cercano come si leggono: 2024-03-12 oppure 12/03/2024.
+const dateTexts = (iso: string) => {
+  const [year = "", month = "", day = ""] = iso.slice(0, 10).split("-");
+  return [iso.slice(0, 10), `${day}/${month}/${year}`];
+};
+
+const customText = (book: Book, key: string): readonly string[] => {
+  const value = book.fields[key];
+  if (!value) return [];
+  return isIsoDate(value) ? dateTexts(value) : [value];
+};
+
+const columnText = (book: Book, column: ColumnId): readonly string[] => {
+  const key = customKeyOf(column);
+  return key !== null ? customText(book, key) : fixedText(book, column as ColumnKey);
+};
+
+const fixedText = (book: Book, column: ColumnKey): readonly string[] => {
   switch (column) {
     case "title":
       return [book.title, book.subtitle ?? ""];
     case "authors":
     case "genres":
+    case "tags":
       return book[column];
     case "series":
       return book.series ? [book.series, book.seriesNumber?.toString() ?? ""] : [];
+    case "subtitle":
     case "publisher":
+    case "format":
+    case "language":
+    case "isbn13":
     case "location":
+    case "summary":
+    case "notes":
       return book[column] ? [book[column]] : [];
-    case "addedAt": {
-      // La data si cerca come si legge: 2024-03-12 oppure 12/03/2024.
-      const [year = "", month = "", day = ""] = book.addedAt.slice(0, 10).split("-");
-      return [book.addedAt.slice(0, 10), `${day}/${month}/${year}`];
-    }
+    case "addedAt":
+      return dateTexts(book.addedAt);
     case "readStatus":
       return [book.readStatus];
     case "publishedYear":
@@ -259,8 +282,19 @@ const columnText = (book: Book, column: ColumnKey): readonly string[] => {
   }
 };
 
-const columnMatcher = (column: ColumnKey, text: string): ((book: Book) => boolean) | null => {
+const columnMatcher = (column: ColumnId, text: string): ((book: Book) => boolean) | null => {
   if (text.trim() === "") return null;
+  const key = customKeyOf(column);
+  // Nelle colonne personalizzate ">10" vale per i valori numerici; il resto si cerca come testo.
+  const numberFilter = key !== null ? parseNumberFilter(text) : null;
+  if (key !== null && numberFilter) {
+    return (book) => {
+      const number = numericValue(book.fields[key] ?? "");
+      return number !== null
+        ? matchesNumber(numberFilter, number)
+        : normalize(book.fields[key] ?? "").includes(normalize(text));
+    };
+  }
   switch (column) {
     case "rating":
       return text === unratedFilter
@@ -283,7 +317,7 @@ const columnMatcher = (column: ColumnKey, text: string): ((book: Book) => boolea
 };
 
 /** Vale solo per le colonne visibili: un filtro su una colonna nascosta non si vedrebbe. */
-export const matchesColumnFilters = (filters: ColumnFilters, columns: readonly ColumnKey[]) => {
+export const matchesColumnFilters = (filters: ColumnFilters, columns: readonly ColumnId[]) => {
   const matchers = columns.flatMap((column) => {
     const matcher = columnMatcher(column, filters[column] ?? "");
     return matcher ? [matcher] : [];
@@ -291,14 +325,26 @@ export const matchesColumnFilters = (filters: ColumnFilters, columns: readonly C
   return (book: Book) => matchers.every((matcher) => matcher(book));
 };
 
-export const hasColumnFilters = (filters: ColumnFilters, columns: readonly ColumnKey[]) =>
+export const hasColumnFilters = (filters: ColumnFilters, columns: readonly ColumnId[]) =>
   columns.some((column) => (filters[column] ?? "").trim() !== "");
 
 // Ordinamento -----------------------------------------------------------------
 
 type Comparable = string | number | null;
 
-const sortValue = (book: Book, column: ColumnKey): Comparable => {
+// Numeri come numeri, date ISO in ordine di calendario, il resto in ordine alfabetico.
+const customSortValue = (book: Book, key: string): Comparable => {
+  const value = book.fields[key]?.trim();
+  if (!value) return null;
+  return numericValue(value) ?? (isIsoDate(value) ? value : normalize(value));
+};
+
+const sortValue = (book: Book, column: ColumnId): Comparable => {
+  const key = customKeyOf(column);
+  return key !== null ? customSortValue(book, key) : fixedSortValue(book, column as ColumnKey);
+};
+
+const fixedSortValue = (book: Book, column: ColumnKey): Comparable => {
   switch (column) {
     case "title":
       return titleSortKey(book);
@@ -306,9 +352,17 @@ const sortValue = (book: Book, column: ColumnKey): Comparable => {
       return book.authors[0] ? surnameKey(book.authors[0]) : null;
     case "genres":
       return book.genres[0] ? normalize(book.genres[0]) : null;
+    case "tags":
+      return book.tags[0] ? normalize(book.tags[0]) : null;
+    case "subtitle":
     case "publisher":
     case "series":
+    case "format":
+    case "language":
+    case "isbn13":
     case "location":
+    case "summary":
+    case "notes":
       return book[column] ? normalize(book[column]) : null;
     case "readStatus":
       return ["reading", "unread", "read", "abandoned"].indexOf(book.readStatus);
@@ -350,7 +404,7 @@ export const compareBooks = (keys: readonly SortKey[]) => (a: Book, b: Book) =>
 export const maxSortKeys = 6;
 
 // Clic su un'intestazione: diventa il criterio principale; un secondo clic inverte la direzione.
-export const toggleSort = (keys: readonly SortKey[], column: ColumnKey): readonly SortKey[] => {
+export const toggleSort = (keys: readonly SortKey[], column: ColumnId): readonly SortKey[] => {
   const [first] = keys;
   if (first?.column === column) {
     return [{ column, direction: first.direction === "asc" ? "desc" : "asc" }, ...keys.slice(1)];
@@ -373,7 +427,7 @@ export const visibleBooks = (
     readonly valueFilter: ValueFilter | null;
     readonly sort: readonly SortKey[];
     /** I filtri della tabella, con le colonne a cui si applicano. */
-    readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnKey[] };
+    readonly columnFilters?: { readonly filters: ColumnFilters; readonly columns: readonly ColumnId[] };
   },
 ) =>
   booksInCollection(library, collection)

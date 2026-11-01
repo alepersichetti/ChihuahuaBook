@@ -18,6 +18,8 @@ export type PediaBook = {
   readonly extra: Readonly<Record<string, string | readonly string[]>>;
   /** Nomi con cui cercare la copertina nella cartella del bundle, in ordine di affidabilità. */
   readonly coverHints: readonly string[];
+  /** La scheda così com'era nel file: serve a mostrare tutte le sue colonne. */
+  readonly record: PediaRecord;
 };
 
 export type PediaRecordError = {
@@ -98,12 +100,16 @@ const aliases = {
 } as const satisfies Record<string, readonly string[]>;
 
 type Field = keyof typeof aliases;
+export type PediaField = Field;
 
 const aliasOfKey: ReadonlyMap<string, { field: Field; rank: number }> = new Map(
   (Object.entries(aliases) as [Field, readonly string[]][]).flatMap(
     ([field, keys]) => keys.map((key, rank) => [key, { field, rank }] as const),
   ),
 );
+
+/** Il campo del catalogo a cui corrisponde un nome di campo del file, se c'è. */
+export const pediaFieldOf = (key: string): PediaField | undefined => aliasOfKey.get(normalizeKey(key))?.field;
 
 /** Raccoglie i valori della scheda per campo del catalogo; il resto finisce in `extra`. */
 const groupFields = (record: PediaRecord) => {
@@ -359,6 +365,7 @@ export const mapPediaRecord = (
       book: withDerivedIsbn(book),
       extra: leftovers,
       coverHints: [...new Set(coverHints)],
+      record,
     }))
     .mapErr((issues) => ({ index, title: draft.title || null, issues }));
 };

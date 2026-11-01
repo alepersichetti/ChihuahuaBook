@@ -89,6 +89,18 @@ type LoanRow = {
   updated_at: string;
 };
 
+type CustomColumnRow = {
+  key: string;
+  label: string;
+  kind: "text" | "number" | "date";
+  catalog_field: string | null;
+  extra_key: string | null;
+  position: number;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 type AppRole = "reader" | "librarian" | "admin";
 
 type MemberRow = {
@@ -169,6 +181,12 @@ export type Database = {
           },
         ];
       };
+      custom_columns: {
+        Row: CustomColumnRow;
+        Insert: Partial<CustomColumnRow> & { key: string; label: string };
+        Update: Partial<Pick<CustomColumnRow, "label" | "kind" | "position">>;
+        Relationships: [];
+      };
       members: {
         Row: MemberRow;
         Insert: Partial<MemberRow> & { user_id: string; email: string };
@@ -193,6 +211,10 @@ export type Database = {
     Views: { [_ in never]: never };
     Functions: {
       immutable_unaccent: { Args: { value: string }; Returns: string };
+      set_book_field: {
+        Args: { book_id: string; field_key: string; field_value: string | null };
+        Returns: boolean;
+      };
       member_role: { Args: Record<string, never>; Returns: AppRole | null };
       has_role: { Args: { required: AppRole }; Returns: boolean };
       instance_language: { Args: Record<string, never>; Returns: "it" | "en" };

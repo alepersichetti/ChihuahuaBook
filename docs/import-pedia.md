@@ -38,6 +38,7 @@ Parsing is still lenient, so other layouts work too:
 - both an Apple plist and an "element-based" XML (`<collection><item><title>…`) work, including field names given in an attribute (`<field name="Title">`);
 - field names are matched ignoring case, spaces and punctuation (`Release Date`, `releaseDate`, `release_date`); the list is in `src/server/core/books/pedia.ts`;
 - fields the catalogue doesn't have go into the book's `extra` column, so nothing is lost;
+- every field in the file becomes a table column: missing ones are created as [custom columns](custom-columns.md) and the ones with at least one value are shown;
 - records without a title are skipped and shown in the preview.
 
 Covers are matched by file name (record id, ISBN or title). If no name matches but the images are numbered (`1.jpg`, `2.jpg`…), they are matched in record order and the preview says so. TIFF, GIF or oversized images are converted to JPEG in the browser, if the browser can read them.
