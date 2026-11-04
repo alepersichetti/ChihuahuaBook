@@ -131,7 +131,9 @@ function TabBar() {
       {tab(t.mobile.loans, <HandHelping size={22} aria-hidden="true" />, state.mobileScreen === "list" && state.collectionId === "loaned", () =>
         dispatch({ type: "selectCollection", collectionId: "loaned" }),
       )}
-      {tab(t.library.statistics, <ChartColumn size={22} aria-hidden="true" />, false)}
+      {tab(t.library.statistics, <ChartColumn size={22} aria-hidden="true" />, state.statsOpen, () =>
+        dispatch({ type: "setStatsOpen", open: true }),
+      )}
       {canOpen && tab(t.settings.title, <Settings size={22} aria-hidden="true" />, false, openPanel)}
     </nav>
   );

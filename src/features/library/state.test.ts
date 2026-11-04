@@ -35,6 +35,24 @@ describe("libraryReducer", () => {
     expect(currentView(back)).toBe("grid");
   });
 
+  it("dalle statistiche porta alla Libreria filtrata e chiude il pannello", () => {
+    const state = run(
+      { type: "selectCollection", collectionId: "loaned" },
+      { type: "setQuery", query: "dune" },
+      { type: "setStatsOpen", open: true },
+      { type: "showInLibrary", filter: { field: "authors", value: "Italo Calvino" } },
+    );
+    expect(state.statsOpen).toBe(false);
+    expect(state.collectionId).toBe("library");
+    expect(state.query).toBe("");
+    expect(state.valueFilter).toEqual({ field: "authors", value: "Italo Calvino" });
+  });
+
+  it("anche il lettore apre le statistiche: non cambiano il catalogo", () => {
+    const state = reducerFor(false)(initialState(sampleLibrary), { type: "setStatsOpen", open: true });
+    expect(state.statsOpen).toBe(true);
+  });
+
   it("non permette di togliere la colonna del titolo", () => {
     const state = run({ type: "toggleColumn", column: "title" });
     expect(currentColumns(state)).toContain("title");

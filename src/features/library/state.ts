@@ -40,6 +40,7 @@ export type LibraryState = {
   readonly addOpen: boolean;
   // Ricerca dentro una collezione per aggiungerci libri.
   readonly collectionSearchOpen: boolean;
+  readonly statsOpen: boolean;
 };
 
 export type LibraryAction =
@@ -102,6 +103,9 @@ export type LibraryAction =
       readonly beforeId: string | null;
     }
   | { readonly type: "setCollectionSearchOpen"; readonly open: boolean }
+  | { readonly type: "setStatsOpen"; readonly open: boolean }
+  /** Dalle statistiche alla Libreria, con solo i libri di quel valore (es. un autore). */
+  | { readonly type: "showInLibrary"; readonly filter: ValueFilter }
   /** La biblioteca riletta dal server (es. dopo un import): la vista resta dov'era. */
   | { readonly type: "loadLibrary"; readonly library: Library }
   /** Trama e note di un libro, arrivate quando se ne apre la scheda. */
@@ -150,6 +154,7 @@ export const initialState = (library: Library): LibraryState => ({
   importOpen: false,
   addOpen: false,
   collectionSearchOpen: false,
+  statsOpen: false,
 });
 
 // Selettori -------------------------------------------------------------------
@@ -435,6 +440,13 @@ export const libraryReducer = (state: LibraryState, action: LibraryAction): Libr
             library: { ...state.library, collections },
             collapsedFolders: state.collapsedFolders.filter((id) => id !== action.parentId),
           };
+    }
+    case "setStatsOpen":
+      return { ...state, statsOpen: action.open };
+    case "showInLibrary": {
+      const library = state.library.collections.find((item) => item.kind === "library");
+      const selected = library ? libraryReducer(state, { type: "selectCollection", collectionId: library.id }) : state;
+      return { ...selected, valueFilter: action.filter, query: "", columnFilters: {}, statsOpen: false };
     }
     case "setCollectionSearchOpen":
       return { ...state, collectionSearchOpen: action.open };

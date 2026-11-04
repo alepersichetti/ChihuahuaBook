@@ -12,6 +12,7 @@ import { LibraryProvider, useLibrary } from "./library-context";
 import { LoanDialog } from "./loan-dialog";
 import { useMedia } from "./media";
 import { MobileShell } from "./mobile";
+import { StatisticsDialog } from "./statistics-dialog";
 import { TouchDragProvider } from "./touch-drag";
 
 function Screens() {
@@ -39,6 +40,7 @@ function Screens() {
           <AddBookDialog />
         </>
       )}
+      <StatisticsDialog />
       <SettingsDialog />
     </div>
   );
